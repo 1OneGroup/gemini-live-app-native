@@ -1,0 +1,36 @@
+services:
+  gemini-live-bridge:
+    build: .
+    container_name: gemini-live-bridge
+    restart: unless-stopped
+    ports:
+      - "8100:8100"
+    volumes:
+      - call-data:/data/calls
+      - prompt-data:/data
+    environment:
+      - PORT=8100
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-models/gemini-3.1-flash-live-preview}
+      - PLIVO_AUTH_ID=${PLIVO_AUTH_ID}
+      - PLIVO_AUTH_TOKEN=${PLIVO_AUTH_TOKEN}
+      - PLIVO_FROM_NUMBER=${PLIVO_FROM_NUMBER}
+      - PUBLIC_URL=${PUBLIC_URL}
+      - EVOLUTION_API_URL=${EVOLUTION_API_URL:-http://evolution-api-fgxi-api-1:8080}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-main-whatsapp}
+    networks:
+      - paperclip-services
+      - shared-proxy
+
+volumes:
+  call-data:
+    external: true
+  prompt-data:
+    external: true
+
+networks:
+  paperclip-services:
+    external: true
+  shared-proxy:
+    external: true
