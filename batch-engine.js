@@ -8,6 +8,7 @@ const MAX_CONSECUTIVE_FAILURES = 3;
 const GEMINI_TEXT_MODEL = 'gemini-2.5-flash';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const WEBHOOK_URL = process.env.WEBHOOK_URL;
+const CLASSIFIER_DASHBOARD_URL = process.env.CLASSIFIER_DASHBOARD_URL;
 
 async function sendWebhook(callUuid, callData, classification) {
   if (!WEBHOOK_URL) return;
@@ -32,6 +33,33 @@ async function sendWebhook(callUuid, callData, classification) {
     console.log(`[Webhook] Sent classification for ${callUuid} → ${classification.outcome}`);
   } catch (err) {
     console.error(`[Webhook] Failed to send for ${callUuid}:`, err.message);
+  }
+}
+
+// Send completed call data to the lead classifier dashboard
+async function sendToDashboard(callData, classification) {
+  if (!CLASSIFIER_DASHBOARD_URL) return;
+  try {
+    const transcriptText = (callData.transcript || [])
+      .filter(t => t.role !== 'system')
+      .map(t => `${t.role === 'agent' ? 'Agent' : 'Lead'}: ${t.text}`)
+      .join('\n');
+
+    await fetch(CLASSIFIER_DASHBOARD_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: callData.to,
+        transcript: transcriptText,
+        recordingUrl: callData.recordingUrl || null,
+        callDuration: callData.duration || null,
+        callDate: callData.startedAt || new Date().toISOString(),
+        direction: 'outbound',
+      }),
+    });
+    console.log(`[Dashboard] Lead sent: ${callData.to} → ${classification?.outcome}`);
+  } catch (err) {
+    console.error(`[Dashboard] Failed to send lead ${callData.to}:`, err.message);
   }
 }
 
@@ -217,6 +245,7 @@ async function waitForCallCompletion(callUuid, timeoutMs) {
           callback_date: classification.callback_date,
         });
         await sendWebhook(callUuid, call, classification);
+        await sendToDashboard(call, classification);
         return classification.outcome || 'no_answer';
       } catch (err) {
         console.error(`[BatchEngine] AI classification failed for ${callUuid}:`, err.message);

@@ -17,6 +17,7 @@ const PLIVO_AUTH_ID = process.env.PLIVO_AUTH_ID;
 const PLIVO_AUTH_TOKEN = process.env.PLIVO_AUTH_TOKEN;
 const PLIVO_FROM_NUMBER = process.env.PLIVO_FROM_NUMBER;
 const PUBLIC_URL = process.env.PUBLIC_URL;
+const CLASSIFIER_DASHBOARD_URL = process.env.CLASSIFIER_DASHBOARD_URL;
 const GEMINI_MODEL_DEFAULT = process.env.GEMINI_MODEL || 'models/gemini-3.1-flash-live-preview';
 // Pricing source: https://ai.google.dev/gemini-api/docs/pricing
 const GEMINI_MODELS = {
@@ -919,6 +920,9 @@ const server = http.createServer(async (req, res) => {
               callback_date: classification.callback_date,
             });
             console.log(`[Outcome] ${callUuid}: ${classification.outcome} (${classification.lead_temperature}, confidence: ${classification.confidence})`);
+
+            // Send to lead classifier dashboard
+            await sendToDashboard(callData, classification);
 
             // Update DB contact if exists
             try {
@@ -1898,6 +1902,34 @@ function handleVoicemailDetected(callUuid) {
   // Hang up via Plivo
   hangupCall(callUuid);
   console.log(`[AMD] Voicemail detected on ${callUuid} — hanging up`);
+}
+
+// Send completed call data to the lead classifier dashboard
+async function sendToDashboard(callData, classification) {
+  if (!CLASSIFIER_DASHBOARD_URL) return;
+  try {
+    // Format transcript array [{role, text, timestamp}] into readable string
+    const transcriptText = (callData.transcript || [])
+      .filter(t => t.role !== 'system')
+      .map(t => `${t.role === 'agent' ? 'Agent' : 'Lead'}: ${t.text}`)
+      .join('\n');
+
+    await fetch(CLASSIFIER_DASHBOARD_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: callData.to,
+        transcript: transcriptText,
+        recordingUrl: callData.recordingUrl || null,
+        callDuration: callData.duration || null,
+        callDate: callData.startedAt || new Date().toISOString(),
+        direction: 'outbound',
+      }),
+    });
+    console.log(`[Dashboard] Lead sent: ${callData.to} → ${classification?.outcome}`);
+  } catch (err) {
+    console.error(`[Dashboard] Failed to send lead ${callData.to}:`, err.message);
+  }
 }
 
 async function hangupCall(callUuid) {
