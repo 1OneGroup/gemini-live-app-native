@@ -7,6 +7,33 @@ const CALL_COOLDOWN_MS = 5000;  // 5s between calls
 const MAX_CONSECUTIVE_FAILURES = 3;
 const GEMINI_TEXT_MODEL = 'gemini-2.5-flash';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const WEBHOOK_URL = process.env.WEBHOOK_URL;
+
+async function sendWebhook(callUuid, callData, classification) {
+  if (!WEBHOOK_URL) return;
+  try {
+    await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        callUuid,
+        phone: callData.to,
+        customerName: callData.customerName,
+        outcome: classification.outcome,
+        lead_temperature: classification.lead_temperature,
+        follow_up_action: classification.follow_up_action,
+        conversation_summary: classification.conversation_summary,
+        classification_confidence: classification.confidence,
+        callback_date: classification.callback_date,
+        duration: callData.duration,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+    console.log(`[Webhook] Sent classification for ${callUuid} → ${classification.outcome}`);
+  } catch (err) {
+    console.error(`[Webhook] Failed to send for ${callUuid}:`, err.message);
+  }
+}
 
 // Active campaign runners: campaignId -> { running, abortController }
 const activeRunners = new Map();
@@ -189,6 +216,7 @@ async function waitForCallCompletion(callUuid, timeoutMs) {
           classification_confidence: classification.confidence,
           callback_date: classification.callback_date,
         });
+        await sendWebhook(callUuid, call, classification);
         return classification.outcome || 'no_answer';
       } catch (err) {
         console.error(`[BatchEngine] AI classification failed for ${callUuid}:`, err.message);
