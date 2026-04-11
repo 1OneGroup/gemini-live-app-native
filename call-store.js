@@ -254,7 +254,7 @@ function listCalls() {
       duration: call.duration,
       hangupCause: call.hangupCause,
       geminiTurns: call.geminiTurns,
-      transcriptLines: call.transcript.length,
+      transcriptLines: (call.transcript || []).length,
       hasRecording: !!call.recordingUrl,
       tokens: call.tokens || { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
       outcome: call.outcome || null,

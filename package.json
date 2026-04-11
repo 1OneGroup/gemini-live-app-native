@@ -13,6 +13,7 @@
   "dependencies": {
     "better-sqlite3": "^11.8.1",
     "plivo": "^4.75.8",
+    "sql.js": "^1.14.1",
     "ws": "^8.20.0"
   }
 }
