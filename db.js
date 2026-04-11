@@ -1,457 +1,346 @@
-// SQLite database layer for campaigns, contacts, and batch analyses
-const Database = require('better-sqlite3');
-const path = require('path');
+// In-memory SQLite replacement (no native compilation needed)
 const crypto = require('crypto');
-
-const DB_PATH = path.join(process.env.DATA_DIR || '/data', 'campaigns.db');
-const db = new Database(DB_PATH);
-
-// Enable WAL mode for better concurrent read performance
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
-
-// --- Schema ---
-db.exec(`
-  CREATE TABLE IF NOT EXISTS campaigns (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    status TEXT DEFAULT 'draft',
-    prompt_override TEXT,
-    batch_size INTEGER DEFAULT 100,
-    max_concurrent INTEGER DEFAULT 1,
-    total_contacts INTEGER DEFAULT 0,
-    completed_contacts INTEGER DEFAULT 0,
-    current_batch INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS contacts (
-    id TEXT PRIMARY KEY,
-    campaign_id TEXT NOT NULL REFERENCES campaigns(id),
-    phone TEXT NOT NULL,
-    name TEXT,
-    metadata TEXT,
-    batch_number INTEGER,
-    status TEXT DEFAULT 'pending',
-    call_uuid TEXT,
-    outcome TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_contacts_campaign ON contacts(campaign_id);
-  CREATE INDEX IF NOT EXISTS idx_contacts_batch ON contacts(campaign_id, batch_number);
-  CREATE INDEX IF NOT EXISTS idx_contacts_status ON contacts(campaign_id, status);
-
-  CREATE TABLE IF NOT EXISTS batch_analyses (
-    id TEXT PRIMARY KEY,
-    campaign_id TEXT NOT NULL REFERENCES campaigns(id),
-    batch_number INTEGER NOT NULL,
-    summary TEXT,
-    recommendations TEXT,
-    prompt_adjustments TEXT,
-    stats TEXT,
-    approved INTEGER DEFAULT 0,
-    approved_at TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_batch_campaign ON batch_analyses(campaign_id, batch_number);
-
-  CREATE TABLE IF NOT EXISTS employee_instances (
-    id TEXT PRIMARY KEY,
-    employee_name TEXT NOT NULL UNIQUE,
-    instance_name TEXT NOT NULL,
-    phone TEXT,
-    status TEXT DEFAULT 'pending',
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS prompts (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    body TEXT NOT NULL,
-    is_active INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-  );
-`);
-
-// Migration: add employee_name to contacts if missing
-try {
-  db.exec('ALTER TABLE contacts ADD COLUMN employee_name TEXT');
-} catch (e) { /* column already exists */ }
-
-// Migration: add callback tracking columns
-try {
-  db.exec('ALTER TABLE contacts ADD COLUMN callback_date TEXT');
-} catch (e) { /* column already exists */ }
-try {
-  db.exec('ALTER TABLE contacts ADD COLUMN callback_note TEXT');
-} catch (e) { /* column already exists */ }
-
-// Migration: add whatsapp_message_key to campaigns
-try {
-  db.exec('ALTER TABLE campaigns ADD COLUMN whatsapp_message_key TEXT');
-} catch (e) { /* column already exists */ }
-
-// Migration: add auto_callback flag to campaigns
-try {
-  db.exec('ALTER TABLE campaigns ADD COLUMN auto_callback INTEGER DEFAULT 0');
-} catch (e) { /* column already exists */ }
-
-// Migration: add prompt_id to batch_analyses for per-batch prompt tracking
-try {
-  db.exec('ALTER TABLE batch_analyses ADD COLUMN prompt_id TEXT');
-} catch (e) { /* column already exists */ }
-
-// Migration: add AI classification fields to contacts
-try {
-  db.exec('ALTER TABLE contacts ADD COLUMN lead_temperature TEXT');
-} catch (e) { /* column already exists */ }
-try {
-  db.exec('ALTER TABLE contacts ADD COLUMN follow_up_action TEXT');
-} catch (e) { /* column already exists */ }
-try {
-  db.exec('ALTER TABLE contacts ADD COLUMN conversation_summary TEXT');
-} catch (e) { /* column already exists */ }
-try {
-  db.exec('ALTER TABLE contacts ADD COLUMN whatsapp_followup_sent INTEGER DEFAULT 0');
-} catch (e) { /* column already exists */ }
-try {
-  db.exec('ALTER TABLE contacts ADD COLUMN classification_confidence REAL');
-} catch (e) { /* column already exists */ }
+const fs = require('fs');
+const path = require('path');
 
 function uid() { return crypto.randomUUID(); }
+function now() { return new Date().toISOString().replace('T', ' ').slice(0, 19); }
+
+// Persistence setup
+const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(__dirname, 'data');
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+const DB_FILE = path.join(DATA_DIR, 'db.json');
+
+function loadData() {
+  try {
+    if (fs.existsSync(DB_FILE)) {
+      const raw = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+      return raw;
+    }
+  } catch (e) { console.error('[DB] Failed to load db.json:', e.message); }
+  return {};
+}
+
+let _saveTimer = null;
+function scheduleSave() {
+  if (_saveTimer) return;
+  _saveTimer = setTimeout(() => {
+    _saveTimer = null;
+    try {
+      const data = {
+        campaigns: [...campaigns.entries()],
+        contacts: [...contacts.entries()],
+        batchAnalyses: [...batchAnalyses.entries()],
+        employeeInstances: [...employeeInstances.entries()],
+        prompts: [...prompts.entries()],
+        websiteLeadsArr: [...websiteLeads.entries()],
+        websiteSettingsObj: websiteSettings,
+        waIncomingMessagesArr: waIncomingMessages,
+      };
+      fs.writeFileSync(DB_FILE, JSON.stringify(data), 'utf8');
+    } catch (e) { console.error('[DB] Failed to save db.json:', e.message); }
+  }, 500);
+}
+
+// In-memory stores
+const campaigns = new Map();
+const contacts = new Map();
+const batchAnalyses = new Map();
+const employeeInstances = new Map();
+const prompts = new Map();
 
 // --- Campaigns ---
-const stmts = {
-  createCampaign: db.prepare(`
-    INSERT INTO campaigns (id, name, status, prompt_override, batch_size, max_concurrent, whatsapp_message_key)
-    VALUES (?, ?, 'draft', ?, ?, ?, ?)
-  `),
-  getCampaign: db.prepare('SELECT * FROM campaigns WHERE id = ?'),
-  listCampaigns: db.prepare('SELECT * FROM campaigns ORDER BY created_at DESC'),
-  updateCampaign: db.prepare(`
-    UPDATE campaigns SET name = COALESCE(?, name), status = COALESCE(?, status),
-    prompt_override = COALESCE(?, prompt_override), batch_size = COALESCE(?, batch_size),
-    max_concurrent = COALESCE(?, max_concurrent), total_contacts = COALESCE(?, total_contacts),
-    completed_contacts = COALESCE(?, completed_contacts), current_batch = COALESCE(?, current_batch),
-    updated_at = datetime('now') WHERE id = ?
-  `),
-  deleteCampaign: db.prepare('DELETE FROM campaigns WHERE id = ?'),
-
-  // Contacts
-  insertContact: db.prepare(`
-    INSERT INTO contacts (id, campaign_id, phone, name, metadata, batch_number, employee_name)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `),
-  getContactsByCampaign: db.prepare('SELECT * FROM contacts WHERE campaign_id = ? ORDER BY batch_number, rowid'),
-  getContactsByBatch: db.prepare('SELECT * FROM contacts WHERE campaign_id = ? AND batch_number = ? ORDER BY rowid'),
-  getContactStats: db.prepare(`
-    SELECT
-      COUNT(*) as total,
-      SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-      SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
-      SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-      SUM(CASE WHEN status = 'calling' THEN 1 ELSE 0 END) as calling,
-      SUM(CASE WHEN outcome LIKE '%interested%' AND outcome NOT LIKE '%not_interested%' THEN 1 ELSE 0 END) as interested,
-      SUM(CASE WHEN outcome LIKE '%not_interested%' THEN 1 ELSE 0 END) as not_interested,
-      SUM(CASE WHEN outcome LIKE '%callback%' THEN 1 ELSE 0 END) as callback,
-      SUM(CASE WHEN outcome LIKE '%no_answer%' THEN 1 ELSE 0 END) as no_answer,
-      SUM(CASE WHEN outcome LIKE '%busy%' THEN 1 ELSE 0 END) as busy,
-      SUM(CASE WHEN outcome LIKE '%brochure_sent%' THEN 1 ELSE 0 END) as brochure_sent,
-      SUM(CASE WHEN outcome LIKE '%voicemail%' THEN 1 ELSE 0 END) as voicemail
-    FROM contacts WHERE campaign_id = ?
-  `),
-  getBatchStats: db.prepare(`
-    SELECT
-      COUNT(*) as total,
-      SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-      SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
-      SUM(CASE WHEN outcome LIKE '%interested%' AND outcome NOT LIKE '%not_interested%' THEN 1 ELSE 0 END) as interested,
-      SUM(CASE WHEN outcome LIKE '%not_interested%' THEN 1 ELSE 0 END) as not_interested,
-      SUM(CASE WHEN outcome LIKE '%callback%' THEN 1 ELSE 0 END) as callback,
-      SUM(CASE WHEN outcome LIKE '%no_answer%' THEN 1 ELSE 0 END) as no_answer,
-      SUM(CASE WHEN outcome LIKE '%busy%' THEN 1 ELSE 0 END) as busy,
-      SUM(CASE WHEN outcome LIKE '%brochure_sent%' THEN 1 ELSE 0 END) as brochure_sent,
-      SUM(CASE WHEN outcome LIKE '%voicemail%' THEN 1 ELSE 0 END) as voicemail
-    FROM contacts WHERE campaign_id = ? AND batch_number = ?
-  `),
-  updateContact: db.prepare(`
-    UPDATE contacts SET status = COALESCE(?, status), call_uuid = COALESCE(?, call_uuid),
-    outcome = COALESCE(?, outcome), callback_date = COALESCE(?, callback_date),
-    callback_note = COALESCE(?, callback_note) WHERE id = ?
-  `),
-  getNextPendingContact: db.prepare(`
-    SELECT * FROM contacts WHERE campaign_id = ? AND batch_number = ? AND status = 'pending'
-    ORDER BY rowid LIMIT 1
-  `),
-  countBatches: db.prepare('SELECT MAX(batch_number) as max_batch FROM contacts WHERE campaign_id = ?'),
-  deleteContactsByCampaign: db.prepare('DELETE FROM contacts WHERE campaign_id = ?'),
-
-  // Batch analyses
-  createAnalysis: db.prepare(`
-    INSERT INTO batch_analyses (id, campaign_id, batch_number, summary, recommendations, prompt_adjustments, stats, prompt_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `),
-  getAnalysis: db.prepare('SELECT * FROM batch_analyses WHERE campaign_id = ? AND batch_number = ?'),
-  listAnalyses: db.prepare('SELECT * FROM batch_analyses WHERE campaign_id = ? ORDER BY batch_number'),
-  approveAnalysis: db.prepare(`
-    UPDATE batch_analyses SET approved = 1, approved_at = datetime('now')
-    WHERE campaign_id = ? AND batch_number = ?
-  `),
-  rejectAnalysis: db.prepare(`
-    UPDATE batch_analyses SET approved = 2, approved_at = datetime('now')
-    WHERE campaign_id = ? AND batch_number = ?
-  `),
-};
-
-// --- Public API ---
-
 function createCampaign({ name, promptOverride, batchSize = 100, maxConcurrent = 1, whatsappMessageKey = null }) {
   const id = uid();
-  stmts.createCampaign.run(id, name, promptOverride || null, batchSize, maxConcurrent, whatsappMessageKey || null);
-  return stmts.getCampaign.get(id);
+  const c = { id, name, status: 'draft', prompt_override: promptOverride || null, batch_size: batchSize, max_concurrent: maxConcurrent, total_contacts: 0, completed_contacts: 0, current_batch: 0, whatsapp_message_key: whatsappMessageKey || null, created_at: now(), updated_at: now() };
+  campaigns.set(id, c);
+  scheduleSave();
+  return { ...c };
 }
-
-function getCampaign(id) {
-  return stmts.getCampaign.get(id);
-}
-
-function listCampaigns() {
-  return stmts.listCampaigns.all();
-}
-
+function getCampaign(id) { return campaigns.has(id) ? { ...campaigns.get(id) } : null; }
+function listCampaigns() { return [...campaigns.values()].sort((a, b) => b.created_at.localeCompare(a.created_at)); }
 function updateCampaign(id, updates) {
-  stmts.updateCampaign.run(
-    updates.name || null, updates.status || null, updates.promptOverride || null,
-    updates.batchSize || null, updates.maxConcurrent || null,
-    updates.totalContacts ?? null, updates.completedContacts ?? null,
-    updates.currentBatch ?? null, id
-  );
-  return stmts.getCampaign.get(id);
+  const c = campaigns.get(id);
+  if (!c) return null;
+  if (updates.name != null) c.name = updates.name;
+  if (updates.status != null) c.status = updates.status;
+  if (updates.promptOverride != null) c.prompt_override = updates.promptOverride;
+  if (updates.batchSize != null) c.batch_size = updates.batchSize;
+  if (updates.maxConcurrent != null) c.max_concurrent = updates.maxConcurrent;
+  if (updates.totalContacts != null) c.total_contacts = updates.totalContacts;
+  if (updates.completedContacts != null) c.completed_contacts = updates.completedContacts;
+  if (updates.currentBatch != null) c.current_batch = updates.currentBatch;
+  c.updated_at = now();
+  scheduleSave();
+  return { ...c };
 }
-
 function deleteCampaign(id) {
-  db.prepare('DELETE FROM batch_analyses WHERE campaign_id = ?').run(id);
-  stmts.deleteContactsByCampaign.run(id);
-  stmts.deleteCampaign.run(id);
+  for (const [k, v] of contacts) { if (v.campaign_id === id) contacts.delete(k); }
+  for (const [k, v] of batchAnalyses) { if (v.campaign_id === id) batchAnalyses.delete(k); }
+  campaigns.delete(id);
+  scheduleSave();
 }
 
-// Bulk insert contacts from parsed CSV, auto-assign batch numbers
-const insertContacts = db.transaction((campaignId, contacts, batchSize) => {
+// --- Contacts ---
+function insertContacts(campaignId, contactsList, batchSize) {
   let batchNum = 1;
-  for (let i = 0; i < contacts.length; i++) {
+  for (let i = 0; i < contactsList.length; i++) {
     if (i > 0 && i % batchSize === 0) batchNum++;
-    const c = contacts[i];
-    stmts.insertContact.run(uid(), campaignId, c.phone, c.name || null, c.metadata ? JSON.stringify(c.metadata) : null, batchNum, c.employeeName || null);
+    const c = contactsList[i];
+    const id = uid();
+    contacts.set(id, { id, campaign_id: campaignId, phone: c.phone, name: c.name || null, metadata: c.metadata ? JSON.stringify(c.metadata) : null, batch_number: batchNum, employee_name: c.employeeName || null, status: 'pending', call_uuid: null, outcome: null, callback_date: null, callback_note: null, lead_temperature: null, follow_up_action: null, conversation_summary: null, whatsapp_followup_sent: 0, classification_confidence: null, created_at: now() });
   }
-  stmts.updateCampaign.run(null, null, null, null, null, contacts.length, null, null, campaignId);
-});
+  updateCampaign(campaignId, { totalContacts: contactsList.length });
+  scheduleSave();
+}
 
 function getContacts(campaignId, { batchNumber, status, outcome, limit = 100, offset = 0 } = {}) {
-  let query = 'SELECT * FROM contacts WHERE campaign_id = ?';
-  const params = [campaignId];
-  if (batchNumber) { query += ' AND batch_number = ?'; params.push(batchNumber); }
-  if (status) { query += ' AND status = ?'; params.push(status); }
-  if (outcome) { query += ' AND outcome = ?'; params.push(outcome); }
-  query += ' ORDER BY batch_number, rowid LIMIT ? OFFSET ?';
-  params.push(limit, offset);
-  return db.prepare(query).all(...params);
+  let list = [...contacts.values()].filter(c => c.campaign_id === campaignId);
+  if (batchNumber) list = list.filter(c => c.batch_number === batchNumber);
+  if (status) list = list.filter(c => c.status === status);
+  if (outcome) list = list.filter(c => c.outcome === outcome);
+  return list.slice(offset, offset + limit).map(c => ({ ...c }));
 }
 
 function getContactStats(campaignId) {
-  return stmts.getContactStats.get(campaignId);
+  const list = [...contacts.values()].filter(c => c.campaign_id === campaignId);
+  return {
+    total: list.length,
+    completed: list.filter(c => c.status === 'completed').length,
+    failed: list.filter(c => c.status === 'failed').length,
+    pending: list.filter(c => c.status === 'pending').length,
+    calling: list.filter(c => c.status === 'calling').length,
+    interested: list.filter(c => c.outcome && c.outcome.includes('interested') && !c.outcome.includes('not_interested')).length,
+    not_interested: list.filter(c => c.outcome && c.outcome.includes('not_interested')).length,
+    callback: list.filter(c => c.outcome && c.outcome.includes('callback')).length,
+    no_answer: list.filter(c => c.outcome && c.outcome.includes('no_answer')).length,
+    busy: list.filter(c => c.outcome && c.outcome.includes('busy')).length,
+    brochure_sent: list.filter(c => c.outcome && c.outcome.includes('brochure_sent')).length,
+    voicemail: list.filter(c => c.outcome && c.outcome.includes('voicemail')).length,
+  };
 }
 
 function getBatchStats(campaignId, batchNumber) {
-  return stmts.getBatchStats.get(campaignId, batchNumber);
+  const list = [...contacts.values()].filter(c => c.campaign_id === campaignId && c.batch_number === batchNumber);
+  return {
+    total: list.length,
+    completed: list.filter(c => c.status === 'completed').length,
+    failed: list.filter(c => c.status === 'failed').length,
+    interested: list.filter(c => c.outcome && c.outcome.includes('interested') && !c.outcome.includes('not_interested')).length,
+    not_interested: list.filter(c => c.outcome && c.outcome.includes('not_interested')).length,
+    callback: list.filter(c => c.outcome && c.outcome.includes('callback')).length,
+    no_answer: list.filter(c => c.outcome && c.outcome.includes('no_answer')).length,
+    busy: list.filter(c => c.outcome && c.outcome.includes('busy')).length,
+    brochure_sent: list.filter(c => c.outcome && c.outcome.includes('brochure_sent')).length,
+    voicemail: list.filter(c => c.outcome && c.outcome.includes('voicemail')).length,
+  };
 }
 
 function updateContact(id, { status, callUuid, outcome, callbackDate, callbackNote }) {
-  stmts.updateContact.run(status || null, callUuid || null, outcome || null, callbackDate || null, callbackNote || null, id);
+  const c = contacts.get(id);
+  if (!c) return;
+  if (status != null) c.status = status;
+  if (callUuid != null) c.call_uuid = callUuid;
+  if (outcome != null) c.outcome = outcome;
+  if (callbackDate != null) c.callback_date = callbackDate;
+  if (callbackNote != null) c.callback_note = callbackNote;
+  scheduleSave();
 }
 
 function updateContactClassification(id, classification) {
-  db.prepare(`
-    UPDATE contacts SET
-      outcome = ?, lead_temperature = ?, follow_up_action = ?,
-      conversation_summary = ?, classification_confidence = ?
-    WHERE id = ?
-  `).run(
-    classification.outcome || null,
-    classification.lead_temperature || null,
-    classification.follow_up_action || null,
-    classification.conversation_summary || null,
-    classification.confidence || null,
-    id
-  );
+  const c = contacts.get(id);
+  if (!c) return;
+  if (classification.outcome) c.outcome = classification.outcome;
+  if (classification.lead_temperature) c.lead_temperature = classification.lead_temperature;
+  if (classification.follow_up_action) c.follow_up_action = classification.follow_up_action;
+  if (classification.conversation_summary) c.conversation_summary = classification.conversation_summary;
+  if (classification.confidence) c.classification_confidence = classification.confidence;
+  scheduleSave();
 }
 
 function markWhatsappFollowupSent(id) {
-  db.prepare('UPDATE contacts SET whatsapp_followup_sent = 1 WHERE id = ?').run(id);
+  const c = contacts.get(id);
+  if (c) { c.whatsapp_followup_sent = 1; scheduleSave(); }
 }
 
 function getContactsByFollowUpAction(action, onlySent = false) {
-  const sentClause = onlySent ? 'AND whatsapp_followup_sent = 1' : 'AND whatsapp_followup_sent = 0';
-  return db.prepare(`SELECT * FROM contacts WHERE follow_up_action = ? ${sentClause} ORDER BY created_at DESC`).all(action);
+  return [...contacts.values()].filter(c => c.follow_up_action === action && (onlySent ? c.whatsapp_followup_sent === 1 : c.whatsapp_followup_sent === 0));
 }
 
 function getHotWarmLeadsForWhatsapp() {
-  return db.prepare(`
-    SELECT c.*, cam.whatsapp_message_key FROM contacts c
-    JOIN campaigns cam ON c.campaign_id = cam.id
-    WHERE c.whatsapp_followup_sent = 0
-    AND c.lead_temperature IN ('hot', 'warm')
-    AND c.follow_up_action IN ('assign_sales_team', 'send_whatsapp_brochure', 'send_whatsapp_followup', 'schedule_callback')
-    AND c.call_uuid IS NOT NULL
-    ORDER BY
-      CASE c.lead_temperature WHEN 'hot' THEN 1 WHEN 'warm' THEN 2 ELSE 3 END,
-      c.created_at DESC
-  `).all();
-}
-
-function deleteAnalysis(campaignId, batchNumber) {
-  db.prepare('DELETE FROM batch_analyses WHERE campaign_id = ? AND batch_number = ?').run(campaignId, batchNumber);
-}
-
-function getCallbackContacts(campaignId) {
-  let query = 'SELECT * FROM contacts WHERE outcome LIKE \'%callback%\'';
-  const params = [];
-  if (campaignId) { query += ' AND campaign_id = ?'; params.push(campaignId); }
-  query += ' ORDER BY callback_date ASC, created_at DESC';
-  return db.prepare(query).all(...params);
+  return [...contacts.values()].filter(c =>
+    c.whatsapp_followup_sent === 0 &&
+    ['hot', 'warm'].includes(c.lead_temperature) &&
+    ['assign_sales_team', 'send_whatsapp_brochure', 'send_whatsapp_followup', 'schedule_callback'].includes(c.follow_up_action) &&
+    c.call_uuid != null
+  );
 }
 
 function getNextPendingContact(campaignId, batchNumber) {
-  return stmts.getNextPendingContact.get(campaignId, batchNumber);
+  return [...contacts.values()].find(c => c.campaign_id === campaignId && c.batch_number === batchNumber && c.status === 'pending') || null;
 }
 
 function getMaxBatch(campaignId) {
-  const row = stmts.countBatches.get(campaignId);
-  return row?.max_batch || 0;
+  const list = [...contacts.values()].filter(c => c.campaign_id === campaignId);
+  return list.reduce((max, c) => Math.max(max, c.batch_number || 0), 0);
 }
 
+function getCallbackContacts(campaignId) {
+  let list = [...contacts.values()].filter(c => c.outcome && c.outcome.includes('callback'));
+  if (campaignId) list = list.filter(c => c.campaign_id === campaignId);
+  return list;
+}
+
+// --- Batch Analyses ---
 function createAnalysis(campaignId, batchNumber, { summary, recommendations, promptAdjustments, stats, promptId }) {
   const id = uid();
-  stmts.createAnalysis.run(id, campaignId, batchNumber, summary, recommendations, promptAdjustments, JSON.stringify(stats), promptId || null);
-  return stmts.getAnalysis.get(campaignId, batchNumber);
+  const a = { id, campaign_id: campaignId, batch_number: batchNumber, summary, recommendations, prompt_adjustments: promptAdjustments, stats: JSON.stringify(stats), prompt_id: promptId || null, approved: 0, approved_at: null, created_at: now() };
+  batchAnalyses.set(`${campaignId}:${batchNumber}`, a);
+  scheduleSave();
+  return { ...a };
 }
-
 function getAnalysis(campaignId, batchNumber) {
-  return stmts.getAnalysis.get(campaignId, batchNumber);
+  const a = batchAnalyses.get(`${campaignId}:${batchNumber}`);
+  return a ? { ...a } : null;
 }
-
 function listAnalyses(campaignId) {
-  return stmts.listAnalyses.all(campaignId);
+  return [...batchAnalyses.values()].filter(a => a.campaign_id === campaignId).sort((a, b) => a.batch_number - b.batch_number);
 }
-
 function approveAnalysis(campaignId, batchNumber) {
-  stmts.approveAnalysis.run(campaignId, batchNumber);
-  return stmts.getAnalysis.get(campaignId, batchNumber);
+  const a = batchAnalyses.get(`${campaignId}:${batchNumber}`);
+  if (a) { a.approved = 1; a.approved_at = now(); }
+  return getAnalysis(campaignId, batchNumber);
 }
-
 function rejectAnalysis(campaignId, batchNumber) {
-  stmts.rejectAnalysis.run(campaignId, batchNumber);
-  return stmts.getAnalysis.get(campaignId, batchNumber);
+  const a = batchAnalyses.get(`${campaignId}:${batchNumber}`);
+  if (a) { a.approved = 2; a.approved_at = now(); }
+  return getAnalysis(campaignId, batchNumber);
+}
+function deleteAnalysis(campaignId, batchNumber) {
+  batchAnalyses.delete(`${campaignId}:${batchNumber}`);
 }
 
-// --- Named Prompts ---
-const promptStmts = {
-  create: db.prepare('INSERT INTO prompts (id, name, body, is_active) VALUES (?, ?, ?, ?)'),
-  get: db.prepare('SELECT * FROM prompts WHERE id = ?'),
-  list: db.prepare('SELECT * FROM prompts ORDER BY is_active DESC, updated_at DESC'),
-  update: db.prepare('UPDATE prompts SET name = COALESCE(?, name), body = COALESCE(?, body), updated_at = datetime(\'now\') WHERE id = ?'),
-  delete: db.prepare('DELETE FROM prompts WHERE id = ?'),
-  clearActive: db.prepare('UPDATE prompts SET is_active = 0'),
-  setActive: db.prepare('UPDATE prompts SET is_active = 1, updated_at = datetime(\'now\') WHERE id = ?'),
-  getActive: db.prepare('SELECT * FROM prompts WHERE is_active = 1 LIMIT 1'),
-};
-
+// --- Prompts ---
 function createPrompt({ name, body, isActive = false }) {
   const id = uid();
-  if (isActive) promptStmts.clearActive.run();
-  promptStmts.create.run(id, name, body, isActive ? 1 : 0);
-  return promptStmts.get.get(id);
+  if (isActive) for (const p of prompts.values()) p.is_active = 0;
+  const p = { id, name, body, is_active: isActive ? 1 : 0, created_at: now(), updated_at: now() };
+  prompts.set(id, p);
+  scheduleSave();
+  return { ...p };
 }
-
-function listPrompts() { return promptStmts.list.all(); }
-function getPrompt(id) { return promptStmts.get.get(id); }
-
+function listPrompts() { return [...prompts.values()].sort((a, b) => b.is_active - a.is_active || b.updated_at.localeCompare(a.updated_at)); }
+function getPrompt(id) { return prompts.has(id) ? { ...prompts.get(id) } : null; }
 function updatePrompt(id, { name, body }) {
-  promptStmts.update.run(name || null, body || null, id);
-  return promptStmts.get.get(id);
+  const p = prompts.get(id);
+  if (!p) return null;
+  if (name) p.name = name;
+  if (body) p.body = body;
+  p.updated_at = now();
+  scheduleSave();
+  return { ...p };
 }
-
-function deletePrompt(id) { promptStmts.delete.run(id); }
-
+function deletePrompt(id) { prompts.delete(id); scheduleSave(); }
 function setActivePrompt(id) {
-  promptStmts.clearActive.run();
-  promptStmts.setActive.run(id);
-  return promptStmts.get.get(id);
+  for (const p of prompts.values()) p.is_active = 0;
+  const p = prompts.get(id);
+  if (p) { p.is_active = 1; p.updated_at = now(); scheduleSave(); }
+  return p ? { ...p } : null;
+}
+function getActivePrompt() {
+  return [...prompts.values()].find(p => p.is_active === 1) || null;
 }
 
-function getActivePrompt() { return promptStmts.getActive.get(); }
-
-// --- Employee WhatsApp Instances ---
-const empStmts = {
-  create: db.prepare('INSERT OR REPLACE INTO employee_instances (id, employee_name, instance_name, phone, status) VALUES (?, ?, ?, ?, ?)'),
-  get: db.prepare('SELECT * FROM employee_instances WHERE id = ?'),
-  getByName: db.prepare('SELECT * FROM employee_instances WHERE employee_name = ? COLLATE NOCASE'),
-  getByInstance: db.prepare('SELECT * FROM employee_instances WHERE instance_name = ?'),
-  list: db.prepare('SELECT * FROM employee_instances ORDER BY employee_name'),
-  update: db.prepare('UPDATE employee_instances SET employee_name = COALESCE(?, employee_name), instance_name = COALESCE(?, instance_name), phone = COALESCE(?, phone), status = COALESCE(?, status), updated_at = datetime(\'now\') WHERE id = ?'),
-  delete: db.prepare('DELETE FROM employee_instances WHERE id = ?'),
-};
-
+// --- Employee Instances ---
 function createEmployeeInstance({ employeeName, instanceName, phone, status }) {
-  const existing = empStmts.getByName.get(employeeName);
+  const existing = [...employeeInstances.values()].find(e => e.employee_name.toLowerCase() === employeeName.toLowerCase());
   const id = existing?.id || uid();
-  empStmts.create.run(id, employeeName, instanceName, phone || null, status || 'pending');
-  return empStmts.get.get(id);
+  const e = { id, employee_name: employeeName, instance_name: instanceName, phone: phone || null, status: status || 'pending', created_at: now(), updated_at: now() };
+  employeeInstances.set(id, e);
+  scheduleSave();
+  return { ...e };
 }
-
-function listEmployeeInstances() { return empStmts.list.all(); }
-function getEmployeeInstance(id) { return empStmts.get.get(id); }
-function getEmployeeByName(name) { return empStmts.getByName.get(name); }
-
+function listEmployeeInstances() { return [...employeeInstances.values()].sort((a, b) => a.employee_name.localeCompare(b.employee_name)); }
+function getEmployeeInstance(id) { return employeeInstances.has(id) ? { ...employeeInstances.get(id) } : null; }
+function getEmployeeByName(name) { return [...employeeInstances.values()].find(e => e.employee_name.toLowerCase() === name.toLowerCase()) || null; }
 function updateEmployeeInstance(id, { employeeName, instanceName, phone, status }) {
-  empStmts.update.run(employeeName || null, instanceName || null, phone || null, status || null, id);
-  return empStmts.get.get(id);
+  const e = employeeInstances.get(id);
+  if (!e) return null;
+  if (employeeName) e.employee_name = employeeName;
+  if (instanceName) e.instance_name = instanceName;
+  if (phone) e.phone = phone;
+  if (status) e.status = status;
+  e.updated_at = now();
+  scheduleSave();
+  return { ...e };
 }
-
-function deleteEmployeeInstance(id) { empStmts.delete.run(id); }
-
-// Get unique employee names across all campaign contacts
+function deleteEmployeeInstance(id) { employeeInstances.delete(id); scheduleSave(); }
 function getUniqueEmployeeNames() {
-  return db.prepare(`
-    SELECT DISTINCT employee_name FROM contacts
-    WHERE employee_name IS NOT NULL AND employee_name != ''
-    ORDER BY employee_name
-  `).all().map(r => r.employee_name);
+  const names = new Set([...contacts.values()].filter(c => c.employee_name).map(c => c.employee_name));
+  return [...names].sort();
 }
 
-// Seed default prompt if table is empty
-function seedDefaultPrompt() {
-  const count = db.prepare('SELECT COUNT(*) as c FROM prompts').get().c;
-  if (count === 0) {
-    try {
-      const { DEFAULT_PROMPT } = require('./prompts');
-      if (DEFAULT_PROMPT) {
-        const id = uid();
-        promptStmts.create.run(id, 'Clermont Cold Call — Standard', DEFAULT_PROMPT, 1);
-        console.log('[DB] Seeded default Clermont prompt as active');
-      }
-    } catch (err) {
-      console.error('[DB] Failed to seed default prompt:', err.message);
-    }
+// Seed default prompt
+try {
+  const { DEFAULT_PROMPT } = require('./prompts');
+  if (DEFAULT_PROMPT) {
+    createPrompt({ name: 'Clermont Cold Call — Standard', body: DEFAULT_PROMPT, isActive: true });
+    console.log('[DB] Seeded default prompt (in-memory)');
   }
+} catch (err) {
+  console.error('[DB] Failed to seed default prompt:', err.message);
 }
-seedDefaultPrompt();
+
+// --- Website Leads ---
+const websiteLeads = new Map();
+const websiteSettings = { autoWaEnabled: false, autoWaTemplate: '{{greeting}} Sir/Madam!\n\nThank you for contacting us. Our team will reach out to you shortly.\n\n- ONE Group', autoEmailEnabled: false, autoEmailSubject: 'Thank you for your interest', autoEmailBody: 'Dear {{name}},\n\nThank you for contacting us. We will get back to you soon.', customWebhookUrl: '', b2bForwardEnabled: false, b2bForwardUrl: '', waWebhookOutUrl: '', tunnelUrl: 'https://870f5ea76b53c024-157-49-26-8.serveousercontent.com', autoWaInstance: '' };
+const waIncomingMessages = [];
+
+// --- Load persisted data ---
+(function loadPersistedData() {
+  const saved = loadData();
+  if (saved.campaigns) for (const [k, v] of saved.campaigns) campaigns.set(k, v);
+  if (saved.contacts) for (const [k, v] of saved.contacts) contacts.set(k, v);
+  if (saved.batchAnalyses) for (const [k, v] of saved.batchAnalyses) batchAnalyses.set(k, v);
+  if (saved.employeeInstances) for (const [k, v] of saved.employeeInstances) employeeInstances.set(k, v);
+  if (saved.prompts) for (const [k, v] of saved.prompts) prompts.set(k, v);
+  if (saved.websiteLeadsArr) for (const [k, v] of saved.websiteLeadsArr) websiteLeads.set(k, v);
+  if (saved.websiteSettingsObj) Object.assign(websiteSettings, saved.websiteSettingsObj);
+  if (saved.waIncomingMessagesArr) waIncomingMessages.push(...saved.waIncomingMessagesArr);
+  if (saved.campaigns || saved.websiteLeadsArr) console.log('[DB] Loaded persisted data from db.json');
+})();
+
+function addWaIncomingMessage(data) { waIncomingMessages.unshift({ ...data, receivedAt: new Date().toISOString() }); if (waIncomingMessages.length > 200) waIncomingMessages.pop(); scheduleSave(); }
+function getWaIncomingMessages() { return [...waIncomingMessages]; }
+
+function createWebsiteLead({ name, phone, email, source, message, pageUrl, ipAddress }) {
+  const id = uid();
+  const lead = { id, name: name || '', phone: phone || '', email: email || '', source: source || '', message: message || '', pageUrl: pageUrl || '', ipAddress: ipAddress || '', status: 'new', waMessageSent: false, emailSent: false, createdAt: now() };
+  websiteLeads.set(id, lead);
+  scheduleSave();
+  return { ...lead };
+}
+function listWebsiteLeads() { return [...websiteLeads.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)); }
+function updateWebsiteLead(id, updates) {
+  const l = websiteLeads.get(id);
+  if (!l) return null;
+  Object.assign(l, updates);
+  scheduleSave();
+  return { ...l };
+}
+function deleteWebsiteLead(id) { websiteLeads.delete(id); scheduleSave(); }
+function getWebsiteLeadStats() {
+  const all = [...websiteLeads.values()];
+  return { total: all.length, new: all.filter(l => l.status === 'new').length, contacted: all.filter(l => l.status === 'contacted').length, converted: all.filter(l => l.status === 'converted').length, ignored: all.filter(l => l.status === 'ignored').length };
+}
+function getWebsiteSettings() { return { ...websiteSettings }; }
+function updateWebsiteSettings(updates) { Object.assign(websiteSettings, updates); scheduleSave(); return { ...websiteSettings }; }
+
+// Stub db object for compatibility
+const db = { prepare: () => ({ run: () => {}, get: () => null, all: () => [] }) };
 
 module.exports = {
+  createWebsiteLead, listWebsiteLeads, updateWebsiteLead, deleteWebsiteLead, getWebsiteLeadStats, getWebsiteSettings, updateWebsiteSettings, addWaIncomingMessage, getWaIncomingMessages,
   createCampaign, getCampaign, listCampaigns, updateCampaign, deleteCampaign,
   insertContacts, getContacts, getContactStats, getBatchStats, updateContact,
   updateContactClassification, markWhatsappFollowupSent, getContactsByFollowUpAction, getHotWarmLeadsForWhatsapp,

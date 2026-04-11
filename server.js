@@ -1368,15 +1368,26 @@ const server = http.createServer(async (req, res) => {
 
   if (parsed.pathname === '/api/evolution/instances' && req.method === 'GET') {
     try {
-      const evoRes = await fetch(`${process.env.EVOLUTION_API_URL || 'http://evolution-api-fgxi-api-1:8080'}/instance/fetchInstances`, {
-        headers: { 'apikey': process.env.EVOLUTION_API_KEY || '' },
+      const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:4000';
+      const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
+      const evoRes = await fetch(`${EVOLUTION_API_URL}/instance/all`, {
+        headers: { 'apikey': EVOLUTION_API_KEY },
       });
       const evoData = await evoRes.json();
-      const instances = (Array.isArray(evoData) ? evoData : []).map(i => ({
-        name: i.name,
-        connectionStatus: i.connectionStatus,
-        profileName: i.profileName || null,
-      }));
+      const raw = Array.isArray(evoData) ? evoData : (evoData.data || []);
+      const instances = raw.map(i => {
+        const jid = i.jid || i.ownerJid || '';
+        const phone = jid ? jid.split(':')[0].split('@')[0] : '';
+        return {
+          name: i.name,
+          connectionStatus: i.connected ? 'open' : 'close',
+          connected: !!i.connected,
+          profileName: i.client_name || null,
+          phone: phone || null,
+          token: i.token || null,
+          qrcode: i.qrcode || null,
+        };
+      });
       json(res, instances);
     } catch (err) { json(res, { error: err.message }, 500); }
     return;
@@ -1451,6 +1462,21 @@ const server = http.createServer(async (req, res) => {
         json(res, evoData);
       } catch (err) { json(res, { error: err.message }, 500); }
     }).catch(err => json(res, { error: err.message }, 400));
+    return;
+  }
+
+  // Delete Evolution API instance
+  const evoDelMatch = parsed.pathname.match(/^\/api\/evolution\/delete-instance\/([^/]+)$/);
+  if (evoDelMatch && req.method === 'DELETE') {
+    const instanceName = evoDelMatch[1];
+    try {
+      const evoRes = await fetch(`${process.env.EVOLUTION_API_URL || 'http://evolution-api-fgxi-api-1:8080'}/instance/delete/${instanceName}`, {
+        method: 'DELETE',
+        headers: { 'apikey': process.env.EVOLUTION_API_KEY || '' },
+      });
+      const evoData = await evoRes.json();
+      json(res, evoData);
+    } catch (err) { json(res, { error: err.message }, 500); }
     return;
   }
 
@@ -1575,7 +1601,211 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Backfill WhatsApp follow-ups for hot/warm leads
+  // ── WhatsApp Webhook IN (from Evolution GO) ──────────────────
+  if (parsed.pathname === '/api/wa-webhook' && req.method === 'POST') {
+    parseBody(req).then(body => {
+      db.addWaIncomingMessage(body);
+      // Forward to Webhook OUT URL if configured
+      const settings = db.getWebsiteSettings();
+      if (settings.waWebhookOutUrl) {
+        fetch(settings.waWebhookOutUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => {});
+      }
+      json(res, { ok: true });
+    }).catch(() => json(res, { ok: true }));
+    return;
+  }
+  if (parsed.pathname === '/api/wa-webhook' && req.method === 'GET') {
+    json(res, { messages: db.getWaIncomingMessages() });
+    return;
+  }
+
+  // ── Website Leads ────────────────────────────────────────────
+  if (parsed.pathname === '/api/website-leads' && req.method === 'GET') {
+    const leads = db.listWebsiteLeads();
+    const stats = db.getWebsiteLeadStats();
+    const settings = db.getWebsiteSettings();
+    json(res, { leads, stats, settings });
+    return;
+  }
+  if (parsed.pathname === '/api/website-leads' && req.method === 'POST') {
+    parseBody(req).then(body => {
+      const lead = db.createWebsiteLead(body);
+      // Auto-send WhatsApp if enabled
+      const settings = db.getWebsiteSettings();
+      if (settings.autoWaEnabled && lead.phone) {
+        const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:4000';
+        const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
+        const EVOLUTION_INSTANCE = settings.autoWaInstance || process.env.EVOLUTION_INSTANCE || '';
+        (async () => {
+          try {
+            const allR = await fetch(`${EVOLUTION_API_URL}/instance/all`, { headers: { 'apikey': EVOLUTION_API_KEY } });
+            const allD = await allR.json();
+            const inst = (allD.data || []).find(i => i.name === EVOLUTION_INSTANCE) || (allD.data || [])[0];
+            if (inst && inst.connected) {
+              const msg = settings.autoWaTemplate.replace('{{name}}', lead.name).replace('{{greeting}}', 'Hello').replace('{{phone}}', lead.phone).replace('{{email}}', lead.email || '').replace('{{source}}', lead.source || '').replace('{{message}}', lead.message || '');
+              let rawPhone = (lead.phone || '').replace(/\D/g, '');
+              if (rawPhone.startsWith('0')) rawPhone = '91' + rawPhone.substring(1);
+              if (!rawPhone.startsWith('91') && rawPhone.length === 10) rawPhone = '91' + rawPhone;
+              await fetch(`${EVOLUTION_API_URL}/send/text`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': inst.token }, body: JSON.stringify({ number: rawPhone, text: msg }) });
+              db.updateWebsiteLead(lead.id, { waMessageSent: true });
+            }
+          } catch (_) {}
+        })();
+      }
+      // Forward to custom webhook URL if configured
+      if (settings.customWebhookUrl) {
+        fetch(settings.customWebhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lead) }).catch(() => {});
+      }
+      // B2B forward if enabled
+      if (settings.b2bForwardEnabled && settings.b2bForwardUrl) {
+        fetch(settings.b2bForwardUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lead) }).catch(() => {});
+      }
+      json(res, lead, 201);
+    }).catch(err => json(res, { error: err.message }, 400));
+    return;
+  }
+  if (parsed.pathname.startsWith('/api/website-leads/') && req.method === 'PATCH') {
+    const id = parsed.pathname.split('/')[3];
+    parseBody(req).then(body => {
+      const updated = db.updateWebsiteLead(id, body);
+      if (!updated) { json(res, { error: 'Not found' }, 404); return; }
+      json(res, updated);
+    }).catch(err => json(res, { error: err.message }, 400));
+    return;
+  }
+  if (parsed.pathname.startsWith('/api/website-leads/') && req.method === 'DELETE') {
+    const id = parsed.pathname.split('/')[3];
+    db.deleteWebsiteLead(id);
+    json(res, { ok: true });
+    return;
+  }
+  if (parsed.pathname === '/api/website-settings' && req.method === 'POST') {
+    parseBody(req).then(body => {
+      const updated = db.updateWebsiteSettings(body);
+      json(res, updated);
+    }).catch(err => json(res, { error: err.message }, 400));
+    return;
+  }
+  // Send WhatsApp to a specific lead
+  if (parsed.pathname.startsWith('/api/website-leads/') && parsed.pathname.endsWith('/send-wa') && req.method === 'POST') {
+    const id = parsed.pathname.split('/')[3];
+    const lead = db.listWebsiteLeads().find(l => l.id === id);
+    if (!lead) { json(res, { error: 'Lead not found' }, 404); return; }
+    parseBody(req).then(async body => {
+      try {
+        const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:4000';
+        const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
+        const waSettings = db.getWebsiteSettings();
+        const EVOLUTION_INSTANCE = body.instance || waSettings.autoWaInstance || process.env.EVOLUTION_INSTANCE || '';
+        const allR = await fetch(`${EVOLUTION_API_URL}/instance/all`, { headers: { 'apikey': EVOLUTION_API_KEY } });
+        const allD = await allR.json();
+        const inst = (allD.data || []).find(i => i.name === EVOLUTION_INSTANCE) || (allD.data || [])[0];
+        if (!inst || !inst.connected) { json(res, { error: 'WhatsApp not connected — check selected instance' }, 503); return; }
+        const msg = (body.message || waSettings.autoWaTemplate).replace('{{name}}', lead.name).replace('{{greeting}}', 'Hello').replace('{{phone}}', lead.phone).replace('{{email}}', lead.email || '').replace('{{source}}', lead.source || '').replace('{{message}}', lead.message || '');
+        let rawPhone = (lead.phone || '').replace(/\D/g, '');
+        if (rawPhone.startsWith('0')) rawPhone = '91' + rawPhone.substring(1);
+        if (!rawPhone.startsWith('91') && rawPhone.length === 10) rawPhone = '91' + rawPhone;
+        const r = await fetch(`${EVOLUTION_API_URL}/send/text`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': inst.token }, body: JSON.stringify({ number: rawPhone, text: msg }) });
+        const d = await r.json();
+        db.updateWebsiteLead(id, { waMessageSent: true, status: lead.status === 'new' ? 'contacted' : lead.status });
+        json(res, { ok: true, result: d });
+      } catch (err) { json(res, { error: err.message }, 500); }
+    }).catch(err => json(res, { error: err.message }, 400));
+    return;
+  }
+
+  // Return current Evolution config (for pre-filling settings page)
+  if (parsed.pathname === '/api/evo/config' && req.method === 'GET') {
+    json(res, {
+      url: process.env.EVOLUTION_API_URL || 'http://localhost:4000',
+      instance: process.env.EVOLUTION_INSTANCE || '',
+    });
+    return;
+  }
+
+  // Evolution API test connection endpoint
+  if (parsed.pathname === '/api/evo/test' && req.method === 'POST') {
+    parseBody(req).then(async body => {
+      const { url, apiKey, instance } = body;
+      if (!url) { json(res, { error: 'URL required' }, 400); return; }
+      try {
+        // Try with provided key first, then fallback to server's global key
+        const keysToTry = [apiKey, process.env.EVOLUTION_API_KEY].filter(Boolean);
+        let instances = [];
+        for (const key of keysToTry) {
+          const r = await fetch(`${url}/instance/all`, { headers: { 'apikey': key } });
+          const d = await r.json();
+          if (d?.data?.length > 0) { instances = d.data; break; }
+        }
+        const inst = instance ? instances.find(i => i.name === instance) : instances[0];
+        if (inst && inst.connected) {
+          const jid = inst.jid || '';
+          const number = jid.split(':')[0].split('@')[0];
+          json(res, { connected: true, number, name: inst.client_name || inst.name, instance: inst.name, token: inst.token });
+        } else if (inst) {
+          json(res, { connected: false, error: `Instance "${inst.name}" found but not connected to WhatsApp` });
+        } else if (instances.length > 0) {
+          json(res, { connected: false, error: `Instance "${instance}" not found. Available: ${instances.map(i=>i.name).join(', ')}` });
+        } else {
+          json(res, { connected: false, error: 'No instances found. Check API key or URL.' });
+        }
+      } catch (err) {
+        json(res, { connected: false, error: err.message });
+      }
+    }).catch(err => json(res, { error: err.message }, 400));
+    return;
+  }
+
+  // WhatsApp status endpoint
+  if (parsed.pathname === '/api/whatsapp/status' && req.method === 'GET') {
+    try {
+      const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:4000';
+      const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
+      const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || '';
+      const r = await fetch(`${EVOLUTION_API_URL}/instance/all`, { headers: { 'apikey': EVOLUTION_API_KEY } });
+      const d = await r.json();
+      const instances = d?.data || [];
+      const inst = instances.find(i => i.name === EVOLUTION_INSTANCE) || instances[0];
+      if (inst) {
+        const jid = inst.jid || '';
+        const number = jid.split(':')[0].split('@')[0];
+        json(res, { connected: inst.connected === true, name: inst.client_name || inst.name, number, instance: inst.name });
+      } else {
+        json(res, { connected: false, name: '', number: '', instance: EVOLUTION_INSTANCE });
+      }
+    } catch (err) {
+      json(res, { connected: false, name: '', number: '', instance: '', error: err.message });
+    }
+    return;
+  }
+
+  // WhatsApp send message endpoint
+  if (parsed.pathname === '/api/whatsapp/send' && req.method === 'POST') {
+    parseBody(req).then(async body => {
+      if (!body.number || !body.text) { json(res, { error: 'number and text required' }, 400); return; }
+      const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:4000';
+      const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || '';
+      // Get instance token
+      const instR = await fetch(`${EVOLUTION_API_URL}/instance/all`, { headers: { 'apikey': process.env.EVOLUTION_API_KEY || '' } });
+      const instD = await instR.json();
+      const instances = instD?.data || [];
+      const inst = instances.find(i => i.name === EVOLUTION_INSTANCE) || instances[0];
+      if (!inst) { json(res, { error: 'No WhatsApp instance found' }, 500); return; }
+      const token = inst.token;
+      let number = body.number.replace(/[^0-9]/g, '');
+      if (!number.startsWith('91') && number.length === 10) number = '91' + number;
+      const r = await fetch(`${EVOLUTION_API_URL}/send/text`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': token },
+        body: JSON.stringify({ instanceId: inst.id, number, text: body.text }),
+      });
+      const d = await r.json();
+      if (d.message === 'success') { json(res, { success: true }); }
+      else { json(res, { error: d.error || 'Send failed' }, 500); }
+    }).catch(err => json(res, { error: err.message }, 500));
+    return;
+  }
+
   if (parsed.pathname === '/api/whatsapp-backfill' && req.method === 'POST') {
     parseBody(req).then(async body => {
       const dryRun = body.dry_run !== false; // default to dry run

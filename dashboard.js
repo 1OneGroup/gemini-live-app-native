@@ -6,21 +6,21 @@ function getDashboardHtml() {
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Gemini Live — Telecalling Platform</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"><\/script>
   <style>
     :root {
-      --bg: #09090b; --bg-secondary: #0c0c0f;
-      --surface: #18181b; --surface-hover: #1f1f23; --surface-raised: #27272a;
-      --border: #27272a; --border-subtle: #1f1f23;
-      --text: #fafafa; --text-secondary: #a1a1aa; --text-muted: #71717a; --text-dim: #52525b;
-      --accent: #6366f1; --accent-hover: #818cf8; --accent-bg: rgba(99,102,241,0.12); --accent-border: rgba(99,102,241,0.25);
-      --green: #22c55e; --green-bg: rgba(34,197,94,0.12); --green-border: rgba(34,197,94,0.25);
-      --amber: #f59e0b; --amber-bg: rgba(245,158,11,0.12); --amber-border: rgba(245,158,11,0.25);
-      --red: #ef4444; --red-bg: rgba(239,68,68,0.12); --red-border: rgba(239,68,68,0.25);
-      --blue: #3b82f6; --blue-bg: rgba(59,130,246,0.12); --blue-border: rgba(59,130,246,0.25);
+      --bg: #f5f3ed; --bg-secondary: #eceae3;
+      --surface: #ffffff; --surface-hover: #faf9f6; --surface-raised: #f0eee6;
+      --border: #e8e6dc; --border-subtle: #f0eee6;
+      --text: #141413; --text-secondary: #4d4c48; --text-muted: #5e5d59; --text-dim: #87867f;
+      --accent: #762224; --accent-hover: #c45a5c; --accent-bg: rgba(118,34,36,0.07); --accent-border: rgba(118,34,36,0.18);
+      --green: #16a34a; --green-bg: rgba(22,163,74,0.08); --green-border: rgba(22,163,74,0.2);
+      --amber: #d97706; --amber-bg: rgba(217,119,6,0.08); --amber-border: rgba(217,119,6,0.2);
+      --red: #dc2626; --red-bg: rgba(220,38,38,0.08); --red-border: rgba(220,38,38,0.2);
+      --blue: #2563eb; --blue-bg: rgba(37,99,235,0.08); --blue-border: rgba(37,99,235,0.2);
       --radius: 12px; --radius-sm: 8px; --radius-xs: 6px;
-      --shadow-sm: 0 1px 2px rgba(0,0,0,0.3); --shadow-md: 0 4px 12px rgba(0,0,0,0.4); --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04); --shadow-md: 0 4px 16px rgba(0,0,0,0.08); --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
       --sidebar-width: 240px;
       --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
     }
@@ -34,15 +34,15 @@ function getDashboardHtml() {
     .sidebar { width: var(--sidebar-width); background: var(--bg-secondary); border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh; z-index: 40; transition: transform var(--transition); }
     .sidebar-header { padding: 20px 16px 16px; border-bottom: 1px solid var(--border-subtle); }
     .sidebar-logo { display: flex; align-items: center; gap: 10px; }
-    .sidebar-logo .icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 14px; }
-    .sidebar-logo .title { font-size: 15px; font-weight: 600; color: var(--text); }
+    .sidebar-logo .icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fffcf8; font-size: 14px; font-family: 'Playfair Display', serif; }
+    .sidebar-logo .title { font-size: 15px; font-weight: 500; color: var(--text); font-family: 'Playfair Display', Georgia, serif; }
     .sidebar-status { margin-top: 12px; display: flex; align-items: center; gap: 6px; }
     .status-dot { width: 8px; height: 8px; border-radius: 50%; }
     .status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
     .status-dot.offline { background: var(--red); }
     .status-text { font-size: 12px; color: var(--text-muted); }
 
-    .sidebar-nav { flex: 1; padding: 12px 8px; overflow-y: auto; }
+    .sidebar-nav { flex: 1; padding: 12px 8px; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; justify-content: flex-start; }
     .nav-section { margin-bottom: 16px; }
     .nav-label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 12px 8px; }
     .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: var(--radius-sm); cursor: pointer; font-size: 14px; color: var(--text-secondary); transition: all var(--transition); margin-bottom: 2px; }
@@ -58,22 +58,22 @@ function getDashboardHtml() {
     .main { flex: 1; margin-left: var(--sidebar-width); min-height: 100vh; }
 
     /* Top bar */
-    .topbar { padding: 16px 28px; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 30; background: rgba(9,9,11,0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
-    .topbar-title { font-size: 18px; font-weight: 600; }
+    .topbar { padding: 16px 28px; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 30; background: rgba(245,243,237,0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    .topbar-title { font-size: 18px; font-weight: 500; font-family: 'Playfair Display', Georgia, serif; color: var(--text); }
     .topbar-actions { display: flex; gap: 8px; align-items: center; }
     .mobile-menu-btn { display: none; background: none; border: none; color: var(--text); cursor: pointer; padding: 8px; border-radius: var(--radius-xs); }
     .mobile-menu-btn:hover { background: var(--surface); }
     .mobile-menu-btn svg { width: 22px; height: 22px; }
 
     /* Content area */
-    .content { padding: 24px 28px; max-width: 1200px; }
+    .content { padding: 24px 28px; max-width: 1200px; overflow-x: hidden; }
 
     /* === COMPONENTS === */
 
     /* Buttons */
     .btn { border: none; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer; min-height: 36px; display: inline-flex; align-items: center; gap: 6px; transition: all var(--transition); font-family: inherit; }
     .btn svg { width: 16px; height: 16px; }
-    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary { background: var(--accent); color: #fffcf8; }
     .btn-primary:hover { background: var(--accent-hover); box-shadow: var(--shadow-sm); }
     .btn-secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text-secondary); }
     .btn-secondary:hover { background: var(--surface-hover); color: var(--text); }
@@ -153,9 +153,9 @@ function getDashboardHtml() {
     /* Detail panel / slide-over */
     .slide-over-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
     .slide-over-bg.open { display: block; }
-    .slide-over { position: fixed; top: 0; right: 0; width: 520px; max-width: 100vw; height: 100vh; background: var(--bg); border-left: 1px solid var(--border); overflow-y: auto; z-index: 101; transform: translateX(100%); transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); box-shadow: var(--shadow-lg); }
+    .slide-over { position: fixed; top: 0; right: 0; width: 520px; max-width: 100vw; height: 100vh; background: var(--surface); border-left: 1px solid var(--border); overflow-y: auto; z-index: 101; transform: translateX(100%); transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); box-shadow: var(--shadow-lg); }
     .slide-over.open { transform: translateX(0); }
-    .slide-over-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--bg); z-index: 1; }
+    .slide-over-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--surface); z-index: 1; }
     .slide-over-header h2 { font-size: 15px; font-weight: 600; }
     .slide-over-body { padding: 20px; }
     .slide-over-section { margin-bottom: 24px; }
@@ -194,7 +194,7 @@ function getDashboardHtml() {
     /* Modal */
     .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 16px; }
     .modal-backdrop.open { display: flex; }
-    .modal { background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 0; width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 0; width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
     .modal-header { padding: 20px 24px 0; }
     .modal-header h2 { font-size: 16px; font-weight: 600; }
     .modal-header p { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
@@ -212,7 +212,7 @@ function getDashboardHtml() {
     .back-link:hover { color: var(--text); }
     .back-link svg { width: 16px; height: 16px; }
     .campaign-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
-    .campaign-title { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+    .campaign-title { font-size: 22px; font-weight: 500; letter-spacing: -0.01em; font-family: 'Playfair Display', Georgia, serif; }
 
     /* Batch timeline */
     .batch-timeline { display: flex; gap: 6px; margin: 16px 0; overflow-x: auto; padding: 4px 0; }
@@ -246,7 +246,7 @@ function getDashboardHtml() {
     .table-header { padding: 12px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
     .table-header h3 { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
     table.data-table { width: 100%; border-collapse: collapse; }
-    .data-table th { text-align: left; padding: 10px 18px; font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
+    .data-table th { text-align: left; padding: 10px 18px; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); background: var(--bg-secondary); }
     .data-table td { padding: 10px 18px; font-size: 13px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); }
     .data-table tr { transition: background var(--transition); }
     .data-table tr:hover { background: var(--surface-hover); }
@@ -277,10 +277,10 @@ function getDashboardHtml() {
     .hidden { display: none !important; }
 
     /* Scrollbar */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--text-dim); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--border-subtle); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
 
     /* === RESPONSIVE === */
     @media (max-width: 768px) {
@@ -312,7 +312,7 @@ function getDashboardHtml() {
     }
 
     /* Mobile FAB */
-    .fab { display: none; position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: var(--accent); color: #fff; border: none; cursor: pointer; box-shadow: 0 4px 16px rgba(99,102,241,0.4); z-index: 35; align-items: center; justify-content: center; transition: all var(--transition); }
+    .fab { display: none; position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: var(--accent); color: #fffcf8; border: none; cursor: pointer; box-shadow: 0 4px 16px rgba(118,34,36,0.35); z-index: 35; align-items: center; justify-content: center; transition: all var(--transition); }
     .fab:hover { background: var(--accent-hover); transform: scale(1.05); }
     .fab:active { transform: scale(0.95); }
     @media (max-width: 768px) {
@@ -362,13 +362,33 @@ function getDashboardHtml() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Prompt Library
           </div>
-          <div class="nav-item" onclick="navigate('brochures', this)" id="nav-brochures">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-            WhatsApp
-          </div>
           <div class="nav-item" onclick="navigate('settings', this)" id="nav-settings">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
             Settings
+          </div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-label">WhatsApp</div>
+          <div class="nav-item" onclick="navigate('whatsapp', this)" id="nav-whatsapp">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+            Send Message
+            <span id="wa-status-dot" style="margin-left:auto;width:7px;height:7px;border-radius:50%;background:#25d366;box-shadow:0 0 5px #25d366;flex-shrink:0"></span>
+          </div>
+          <div class="nav-item" onclick="navigate('brochures', this)" id="nav-brochures">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Messages Config
+          </div>
+          <div class="nav-item" onclick="navigate('wa-settings', this)" id="nav-wa-settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            WA Settings
+          </div>
+          <div class="nav-item" onclick="navigate('devices', this)" id="nav-devices">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            Devices
+          </div>
+          <div class="nav-item" onclick="navigate('website', this)" id="nav-website">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+            Website Leads
           </div>
         </div>
       </nav>
@@ -455,6 +475,26 @@ function getDashboardHtml() {
             </button>
           </div>
           <div id="prompts-list"></div>
+        </div>
+
+        <!-- WhatsApp Dashboard Page -->
+        <div id="page-whatsapp" class="hidden">
+          <div id="whatsapp-content"></div>
+        </div>
+
+        <!-- WhatsApp Settings Page -->
+        <div id="page-wa-settings" class="hidden">
+          <div id="wa-settings-content"></div>
+        </div>
+
+        <!-- Devices Page -->
+        <div id="page-devices" class="hidden">
+          <div id="devices-content"></div>
+        </div>
+
+        <!-- Website Page -->
+        <div id="page-website" class="hidden">
+          <div id="website-content"></div>
         </div>
 
         <!-- Brochures Page -->
@@ -646,14 +686,18 @@ function getDashboardHtml() {
       currentPage = page;
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       if (el) el.classList.add('active');
-      const pages = ['campaigns','calls','analytics','prompts','brochures','settings'];
+      const pages = ['campaigns','calls','analytics','prompts','whatsapp','brochures','settings','wa-settings','devices','website'];
       pages.forEach(p => document.getElementById('page-' + p)?.classList.toggle('hidden', p !== page));
-      const titles = { campaigns: 'Campaigns', calls: 'Call History', analytics: 'Analytics', prompts: 'Prompt Library', brochures: 'WhatsApp Messages', settings: 'Settings' };
+      const titles = { campaigns: 'Campaigns', calls: 'Call History', analytics: 'Analytics', prompts: 'Prompt Library', brochures: 'WhatsApp Messages', settings: 'Settings', whatsapp: 'Send Message', 'wa-settings': 'WhatsApp Settings', devices: 'Devices', website: 'Website' };
       document.getElementById('page-title').textContent = titles[page] || page;
       if (page === 'campaigns') loadCampaigns();
       if (page === 'calls') loadCalls();
       if (page === 'analytics') loadAnalytics();
       if (page === 'prompts') loadPromptLibrary();
+      if (page === 'whatsapp') loadWhatsappDashboard();
+      if (page === 'wa-settings') loadWaSettings();
+      if (page === 'devices') loadDevices();
+      if (page === 'website') loadWebsite();
       if (page === 'brochures') loadBrochures();
       if (page === 'settings') loadSettings();
       closeSidebar();
@@ -1404,6 +1448,694 @@ function getDashboardHtml() {
     }
 
     // ─── Brochures ──────────────────────────
+    // ─── WhatsApp Dashboard ─────────────────────────────
+    async function loadWhatsappDashboard() {
+      const el = document.getElementById('whatsapp-content');
+      el.innerHTML = '<div style="color:var(--text-muted);padding:24px">Loading...</div>';
+      let status = { connected: false, name: '', number: '', instance: '' };
+      try {
+        const r = await fetch('/api/whatsapp/status');
+        if (r.ok) status = await r.json();
+      } catch {}
+
+      el.innerHTML = \`
+        <div style="margin-bottom:24px">
+          <h2 style="font-size:18px;font-weight:700;margin-bottom:4px">WhatsApp Dashboard</h2>
+          <p style="font-size:13px;color:var(--text-muted)">Send messages and manage your WhatsApp connection.</p>
+        </div>
+
+        <!-- Status Card -->
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-body">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+              <div style="display:flex;align-items:center;gap:14px">
+                <div style="width:48px;height:48px;border-radius:50%;background:\${status.connected ? 'var(--green-bg)' : 'var(--red-bg)'};border:1px solid \${status.connected ? 'var(--green-border)' : 'var(--red-border)'};display:flex;align-items:center;justify-content:center">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="\${status.connected ? 'var(--green)' : 'var(--red)'}" stroke-width="2" width="22" height="22"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+                </div>
+                <div>
+                  <div style="font-size:15px;font-weight:600;color:var(--text)">\${status.connected ? 'Connected' : 'Disconnected'}</div>
+                  <div style="font-size:13px;color:var(--text-muted);margin-top:2px">
+                    \${status.connected ? \`<strong>\${esc(status.name || 'WhatsApp')}</strong> &nbsp;·&nbsp; +\${esc(status.number || '')}\` : 'Not connected to WhatsApp'}
+                  </div>
+                  <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Instance: <code style="background:var(--surface-raised);padding:1px 5px;border-radius:3px">\${esc(status.instance || '-')}</code></div>
+                </div>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="loadWhatsappDashboard()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                Refresh
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Send Message -->
+        <div class="card" style="margin-bottom:20px">
+          <div class="card-body">
+            <h3 style="font-size:14px;font-weight:600;margin-bottom:16px;color:var(--text)">Send Message</h3>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div>
+                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px">Phone Number</label>
+                <input class="form-input" id="wa-phone" placeholder="919876543210 (with country code)" style="width:100%">
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px">Message</label>
+                <textarea class="form-input" id="wa-msg" placeholder="Type your message..." rows="4" style="width:100%;resize:vertical"></textarea>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <button class="btn btn-primary" onclick="sendWhatsappMessage()" id="wa-send-btn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  Send Message
+                </button>
+                <span id="wa-send-status" style="font-size:13px"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Templates -->
+        <div class="card">
+          <div class="card-body">
+            <h3 style="font-size:14px;font-weight:600;margin-bottom:16px;color:var(--text)">Quick Templates</h3>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              \${[
+                { label: 'Follow-up', text: 'Hi, thank you for your time on the call! We would love to share more details about our project. Please let us know a convenient time.' },
+                { label: 'Brochure', text: 'Hi, as discussed on our call, please find the project brochure here: https://onegroup.co.in — feel free to reach out for any questions!' },
+                { label: 'Site Visit', text: 'Hi! Your site visit has been confirmed. Our team will be ready to welcome you. For any questions, feel free to message here.' },
+              ].map(t => \`
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);gap:10px">
+                  <span style="font-size:13px;color:var(--text-secondary);flex:1">\${esc(t.text.substring(0,80))}...</span>
+                  <button class="btn btn-secondary btn-sm" style="flex-shrink:0" onclick="useTemplate(\${JSON.stringify(t.text).replace(/'/g,'&apos;')})">Use</button>
+                </div>
+              \`).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Evolution API Connection Settings -->
+        <div class="card" style="margin-top:20px;border:1px solid var(--border)">
+          <div class="card-body">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" width="18" height="18"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+              <h3 style="font-size:14px;font-weight:600;color:var(--text)">Evolution API Settings</h3>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div>
+                <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px">Evolution API URL</label>
+                <input class="form-input" id="evo-url" value="http://localhost:4000" placeholder="http://localhost:4000" style="width:100%;font-family:monospace;font-size:13px">
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px">API Key / Instance Token</label>
+                <input class="form-input" id="evo-apikey" type="password" placeholder="Enter token" style="width:100%;font-family:monospace;font-size:13px">
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px">Instance Name</label>
+                <input class="form-input" id="evo-instance" value="\${esc(status.instance || '')}" placeholder="test-instance" style="width:100%;font-family:monospace;font-size:13px">
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+                <button class="btn btn-primary btn-sm" onclick="testEvoConnection()">Test Connection</button>
+                <span id="evo-test-result" style="font-size:13px"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      \`;
+    }
+
+    async function loadDevices() {
+      const el = document.getElementById('devices-content');
+      el.innerHTML = '<div style="color:var(--text-muted);padding:24px">Loading...</div>';
+      try {
+        const res = await fetch('/api/evolution/instances');
+        const instances = res.ok ? await res.json() : [];
+
+        el.innerHTML = \`
+          <div style="padding:20px;max-width:900px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+              <div>
+                <h2 style="font-size:18px;font-weight:700;margin-bottom:4px">Devices</h2>
+                <p style="font-size:13px;color:var(--text-muted)">Manage WhatsApp devices connected via Evolution GO.</p>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="openAddDeviceModal()">+ Add Device</button>
+            </div>
+
+            \${instances.length === 0 ? \`
+              <div class="card"><div class="card-body" style="text-align:center;padding:40px;color:var(--text-muted)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40" style="margin-bottom:12px;opacity:0.4"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                <div style="font-size:14px;margin-bottom:16px">No WhatsApp instances found in Evolution GO</div>
+                <button class="btn btn-primary btn-sm" onclick="openAddDeviceModal()">+ Add First Device</button>
+              </div></div>
+            \` : instances.map((inst, idx) => {
+              const isConn = inst.connectionStatus === 'open';
+              const isConn2 = inst.connectionStatus === 'connected';
+              const connected = isConn || isConn2;
+              const isWaiting = inst.connectionStatus === 'connecting' || inst.connectionStatus === 'qrReadSuccess';
+              const statusColor = connected ? '#25d366' : (isWaiting ? '#f59e0b' : '#dc2626');
+              const statusBg = connected ? 'rgba(37,211,102,0.12)' : (isWaiting ? 'rgba(245,158,11,0.12)' : 'rgba(220,38,38,0.1)');
+              const statusLabel = connected ? 'Connected' : (isWaiting ? (inst.connectionStatus || 'Connecting') : 'Disconnected');
+              return \`
+                <div class="card" style="margin-bottom:16px;border:1px solid \${connected ? 'rgba(37,211,102,0.3)' : 'var(--border)'}">
+                  <div class="card-body">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+                      <div style="display:flex;align-items:center;gap:12px">
+                        <div style="width:44px;height:44px;border-radius:50%;background:\${connected ? 'rgba(37,211,102,0.12)' : 'var(--surface-raised)'};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="\${connected ? '#25d366' : 'var(--text-muted)'}" stroke-width="2" width="22" height="22"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                        </div>
+                        <div>
+                          <div style="font-size:15px;font-weight:600;color:var(--text)">\${esc(inst.name)}</div>
+                          <div style="font-size:12px;color:var(--text-muted)">\${inst.phone ? '+' + esc(inst.phone) : (inst.profileName ? esc(inst.profileName) : (connected ? 'Connected' : 'Not connected'))}</div>
+                        </div>
+                      </div>
+                      <span style="display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;background:\${statusBg};color:\${statusColor}">
+                        <span style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block"></span>
+                        \${statusLabel}
+                      </span>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                      \${connected ? \`
+                        <button id="test-btn-\${idx}" class="btn btn-primary btn-sm" onclick="testDeviceConn('\${esc(inst.name)}', \${idx})">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
+                          Test Connection
+                        </button>
+                      \` : \`
+                        <button class="btn btn-primary btn-sm" onclick="showDeviceQR('\${esc(inst.name)}', \${inst.qrcode ? '1' : '0'})">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="3" y="3" width="5" height="5"/><rect x="16" y="3" width="5" height="5"/><rect x="3" y="16" width="5" height="5"/><rect x="14" y="14" width="3" height="3"/><rect x="18" y="14" width="3" height="3"/><rect x="14" y="18" width="3" height="3"/><rect x="18" y="18" width="3" height="3"/></svg>
+                          Connect (Scan QR)
+                        </button>
+                      \`}
+                      <button onclick="deleteDeviceInst('\${esc(inst.name)}')" class="btn btn-sm" style="background:rgba(220,38,38,0.08);color:#dc2626;border:1px solid rgba(220,38,38,0.2)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                        Delete
+                      </button>
+                    </div>
+                    <div id="test-result-\${idx}" style="margin-top:8px;font-size:12px;color:var(--text-muted)"></div>
+                  </div>
+                </div>
+              \`;
+            }).join('')}
+          </div>
+
+          <!-- Add Device Modal -->
+          <div id="add-device-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
+            <div style="background:var(--surface);border-radius:14px;padding:28px;width:380px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+              <h3 style="font-size:16px;font-weight:700;margin-bottom:8px">Add New Device</h3>
+              <p style="font-size:12px;color:var(--text-muted);margin-bottom:20px">Creates a new WhatsApp instance in Evolution GO. A QR code will appear to link your phone.</p>
+              <div style="display:flex;flex-direction:column;gap:14px">
+                <div>
+                  <label style="font-size:12px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:5px">Instance Name</label>
+                  <input class="form-input" id="new-device-name" placeholder="e.g. sales-team or rahul-wa" style="width:100%;font-family:monospace">
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px">Lowercase, numbers and hyphens only</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:10px;margin-top:20px">
+                <button class="btn btn-primary" style="flex:1" id="add-device-btn" onclick="saveNewDevice()">Create & Get QR</button>
+                <button class="btn" style="flex:1" onclick="document.getElementById('add-device-modal').style.display='none'">Cancel</button>
+              </div>
+            </div>
+          </div>
+        \`;
+      } catch (e) {
+        el.innerHTML = '<div style="color:var(--red);padding:24px">Error loading devices: ' + e.message + '</div>';
+      }
+    }
+
+    function openAddDeviceModal() {
+      const modal = document.getElementById('add-device-modal');
+      if (modal) {
+        document.getElementById('new-device-name').value = '';
+        modal.style.display = 'flex';
+      }
+    }
+
+    async function saveNewDevice() {
+      const raw = document.getElementById('new-device-name').value.trim();
+      const instanceName = raw.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/--+/g, '-').replace(/^-|-$/g, '');
+      if (!instanceName) { alert('Instance name required'); return; }
+      const btn = document.getElementById('add-device-btn');
+      btn.textContent = 'Creating...'; btn.disabled = true;
+      try {
+        const r = await fetch('/api/evolution/create-instance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ instance_name: instanceName }) });
+        const d = await r.json();
+        document.getElementById('add-device-modal').style.display = 'none';
+        await loadDevices();
+        // Show QR if returned immediately
+        const qrBase64 = d.qrcode?.base64 || d.base64 || null;
+        if (qrBase64) {
+          _openQRWindow(instanceName, qrBase64);
+        } else {
+          // fetch QR separately
+          showDeviceQR(instanceName);
+        }
+      } catch (e) { alert('Error creating device: ' + e.message); }
+      finally { btn.textContent = 'Create & Get QR'; btn.disabled = false; }
+    }
+
+    function _openQRWindow(instanceName, base64) {
+      const w = window.open('', 'QR_' + instanceName, 'width=420,height=480');
+      w.document.write('<html><body style="background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif"><h3 style="color:#fff;margin-bottom:16px">Scan QR — ' + instanceName + '</h3><img src="' + base64 + '" style="width:300px;height:300px;border-radius:12px"/><p style="color:#888;margin-top:12px;font-size:13px">WhatsApp &gt; Linked Devices &gt; Link a Device</p></body></html>');
+    }
+
+    async function showDeviceQR(instanceName) {
+      try {
+        // Evolution GO stores QR inside /instance/all — fetch fresh data
+        const r = await fetch('/api/evolution/instances');
+        const instances = await r.json();
+        const inst = instances.find(i => i.name === instanceName);
+        if (!inst) { alert('Instance not found. Refresh and try again.'); return; }
+        if (inst.connected) { alert(instanceName + ' is already connected!\\nNo QR needed.'); return; }
+        if (inst.qrcode) {
+          _openQRWindow(instanceName, inst.qrcode);
+        } else {
+          alert('QR code not available yet.\\n\\nEvolution GO generates QR automatically when disconnected. Try:\\n1. Wait a few seconds and try again\\n2. Or delete and re-add this device');
+        }
+      } catch (e) { alert('Error: ' + e.message); }
+    }
+
+    async function testDeviceConn(instanceName, idx) {
+      const btn = document.getElementById('test-btn-' + idx);
+      const resultEl = document.getElementById('test-result-' + idx);
+      if (btn) { btn.disabled = true; btn.textContent = 'Testing...'; }
+      try {
+        const r = await fetch('/api/evolution/instance/connectionState/' + instanceName);
+        const d = await r.json();
+        const state = d.instance?.state || d.state || 'unknown';
+        const phone = d.instance?.wuid ? d.instance.wuid.split('@')[0] : '';
+        if (state === 'open') {
+          if (resultEl) { resultEl.textContent = 'Connected' + (phone ? ' — +' + phone : ''); resultEl.style.color = '#25d366'; }
+          if (btn) { btn.textContent = 'Connected ✓'; btn.style.background = '#25d366'; }
+        } else {
+          if (resultEl) { resultEl.textContent = 'State: ' + state; resultEl.style.color = 'var(--red)'; }
+          if (btn) { btn.textContent = 'Test Connection'; }
+        }
+        setTimeout(() => { if (btn) { btn.disabled = false; btn.textContent = 'Test Connection'; btn.style.background = ''; } }, 4000);
+      } catch (e) {
+        if (resultEl) resultEl.textContent = 'Error: ' + e.message;
+        if (btn) { btn.disabled = false; btn.textContent = 'Test Connection'; }
+      }
+    }
+
+    async function deleteDeviceInst(instanceName) {
+      if (!confirm('Delete "' + instanceName + '" from Evolution GO?\\n\\nThis will permanently disconnect and remove this WhatsApp instance.')) return;
+      try {
+        await fetch('/api/evolution/delete-instance/' + instanceName, { method: 'DELETE' });
+        loadDevices();
+      } catch (e) { alert('Error deleting: ' + e.message); }
+    }
+
+    async function loadWaSettings() {
+      const el = document.getElementById('wa-settings-content');
+      el.innerHTML = '<div style="color:var(--text-muted);padding:24px">Loading...</div>';
+      let status = { connected: false, name: '', number: '', instance: '' };
+      let config = { url: 'http://localhost:4000', instance: '', waWebhookOutUrl: '' };
+      let evoInstances = [];
+      try { const r = await fetch('/api/whatsapp/status'); status = await r.json(); } catch {}
+      try { const r = await fetch('/api/evo/config'); config = await r.json(); } catch {}
+      try { const r = await fetch('/api/evolution/instances'); evoInstances = await r.json(); } catch {}
+      try { const r = await fetch('/api/website-leads'); const d = await r.json(); config.waWebhookOutUrl = d.settings?.waWebhookOutUrl || ''; } catch {}
+      el.innerHTML = \`
+        <div style="margin-bottom:24px">
+          <h2 style="font-size:18px;font-weight:700;margin-bottom:4px">WhatsApp Settings</h2>
+          <p style="font-size:13px;color:var(--text-muted)">Configure your Evolution API connection.</p>
+        </div>
+
+        <!-- Connection Status -->
+        <div class="card" style="margin-bottom:16px;border:1px solid \${status.connected ? 'rgba(37,211,102,0.3)' : 'rgba(239,68,68,0.3)'}">
+          <div class="card-body">
+            <div style="display:flex;align-items:center;gap:14px">
+              <div style="width:44px;height:44px;border-radius:50%;background:\${status.connected ? 'rgba(37,211,102,0.12)' : 'rgba(239,68,68,0.12)'};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <svg viewBox="0 0 24 24" fill="none" stroke="\${status.connected ? '#25d366' : 'var(--red)'}" stroke-width="2" width="22" height="22"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+              </div>
+              <div>
+                <div style="font-size:15px;font-weight:600;color:\${status.connected ? '#25d366' : 'var(--red)'}">\${status.connected ? 'Connected' : 'Disconnected'}</div>
+                <div style="font-size:13px;color:var(--text-muted);margin-top:2px">\${status.connected ? '+' + esc(status.number) + ' &nbsp;·&nbsp; ' + esc(status.name) : 'WhatsApp se connected nahi hai'}</div>
+                <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Instance: <code style="background:var(--surface-raised);padding:1px 5px;border-radius:3px">\${esc(status.instance || '-')}</code></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Webhook IN -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-body">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2" width="18" height="18"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
+              <h3 style="font-size:15px;font-weight:600;color:var(--text);margin:0">Webhook IN</h3>
+              <span style="font-size:11px;background:rgba(99,102,241,0.15);color:#818cf8;border-radius:10px;padding:2px 8px">Incoming</span>
+            </div>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Configure this URL in Evolution GO — whenever a WhatsApp message arrives, Evolution GO will POST to this URL.</p>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:monospace;font-size:12px;color:var(--text);word-break:break-all">
+                POST \${location.origin}/api/wa-webhook
+              </div>
+              <button onclick="navigator.clipboard.writeText(location.origin+'/api/wa-webhook').then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)})" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:12px;white-space:nowrap">Copy</button>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:8px">Evolution GO → Instance Settings → Webhook → paste this URL</div>
+          </div>
+        </div>
+
+        <!-- Webhook OUT -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-body">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" width="18" height="18"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+              <h3 style="font-size:15px;font-weight:600;color:var(--text);margin:0">Webhook OUT</h3>
+              <span style="font-size:11px;background:rgba(16,185,129,0.15);color:#34d399;border-radius:10px;padding:2px 8px">Outgoing</span>
+            </div>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Whenever data arrives on Webhook IN, it will be forwarded to this URL instantly (real-time).</p>
+            <div style="display:flex;gap:8px;align-items:flex-end">
+              <div style="flex:1">
+                <label style="font-size:12px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:6px">Forward to URL</label>
+                <input class="form-input" id="wa-webhook-out-url" type="url" placeholder="https://your-server.com/incoming-wa" value="\${esc(config.waWebhookOutUrl||'')}" style="width:100%;font-size:13px">
+              </div>
+              <button onclick="saveWaWebhookOut()" style="padding:9px 18px;background:#10b981;color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:13px;font-weight:500;white-space:nowrap">Save</button>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:8px">Data will be forwarded directly to your server/CRM</div>
+          </div>
+        </div>
+
+        <!-- Evolution API Config -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-body">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+              <h3 style="font-size:15px;font-weight:600;color:var(--text)">Evolution API Connection</h3>
+              <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;background:\${status.connected ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)'};color:\${status.connected ? '#16a34a' : '#dc2626'};border:1px solid \${status.connected ? 'rgba(22,163,74,0.25)' : 'rgba(220,38,38,0.25)'}">
+                <span style="width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block"></span>
+                \${status.connected ? 'Connected — +' + esc(status.number) : 'Disconnected'}
+              </span>
+            </div>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Update these values if you migrate to a VPS and click Test Connection.</p>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:6px">Evolution API URL</label>
+                <input class="form-input" id="evo-url" value="\${esc(config.url)}" placeholder="http://YOUR_VPS_IP:4000" style="width:100%;font-family:monospace;font-size:13px">
+                <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Local: http://localhost:4000 &nbsp;|&nbsp; VPS: http://IP:4000</div>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:6px">API Key / Instance Token</label>
+                <input class="form-input" id="evo-apikey" type="password" placeholder="Instance token or global API key" style="width:100%;font-family:monospace;font-size:13px">
+                <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Copy the instance token from Evolution GO manager</div>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:6px">Instance Name</label>
+                \${evoInstances.length > 0 ? \`
+                  <select class="form-input" id="evo-instance" style="width:100%;font-family:monospace;font-size:13px">
+                    \${evoInstances.map(i => \`<option value="\${esc(i.name)}" \${i.name === (config.instance || status.instance) ? 'selected' : ''}>\${esc(i.name)}\${i.connected ? ' ✓ Connected' : ' ○ Disconnected'}</option>\`).join('')}
+                  </select>
+                  <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Select the WhatsApp instance to use as default</div>
+                \` : \`
+                  <input class="form-input" id="evo-instance" value="\${esc(config.instance || status.instance || '')}" placeholder="test-instance" style="width:100%;font-family:monospace;font-size:13px">
+                  <div style="font-size:11px;color:var(--text-dim);margin-top:4px">No instances found — go to Devices page to add one</div>
+                \`}
+              </div>
+              <div style="display:flex;gap:10px;align-items:center;padding-top:4px">
+                <button class="btn btn-primary" onclick="testEvoConnection()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
+                  Test Connection
+                </button>
+                <span id="evo-test-result" style="font-size:13px"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      \`;
+    }
+
+    function useTemplate(text) {
+      document.getElementById('wa-msg').value = text;
+    }
+
+    async function sendWhatsappMessage() {
+      const phone = document.getElementById('wa-phone').value.trim();
+      const text = document.getElementById('wa-msg').value.trim();
+      const statusEl = document.getElementById('wa-send-status');
+      const btn = document.getElementById('wa-send-btn');
+      if (!phone || !text) { statusEl.style.color = 'var(--red)'; statusEl.textContent = 'Phone and message required'; return; }
+      btn.disabled = true;
+      statusEl.style.color = 'var(--text-muted)';
+      statusEl.textContent = 'Sending...';
+      try {
+        const r = await fetch('/api/whatsapp/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ number: phone, text }) });
+        const d = await r.json();
+        if (r.ok && !d.error) {
+          statusEl.style.color = 'var(--green)';
+          statusEl.textContent = 'Message sent!';
+          document.getElementById('wa-msg').value = '';
+        } else {
+          statusEl.style.color = 'var(--red)';
+          statusEl.textContent = d.error || 'Failed to send';
+        }
+      } catch (err) {
+        statusEl.style.color = 'var(--red)';
+        statusEl.textContent = err.message;
+      }
+      btn.disabled = false;
+    }
+
+    async function loadWebsite() {
+      const el = document.getElementById('website-content');
+      el.innerHTML = '<div style="color:var(--text-muted);padding:24px">Loading...</div>';
+      try {
+        const [leadsRes, instRes] = await Promise.all([
+          fetch('/api/website-leads'),
+          fetch('/api/evolution/instances'),
+        ]);
+        const data = await leadsRes.json();
+        const evoInstances = instRes.ok ? await instRes.json() : [];
+        const { leads = [], stats = {}, settings = {} } = data;
+        _autoWaEnabled = settings.autoWaEnabled || false;
+        el.innerHTML = \`
+          <div style="padding:20px;max-width:1200px">
+            <!-- Stats Cards -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px">
+              \${[
+                { label:'All Leads', val: stats.total||0, color:'#ef4444', icon:'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75' },
+                { label:'New', val: stats.new||0, color:'#3b82f6', icon:'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
+                { label:'Contacted', val: stats.contacted||0, color:'#8b5cf6', icon:'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z' },
+                { label:'Converted', val: stats.converted||0, color:'#10b981', icon:'M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3' },
+                { label:'Ignored', val: stats.ignored||0, color:'#6b7280', icon:'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636' },
+              ].map(s => \`
+                <div style="background:var(--surface-raised);border:1px solid var(--border);border-radius:10px;padding:16px;cursor:pointer;transition:border-color .2s" onclick="filterWebsiteLeads('\${s.label.toLowerCase().replace(' ','-')}')">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="\${s.color}" stroke-width="2" width="18" height="18"><path d="\${s.icon}"/></svg>
+                    <span style="font-size:12px;color:var(--text-muted)">\${s.label}</span>
+                  </div>
+                  <div style="font-size:28px;font-weight:700;color:\${s.color}">\${s.val}</div>
+                </div>
+              \`).join('')}
+            </div>
+
+            <!-- Auto-Send on New Lead -->
+            <div style="background:var(--surface-raised);border:1px solid var(--border);border-radius:10px;margin-bottom:20px;overflow:hidden">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border)">
+                <span style="font-weight:600;font-size:15px">Auto-Send on New Lead</span>
+                <span id="auto-send-status" style="font-size:13px;color:\${settings.autoWaEnabled ? '#10b981' : '#ef4444'};font-weight:500">\${settings.autoWaEnabled ? 'Turn Off' : 'Turn On'}</span>
+              </div>
+              <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0">
+                <!-- WA Auto-Send -->
+                <div style="padding:20px;border-right:1px solid var(--border);min-width:0;overflow:hidden">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#25d366" stroke-width="2" width="18" height="18"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+                      <span style="font-weight:600;font-size:14px">Send Message</span>
+                    </div>
+                    <div id="auto-wa-toggle-ui" onclick="toggleAutoWa()" style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer">
+                      <div id="auto-wa-track" style="position:absolute;top:0;left:0;right:0;bottom:0;background:\${settings.autoWaEnabled ? '#25d366' : '#d1d5db'};border-radius:24px;transition:.3s"></div>
+                      <div id="auto-wa-knob" style="position:absolute;height:18px;width:18px;left:\${settings.autoWaEnabled ? '23px' : '3px'};bottom:3px;background:#fff;border-radius:50%;transition:.3s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></div>
+                    </div>
+                  </div>
+                  <div style="margin-bottom:10px">
+                    <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;font-weight:600">Send From (Instance)</label>
+                    \${evoInstances.length > 0 ? \`
+                      <select id="auto-wa-instance" style="width:100%;padding:7px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:monospace">
+                        \${evoInstances.map(i => \`<option value="\${esc(i.name)}" \${i.name === (settings.autoWaInstance || '') ? 'selected' : ''}>\${esc(i.name)}\${i.connected ? ' ✓' : ' ○'} \${i.phone ? '+'+esc(i.phone) : ''}</option>\`).join('')}
+                      </select>
+                    \` : \`<div style="font-size:12px;color:var(--text-muted);padding:6px 0">No instances — add from Devices page</div>\`}
+                  </div>
+                  <textarea id="auto-wa-template" rows="5" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box">\${settings.autoWaTemplate||''}</textarea>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Variables: {{name}} {{phone}} {{email}} {{source}} {{message}} {{greeting}}</div>
+                  <button onclick="saveWebsiteSettings()" style="margin-top:10px;padding:7px 16px;background:#25d366;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500">Save Message</button>
+                </div>
+                <!-- Webhook URL -->
+                <div style="padding:20px;min-width:0;overflow:hidden">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" width="18" height="18"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+                    <span style="font-weight:600;font-size:14px">Webhook URL</span>
+                    <span style="font-size:11px;background:rgba(16,185,129,0.15);color:#34d399;border-radius:10px;padding:2px 8px">\${settings.tunnelUrl ? 'Live' : 'Local Only'}</span>
+                  </div>
+
+                  <!-- Public Webhook URL -->
+                  <div style="margin-bottom:4px;font-size:11px;font-weight:600;color:var(--text-dim)">Add this to your website .env (EVOGO_WEBHOOK_URL)</div>
+                  <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px">
+                    <div id="public-webhook-display" style="flex:1;background:var(--surface);border:1px solid \${settings.tunnelUrl ? 'rgba(16,185,129,0.4)' : 'var(--border)'};border-radius:8px;padding:8px 10px;font-size:11px;font-family:monospace;color:var(--text);word-break:break-all">
+                      \${settings.tunnelUrl ? settings.tunnelUrl + '/api/website-leads' : location.origin + '/api/website-leads'}
+                    </div>
+                    <button onclick="copyWebhookUrl()" style="padding:7px 12px;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:12px;white-space:nowrap" id="copy-webhook-btn">Copy</button>
+                  </div>
+
+                  <!-- Tunnel URL update -->
+                  <div style="margin-bottom:14px">
+                    <div style="font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:5px">Tunnel URL (ngrok/serveo — if running)</div>
+                    <div style="display:flex;gap:6px">
+                      <input id="tunnel-url-input" type="url" placeholder="https://xyz.serveousercontent.com" value="\${settings.tunnelUrl||''}" style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 10px;color:var(--text);font-size:12px" />
+                      <button onclick="saveTunnelUrl()" style="padding:7px 12px;background:var(--surface);border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:12px;color:var(--text)">Save</button>
+                    </div>
+                  </div>
+
+                  <button onclick="addTestLead()" style="padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:13px;color:var(--text)">+ Test Lead</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Contacts Table -->
+            <div style="background:var(--surface-raised);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border)">
+                <span style="font-weight:600;font-size:15px">Contacts</span>
+                <div style="display:flex;gap:8px">
+                  <button onclick="exportWebsiteLeads()" style="padding:6px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:13px;color:var(--text)">Export</button>
+                  <button onclick="loadWebsite()" style="padding:6px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:13px;color:var(--text)">Refresh</button>
+                </div>
+              </div>
+              <div style="overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse;font-size:13px">
+                  <thead>
+                    <tr style="background:var(--surface);border-bottom:1px solid var(--border)">
+                      <th style="padding:10px 12px;text-align:left;color:var(--text-muted);font-weight:500">#</th>
+                      <th style="padding:10px 12px;text-align:left;color:var(--text-muted);font-weight:500">Name</th>
+                      <th style="padding:10px 12px;text-align:left;color:var(--text-muted);font-weight:500">Phone</th>
+                      <th style="padding:10px 12px;text-align:left;color:var(--text-muted);font-weight:500">Email</th>
+                      <th style="padding:10px 12px;text-align:left;color:var(--text-muted);font-weight:500">Source</th>
+                      <th style="padding:10px 12px;text-align:left;color:var(--text-muted);font-weight:500">Message</th>
+                      <th style="padding:10px 12px;text-align:left;color:var(--text-muted);font-weight:500">Page URL</th>
+                      <th style="padding:10px 12px;text-align:left;color:var(--text-muted);font-weight:500">IP Address</th>
+                      <th style="padding:10px 12px;text-align:left;color:var(--text-muted);font-weight:500">Status</th>
+                      <th style="padding:10px 12px;text-align:left;color:var(--text-muted);font-weight:500">Date</th>
+                      <th style="padding:10px 12px;text-align:left;color:var(--text-muted);font-weight:500">WA</th>
+                      <th style="padding:10px 12px;text-align:left;color:var(--text-muted);font-weight:500">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="website-leads-tbody">
+                    \${leads.length === 0 ? \`<tr><td colspan="12" style="padding:40px;text-align:center;color:var(--text-muted)">No leads yet. Add your webhook URL to your website to start receiving leads.</td></tr>\` :
+                      leads.map((l, i) => \`
+                        <tr style="border-bottom:1px solid var(--border);transition:background .15s" onmouseover="this.style.background='var(--surface)'" onmouseout="this.style.background=''">
+                          <td style="padding:10px 12px;color:var(--text-muted)">\${i+1}</td>
+                          <td style="padding:10px 12px;font-weight:500;color:var(--text)">\${l.name||'-'}</td>
+                          <td style="padding:10px 12px;color:var(--text-secondary)">\${l.phone||'-'}</td>
+                          <td style="padding:10px 12px;color:var(--text-secondary);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${l.email||'-'}</td>
+                          <td style="padding:10px 12px"><span style="background:var(--accent-bg);color:var(--accent-hover);border:1px solid var(--accent-border);border-radius:12px;padding:2px 8px;font-size:11px;white-space:nowrap">\${l.source||'-'}</span></td>
+                          <td style="padding:10px 12px;color:var(--text-secondary);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\${(l.message||'').replace(/"/g,'&quot;')}">\${l.message||'-'}</td>
+                          <td style="padding:10px 12px;color:var(--text-secondary);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\${l.pageUrl||''}">\${l.pageUrl ? l.pageUrl.replace(/^https?:\\/\\/[^/]+/,'') || '/' : '-'}</td>
+                          <td style="padding:10px 12px;color:var(--text-muted);font-size:11px">\${l.ipAddress||'-'}</td>
+                          <td style="padding:10px 12px">
+                            <select onchange="updateLeadStatus('\${l.id}', this.value)" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:12px;color:var(--text);cursor:pointer">
+                              \${['new','contacted','converted','ignored'].map(s => \`<option value="\${s}" \${l.status===s?'selected':''}>\${s.charAt(0).toUpperCase()+s.slice(1)}</option>\`).join('')}
+                            </select>
+                          </td>
+                          <td style="padding:10px 12px;color:var(--text-muted);font-size:11px;white-space:nowrap">\${l.createdAt||'-'}</td>
+                          <td style="padding:10px 12px">
+                            \${l.waMessageSent ? '<span style="color:#25d366;font-size:11px">✓ Sent</span>' : '<span style="color:var(--text-muted);font-size:11px">Not sent</span>'}
+                          </td>
+                          <td style="padding:10px 12px">
+                            <div style="display:flex;gap:6px;align-items:center">
+                              <button onclick="sendWaToLead('\${l.id}')" title="Send WhatsApp" style="background:none;border:1px solid var(--border);border-radius:5px;padding:4px 7px;cursor:pointer;color:#25d366">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+                              </button>
+                              <button onclick="deleteWebsiteLead('\${l.id}')" title="Delete" style="background:none;border:1px solid var(--border);border-radius:5px;padding:4px 7px;cursor:pointer;color:#ef4444">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      \`).join('')
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        \`;
+      } catch(e) {
+        el.innerHTML = \`<div style="padding:24px;color:#ef4444">Error: \${e.message}</div>\`;
+      }
+    }
+
+    let _autoWaEnabled = false;
+    async function toggleAutoWa() {
+      _autoWaEnabled = !_autoWaEnabled;
+      await fetch('/api/website-settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ autoWaEnabled: _autoWaEnabled }) });
+      const track = document.getElementById('auto-wa-track');
+      const knob = document.getElementById('auto-wa-knob');
+      const dot = document.getElementById('auto-send-status');
+      if (track) track.style.background = _autoWaEnabled ? '#25d366' : '#d1d5db';
+      if (knob) knob.style.left = _autoWaEnabled ? '23px' : '3px';
+      if (dot) { dot.textContent = _autoWaEnabled ? 'Turn Off' : 'Turn On'; dot.style.color = _autoWaEnabled ? '#10b981' : '#ef4444'; }
+    }
+
+    async function saveWebsiteSettings() {
+      const tmpl = document.getElementById('auto-wa-template')?.value || '';
+      const instEl = document.getElementById('auto-wa-instance');
+      const autoWaInstance = instEl ? instEl.value : '';
+      await fetch('/api/website-settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ autoWaTemplate: tmpl, autoWaInstance }) });
+      alert('Saved!');
+    }
+
+    async function saveWebhookSettings() {
+      const customWebhookUrl = document.getElementById('custom-webhook-url')?.value?.trim() || '';
+      const b2bForwardEnabled = document.getElementById('b2b-forward-toggle')?.checked || false;
+      const b2bForwardUrl = document.getElementById('b2b-forward-url')?.value?.trim() || '';
+      await fetch('/api/website-settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ customWebhookUrl, b2bForwardEnabled, b2bForwardUrl }) });
+      alert('Webhook settings saved!');
+    }
+
+    async function saveTunnelUrl() {
+      const tunnelUrl = (document.getElementById('tunnel-url-input')?.value?.trim() || '').replace(/[/]$/, '');
+      await fetch('/api/website-settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ tunnelUrl }) });
+      const full = tunnelUrl ? tunnelUrl + '/api/website-leads' : location.origin + '/api/website-leads';
+      const display = document.getElementById('public-webhook-display');
+      if (display) display.textContent = full;
+      alert('Tunnel URL saved!');
+    }
+
+    function copyWebhookUrl() {
+      const text = document.getElementById('public-webhook-display')?.textContent?.trim() || '';
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('copy-webhook-btn');
+        if (btn) { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 2000); }
+      });
+    }
+
+    async function saveWaWebhookOut() {
+      const waWebhookOutUrl = document.getElementById('wa-webhook-out-url')?.value?.trim() || '';
+      await fetch('/api/website-settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ waWebhookOutUrl }) });
+      alert('Webhook OUT saved!');
+    }
+
+    async function updateLeadStatus(id, status) {
+      await fetch(\`/api/website-leads/\${id}\`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
+    }
+
+    async function sendWaToLead(id) {
+      const r = await fetch(\`/api/website-leads/\${id}/send-wa\`, { method:'POST', headers:{'Content-Type':'application/json'}, body: '{}' });
+      const d = await r.json();
+      if (d.ok) { alert('WhatsApp message sent!'); loadWebsite(); }
+      else alert('Error: ' + (d.error || 'Failed'));
+    }
+
+    async function deleteWebsiteLead(id) {
+      if (!confirm('Delete this lead?')) return;
+      await fetch(\`/api/website-leads/\${id}\`, { method:'DELETE' });
+      loadWebsite();
+    }
+
+    async function addTestLead() {
+      await fetch('/api/website-leads', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name:'Test User', phone:'919999999999', email:'test@example.com', source:'contact - Test', message:'I am interested in your property', pageUrl:'https://www.example.com/contact', ipAddress:'127.0.0.1' }) });
+      loadWebsite();
+    }
+
+    function exportWebsiteLeads() {
+      window.open('/api/website-leads', '_blank');
+    }
+
+    function filterWebsiteLeads(filter) { /* future: filter table rows */ }
+
     async function loadBrochures() {
       const r = await fetch('/api/brochures');
       const data = await r.json();
@@ -1505,6 +2237,30 @@ function getDashboardHtml() {
         document.getElementById('status-dot').className = 'status-dot offline';
         document.getElementById('status-text').textContent = 'Offline';
       }
+      // Update WhatsApp sidebar card
+      try {
+        const wr = await fetch('/api/whatsapp/status');
+        const wd = await wr.json();
+        const dot = document.getElementById('wa-status-dot');
+        const nameEl = document.getElementById('wa-sidebar-name');
+        const numEl = document.getElementById('wa-sidebar-number');
+        const card = document.getElementById('wa-sidebar-card');
+        if (dot) {
+          if (wd.connected) {
+            dot.style.background = '#25d366';
+            dot.style.boxShadow = '0 0 5px #25d366';
+            if (card) { card.style.background = 'rgba(37,211,102,0.07)'; card.style.borderColor = 'rgba(37,211,102,0.2)'; }
+            if (nameEl) nameEl.textContent = wd.name || 'Connected';
+            if (numEl) numEl.textContent = wd.number ? '+' + wd.number : '';
+          } else {
+            dot.style.background = 'var(--red)';
+            dot.style.boxShadow = 'none';
+            if (card) { card.style.background = 'rgba(239,68,68,0.07)'; card.style.borderColor = 'rgba(239,68,68,0.2)'; }
+            if (nameEl) { nameEl.style.color = 'var(--red)'; nameEl.textContent = 'Disconnected'; }
+            if (numEl) numEl.textContent = 'Not connected';
+          }
+        }
+      } catch {}
     }
 
     // ─── Model Selection & Settings ─────────
@@ -1564,6 +2320,7 @@ function getDashboardHtml() {
 
       el.innerHTML = \`
         <div style="max-width:780px">
+
           <!-- WhatsApp Employee Routing -->
           <div class="card" style="cursor:default;margin-bottom:12px">
             <div class="card-body">
@@ -1632,6 +2389,33 @@ function getDashboardHtml() {
           </div>
         </div>
       \`;
+    }
+
+    async function testEvoConnection() {
+      const url = document.getElementById('evo-url').value.trim();
+      const apiKey = document.getElementById('evo-apikey').value.trim();
+      const instance = document.getElementById('evo-instance').value.trim();
+      const resultEl = document.getElementById('evo-test-result');
+      if (!url) { resultEl.style.color = 'var(--red)'; resultEl.textContent = 'URL required'; return; }
+      resultEl.style.color = 'var(--text-muted)'; resultEl.textContent = 'Testing...';
+      try {
+        const r = await fetch('/api/evo/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, apiKey, instance })
+        });
+        const d = await r.json();
+        if (d.connected) {
+          resultEl.style.color = '#25d366';
+          resultEl.textContent = '✓ Connected — +' + d.number + ' (' + d.name + ')';
+        } else {
+          resultEl.style.color = 'var(--red)';
+          resultEl.textContent = '✗ ' + (d.error || 'Not connected');
+        }
+      } catch (err) {
+        resultEl.style.color = 'var(--red)';
+        resultEl.textContent = '✗ ' + err.message;
+      }
     }
 
     async function handleInstanceSelect(selectEl, employeeName, existingId) {
