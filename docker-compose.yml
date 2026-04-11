@@ -1,6 +1,6 @@
 services:
   gemini-live-bridge:
-    build: .
+    image: ghcr.io/1onegroup/gemini-live-app-native:latest
     container_name: gemini-live-bridge
     restart: unless-stopped
     ports:
