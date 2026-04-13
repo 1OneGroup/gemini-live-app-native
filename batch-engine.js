@@ -27,54 +27,54 @@ function getRunnerStatus(campaignId) {
 async function startCampaign(campaignId) {
   if (isRunning(campaignId)) return { error: 'Campaign already running' };
 
-  const campaign = db.getCampaign(campaignId);
+  const campaign = await db.getCampaign(campaignId);
   if (!campaign) return { error: 'Campaign not found' };
   if (campaign.total_contacts === 0) return { error: 'No contacts uploaded' };
 
   const runner = { running: true, currentContact: null, consecutiveFailures: 0 };
   activeRunners.set(campaignId, runner);
 
-  db.updateCampaign(campaignId, { status: 'running' });
+  await db.updateCampaign(campaignId, { status: 'running' });
 
   // Start async batch loop (non-blocking)
-  runBatchLoop(campaignId, runner).catch(err => {
+  runBatchLoop(campaignId, runner).catch(async err => {
     console.error(`[BatchEngine] Campaign ${campaignId} error:`, err.message);
-    db.updateCampaign(campaignId, { status: 'paused' });
+    await db.updateCampaign(campaignId, { status: 'paused' });
     runner.running = false;
   });
 
   return { ok: true, status: 'running' };
 }
 
-function pauseCampaign(campaignId) {
+async function pauseCampaign(campaignId) {
   const runner = activeRunners.get(campaignId);
   if (runner) runner.running = false;
-  db.updateCampaign(campaignId, { status: 'paused' });
+  await db.updateCampaign(campaignId, { status: 'paused' });
   return { ok: true, status: 'paused' };
 }
 
-function cancelCampaign(campaignId) {
+async function cancelCampaign(campaignId) {
   const runner = activeRunners.get(campaignId);
   if (runner) runner.running = false;
   activeRunners.delete(campaignId);
-  db.updateCampaign(campaignId, { status: 'cancelled' });
+  await db.updateCampaign(campaignId, { status: 'cancelled' });
   return { ok: true, status: 'cancelled' };
 }
 
 async function runBatchLoop(campaignId, runner) {
-  const campaign = db.getCampaign(campaignId);
-  const maxBatch = db.getMaxBatch(campaignId);
+  const campaign = await db.getCampaign(campaignId);
+  const maxBatch = await db.getMaxBatch(campaignId);
   let currentBatch = campaign.current_batch || 1;
 
   while (currentBatch <= maxBatch && runner.running) {
     console.log(`[BatchEngine] Campaign ${campaignId}: starting batch ${currentBatch}/${maxBatch}`);
-    db.updateCampaign(campaignId, { currentBatch, status: 'running' });
+    await db.updateCampaign(campaignId, { currentBatch, status: 'running' });
 
     // Check if this batch already has an analysis pending approval
-    const existingAnalysis = db.getAnalysis(campaignId, currentBatch);
+    const existingAnalysis = await db.getAnalysis(campaignId, currentBatch);
     if (existingAnalysis && existingAnalysis.approved === 0) {
       console.log(`[BatchEngine] Batch ${currentBatch} awaiting approval, pausing`);
-      db.updateCampaign(campaignId, { status: 'awaiting_approval' });
+      await db.updateCampaign(campaignId, { status: 'awaiting_approval' });
       runner.running = false;
       return;
     }
@@ -89,12 +89,12 @@ async function runBatchLoop(campaignId, runner) {
     await runBatchAnalysis(campaignId, currentBatch);
 
     // Update completed count
-    const stats = db.getContactStats(campaignId);
-    db.updateCampaign(campaignId, { completedContacts: stats.completed + stats.failed });
+    const stats = await db.getContactStats(campaignId);
+    await db.updateCampaign(campaignId, { completedContacts: stats.completed + stats.failed });
 
     if (currentBatch < maxBatch) {
       // Pause for approval
-      db.updateCampaign(campaignId, { status: 'awaiting_approval' });
+      await db.updateCampaign(campaignId, { status: 'awaiting_approval' });
       runner.running = false;
       console.log(`[BatchEngine] Campaign ${campaignId} paused for batch ${currentBatch} review`);
       return;
@@ -105,8 +105,8 @@ async function runBatchLoop(campaignId, runner) {
 
   // All batches done
   if (runner.running) {
-    const stats = db.getContactStats(campaignId);
-    db.updateCampaign(campaignId, {
+    const stats = await db.getContactStats(campaignId);
+    await db.updateCampaign(campaignId, {
       status: 'completed',
       completedContacts: stats.completed + stats.failed,
       currentBatch: maxBatch,
@@ -121,27 +121,27 @@ async function runBatch(campaignId, batchNumber, runner) {
   runner.consecutiveFailures = 0;
 
   while (runner.running) {
-    const contact = db.getNextPendingContact(campaignId, batchNumber);
+    const contact = await db.getNextPendingContact(campaignId, batchNumber);
     if (!contact) break; // Batch done
 
     runner.currentContact = contact.id;
     console.log(`[BatchEngine] Calling ${contact.phone} (${contact.name || 'Unknown'})`);
 
     // Mark contact as calling
-    db.updateContact(contact.id, { status: 'calling' });
+    await db.updateContact(contact.id, { status: 'calling' });
 
     try {
       // Get campaign for potential prompt override
-      const campaign = db.getCampaign(campaignId);
+      const campaign = await db.getCampaign(campaignId);
 
       // Make the call (pass whatsapp message key for brochure routing)
       const result = await _makeCallFn(contact.phone, contact.name || 'Sir', campaign.prompt_override || null, campaign.whatsapp_message_key || null, contact.employee_name || null, { enableAMD: true });
-      db.updateContact(contact.id, { callUuid: result.callUuid, status: 'calling' });
+      await db.updateContact(contact.id, { callUuid: result.callUuid, status: 'calling' });
 
       // Wait for call to complete (poll call store)
       const outcome = await waitForCallCompletion(result.callUuid, 300000); // 5 min timeout
       const callData = store.getCall(result.callUuid);
-      db.updateContact(contact.id, {
+      await db.updateContact(contact.id, {
         status: 'completed', outcome,
         callbackDate: callData?.callbackDate || null,
         callbackNote: callData?.callbackRequested || null,
@@ -152,12 +152,12 @@ async function runBatch(campaignId, batchNumber, runner) {
 
     } catch (err) {
       console.error(`[BatchEngine] Call to ${contact.phone} failed:`, err.message);
-      db.updateContact(contact.id, { status: 'failed', outcome: 'error' });
+      await db.updateContact(contact.id, { status: 'failed', outcome: 'error' });
       runner.consecutiveFailures++;
 
       if (runner.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
         console.error(`[BatchEngine] ${MAX_CONSECUTIVE_FAILURES} consecutive failures, pausing campaign`);
-        db.updateCampaign(campaignId, { status: 'paused' });
+        await db.updateCampaign(campaignId, { status: 'paused' });
         runner.running = false;
         return;
       }
@@ -220,9 +220,9 @@ function classifyOutcome(call) {
 
 // --- AI Batch Analysis ---
 async function runBatchAnalysis(campaignId, batchNumber) {
-  const contacts = db.getContacts(campaignId, { batchNumber });
-  const batchStats = db.getBatchStats(campaignId, batchNumber);
-  const campaign = db.getCampaign(campaignId);
+  const contacts = await db.getContacts(campaignId, { batchNumber });
+  const batchStats = await db.getBatchStats(campaignId, batchNumber);
+  const campaign = await db.getCampaign(campaignId);
 
   // Collect transcripts from completed calls
   const transcripts = [];
@@ -303,8 +303,8 @@ Format your response as JSON:
     } catch { /* Use raw text as summary */ }
 
     // Record which prompt was active for this batch
-    const activePrompt = db.getActivePrompt();
-    db.createAnalysis(campaignId, batchNumber, {
+    const activePrompt = await db.getActivePrompt();
+    await db.createAnalysis(campaignId, batchNumber, {
       summary: analysis.summary,
       recommendations: analysis.recommendations,
       promptAdjustments: analysis.prompt_adjustments,
@@ -316,8 +316,8 @@ Format your response as JSON:
   } catch (err) {
     console.error(`[BatchEngine] AI analysis failed:`, err.message);
     // Save analysis with error
-    const activePromptErr = db.getActivePrompt();
-    db.createAnalysis(campaignId, batchNumber, {
+    const activePromptErr = await db.getActivePrompt();
+    await db.createAnalysis(campaignId, batchNumber, {
       summary: `Analysis failed: ${err.message}`,
       recommendations: '',
       promptAdjustments: '',

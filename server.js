@@ -138,7 +138,7 @@ function preWarmGemini(callUuid, promptOverride) {
   const ws = new WebSocket(GEMINI_WS_URL);
   session.ws = ws;
 
-  ws.on('open', () => {
+  ws.on('open', async () => {
     console.log(`[Gemini] Pre-warm connected, sending setup...`);
     const t0 = Date.now();
     session._setupStart = t0;
@@ -156,7 +156,7 @@ function preWarmGemini(callUuid, promptOverride) {
           maxOutputTokens: 2048,
         },
         systemInstruction: {
-          parts: [{ text: promptOverride || getSystemInstruction() }]
+          parts: [{ text: promptOverride || await getSystemInstruction() }]
         },
         realtimeInputConfig: {
           automaticActivityDetection: {
@@ -420,7 +420,7 @@ function reconnectGemini(session, callUuid) {
   const ws = new WebSocket(GEMINI_WS_URL);
   session.ws = ws;
 
-  ws.on('open', () => {
+  ws.on('open', async () => {
     console.log(`[Gemini] Reconnect WS open for ${callUuid}, sending setup...`);
     session._setupStart = Date.now();
     ws.send(JSON.stringify({
@@ -437,7 +437,7 @@ function reconnectGemini(session, callUuid) {
           maxOutputTokens: 2048,
         },
         systemInstruction: {
-          parts: [{ text: getSystemInstruction() }]
+          parts: [{ text: await getSystemInstruction() }]
         },
         realtimeInputConfig: {
           automaticActivityDetection: {
@@ -713,7 +713,7 @@ const server = http.createServer(async (req, res) => {
 
   if (parsed.pathname === '/api/prompt' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ prompt: getSystemInstruction(), isOverride: isUsingOverride(), defaultPrompt: DEFAULT_PROMPT }));
+    res.end(JSON.stringify({ prompt: await getSystemInstruction(), isOverride: isUsingOverride(), defaultPrompt: DEFAULT_PROMPT }));
     return;
   }
 
@@ -910,20 +910,21 @@ const server = http.createServer(async (req, res) => {
 
   // List campaigns
   if (parsed.pathname === '/api/campaigns' && req.method === 'GET') {
-    const campaigns = db.listCampaigns().map(c => ({
-      ...c,
-      stats: db.getContactStats(c.id),
-      isRunning: batchEngine.isRunning(c.id),
-    }));
+    const rawCampaigns = await db.listCampaigns();
+    const campaigns = [];
+    for (const c of rawCampaigns) {
+      campaigns.push({ ...c, stats: await db.getContactStats(c.id), isRunning: batchEngine.isRunning(c.id) });
+    }
     json(res, campaigns);
     return;
   }
 
   // Create campaign
   if (parsed.pathname === '/api/campaigns' && req.method === 'POST') {
-    parseBody(req).then(body => {
+    try {
+      const body = await parseBody(req);
       if (!body.name) { json(res, { error: 'name is required' }, 400); return; }
-      const campaign = db.createCampaign({
+      const campaign = await db.createCampaign({
         name: body.name,
         promptOverride: body.prompt_override,
         batchSize: body.batch_size || 100,
@@ -931,38 +932,39 @@ const server = http.createServer(async (req, res) => {
         whatsappMessageKey: body.whatsapp_message_key || null,
       });
       json(res, campaign, 201);
-    }).catch(err => json(res, { error: err.message }, 400));
+    } catch (err) { json(res, { error: err.message }, 400); }
     return;
   }
 
   // Campaign detail
   const campaignMatch = parsed.pathname.match(/^\/api\/campaigns\/([^/]+)$/);
   if (campaignMatch && req.method === 'GET') {
-    const campaign = db.getCampaign(campaignMatch[1]);
+    const campaign = await db.getCampaign(campaignMatch[1]);
     if (!campaign) { json(res, { error: 'Not found' }, 404); return; }
-    const stats = db.getContactStats(campaign.id);
-    const analyses = db.listAnalyses(campaign.id);
-    const maxBatch = db.getMaxBatch(campaign.id);
+    const stats = await db.getContactStats(campaign.id);
+    const analyses = await db.listAnalyses(campaign.id);
+    const maxBatch = await db.getMaxBatch(campaign.id);
     json(res, { ...campaign, stats, analyses, maxBatch, isRunning: batchEngine.isRunning(campaign.id), runner: batchEngine.getRunnerStatus(campaign.id) });
     return;
   }
 
   // Update campaign
   if (campaignMatch && req.method === 'PATCH') {
-    parseBody(req).then(body => {
-      const campaign = db.updateCampaign(campaignMatch[1], {
+    try {
+      const body = await parseBody(req);
+      const campaign = await db.updateCampaign(campaignMatch[1], {
         name: body.name, status: body.status, promptOverride: body.prompt_override,
         batchSize: body.batch_size, maxConcurrent: body.max_concurrent,
       });
       if (!campaign) { json(res, { error: 'Not found' }, 404); return; }
       json(res, campaign);
-    }).catch(err => json(res, { error: err.message }, 400));
+    } catch (err) { json(res, { error: err.message }, 400); }
     return;
   }
 
   // Delete campaign
   if (campaignMatch && req.method === 'DELETE') {
-    db.deleteCampaign(campaignMatch[1]);
+    await db.deleteCampaign(campaignMatch[1]);
     json(res, { ok: true });
     return;
   }
@@ -971,12 +973,12 @@ const server = http.createServer(async (req, res) => {
   const uploadMatch = parsed.pathname.match(/^\/api\/campaigns\/([^/]+)\/upload$/);
   if (uploadMatch && req.method === 'POST') {
     const campaignId = uploadMatch[1];
-    const campaign = db.getCampaign(campaignId);
+    const campaign = await db.getCampaign(campaignId);
     if (!campaign) { json(res, { error: 'Campaign not found' }, 404); return; }
 
     let rawBody = '';
     req.on('data', c => { rawBody += c; if (rawBody.length > 10e6) { req.destroy(); return; } });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         // Handle both JSON array and CSV text
         let contacts;
@@ -1015,9 +1017,9 @@ const server = http.createServer(async (req, res) => {
         if (!contacts || contacts.length === 0) { json(res, { error: 'No valid contacts found' }, 400); return; }
         if (contacts.length > 10000) { json(res, { error: 'Maximum 10,000 contacts per campaign' }, 400); return; }
 
-        db.insertContacts(campaignId, contacts, campaign.batch_size);
-        const updated = db.getCampaign(campaignId);
-        json(res, { ok: true, totalContacts: updated.total_contacts, batches: db.getMaxBatch(campaignId) });
+        await db.insertContacts(campaignId, contacts, campaign.batch_size);
+        const updated = await db.getCampaign(campaignId);
+        json(res, { ok: true, totalContacts: updated.total_contacts, batches: await db.getMaxBatch(campaignId) });
       } catch (err) {
         json(res, { error: err.message }, 400);
       }
@@ -1036,21 +1038,21 @@ const server = http.createServer(async (req, res) => {
   // Pause campaign
   const pauseMatch = parsed.pathname.match(/^\/api\/campaigns\/([^/]+)\/pause$/);
   if (pauseMatch && req.method === 'POST') {
-    json(res, batchEngine.pauseCampaign(pauseMatch[1]));
+    json(res, await batchEngine.pauseCampaign(pauseMatch[1]));
     return;
   }
 
   // Cancel campaign
   const cancelMatch = parsed.pathname.match(/^\/api\/campaigns\/([^/]+)\/cancel$/);
   if (cancelMatch && req.method === 'POST') {
-    json(res, batchEngine.cancelCampaign(cancelMatch[1]));
+    json(res, await batchEngine.cancelCampaign(cancelMatch[1]));
     return;
   }
 
   // Callback contacts for a campaign
   const callbacksMatch = parsed.pathname.match(/^\/api\/campaigns\/([^/]+)\/callbacks$/);
   if (callbacksMatch && req.method === 'GET') {
-    json(res, db.getCallbackContacts(callbacksMatch[1]));
+    json(res, await db.getCallbackContacts(callbacksMatch[1]));
     return;
   }
 
@@ -1058,9 +1060,9 @@ const server = http.createServer(async (req, res) => {
   const triggerCallbacksMatch = parsed.pathname.match(/^\/api\/campaigns\/([^/]+)\/trigger-callbacks$/);
   if (triggerCallbacksMatch && req.method === 'POST') {
     const campaignId = triggerCallbacksMatch[1];
-    const campaign = db.getCampaign(campaignId);
+    const campaign = await db.getCampaign(campaignId);
     if (!campaign) { json(res, { error: 'Campaign not found' }, 404); return; }
-    const callbacks = db.getCallbackContacts(campaignId);
+    const callbacks = await db.getCallbackContacts(campaignId);
     const now = new Date();
     const due = callbacks.filter(c => c.callback_date && new Date(c.callback_date) <= now);
     if (due.length === 0) { json(res, { triggered: 0, message: 'No callbacks due' }); return; }
@@ -1069,7 +1071,7 @@ const server = http.createServer(async (req, res) => {
     for (const contact of due) {
       try {
         const result = await makeCall(contact.phone, contact.name || 'Sir', campaign.prompt_override || null, campaign.whatsapp_message_key || null, null, { enableAMD: true });
-        db.updateContact(contact.id, { status: 'calling', callUuid: result.callUuid, outcome: null, callbackDate: null, callbackNote: null });
+        await db.updateContact(contact.id, { status: 'calling', callUuid: result.callUuid, outcome: null, callbackDate: null, callbackNote: null });
         results.push({ phone: contact.phone, name: contact.name, callUuid: result.callUuid, status: 'calling' });
       } catch (err) {
         results.push({ phone: contact.phone, name: contact.name, error: err.message });
@@ -1082,13 +1084,14 @@ const server = http.createServer(async (req, res) => {
   // Toggle auto-callback for a campaign
   const autoCallbackMatch = parsed.pathname.match(/^\/api\/campaigns\/([^/]+)\/auto-callback$/);
   if (autoCallbackMatch && req.method === 'POST') {
-    parseBody(req).then(body => {
+    try {
+      const body = await parseBody(req);
       const campaignId = autoCallbackMatch[1];
       const enabled = body.enabled ? 1 : 0;
-      db.db.prepare('UPDATE campaigns SET auto_callback = ? WHERE id = ?').run(enabled, campaignId);
-      const campaign = db.getCampaign(campaignId);
+      await db.rawExecute('UPDATE campaigns SET auto_callback = $1 WHERE id = $2', [enabled, campaignId]);
+      const campaign = await db.getCampaign(campaignId);
       json(res, { auto_callback: campaign?.auto_callback || 0 });
-    }).catch(err => json(res, { error: err.message }, 400));
+    } catch (err) { json(res, { error: err.message }, 400); }
     return;
   }
 
@@ -1096,12 +1099,12 @@ const server = http.createServer(async (req, res) => {
   const batchesMatch = parsed.pathname.match(/^\/api\/campaigns\/([^/]+)\/batches$/);
   if (batchesMatch && req.method === 'GET') {
     const campaignId = batchesMatch[1];
-    const maxBatch = db.getMaxBatch(campaignId);
+    const maxBatch = await db.getMaxBatch(campaignId);
     const batches = [];
     for (let i = 1; i <= maxBatch; i++) {
-      const stats = db.getBatchStats(campaignId, i);
-      const analysis = db.getAnalysis(campaignId, i);
-      const prompt = analysis?.prompt_id ? db.getPrompt(analysis.prompt_id) : null;
+      const stats = await db.getBatchStats(campaignId, i);
+      const analysis = await db.getAnalysis(campaignId, i);
+      const prompt = analysis?.prompt_id ? await db.getPrompt(analysis.prompt_id) : null;
       batches.push({ batchNumber: i, stats, analysis: analysis ? { ...analysis, prompt_name: prompt?.name || null } : null });
     }
     json(res, batches);
@@ -1113,30 +1116,31 @@ const server = http.createServer(async (req, res) => {
   if (approveMatch && req.method === 'POST') {
     const campaignId = approveMatch[1];
     const batchNum = parseInt(approveMatch[2]);
-    parseBody(req).then(async body => {
-      db.approveAnalysis(campaignId, batchNum);
+    try {
+      const body = await parseBody(req);
+      await db.approveAnalysis(campaignId, batchNum);
       // If prompt adjustments provided, update campaign prompt
       if (body.prompt_override) {
-        db.updateCampaign(campaignId, { promptOverride: body.prompt_override });
+        await db.updateCampaign(campaignId, { promptOverride: body.prompt_override });
       }
       // If batch_size adjustment provided
       if (body.batch_size) {
-        db.updateCampaign(campaignId, { batchSize: body.batch_size });
+        await db.updateCampaign(campaignId, { batchSize: body.batch_size });
       }
       // Advance to next batch and resume
-      db.updateCampaign(campaignId, { currentBatch: batchNum + 1 });
+      await db.updateCampaign(campaignId, { currentBatch: batchNum + 1 });
       const result = await batchEngine.startCampaign(campaignId);
       json(res, { ok: true, ...result });
-    }).catch(err => json(res, { error: err.message }, 400));
+    } catch (err) { json(res, { error: err.message }, 400); }
     return;
   }
 
   // Get batch analysis
   const analysisMatch = parsed.pathname.match(/^\/api\/campaigns\/([^/]+)\/batches\/(\d+)\/analysis$/);
   if (analysisMatch && req.method === 'GET') {
-    const analysis = db.getAnalysis(analysisMatch[1], parseInt(analysisMatch[2]));
+    const analysis = await db.getAnalysis(analysisMatch[1], parseInt(analysisMatch[2]));
     if (!analysis) { json(res, { error: 'No analysis found' }, 404); return; }
-    const prompt = analysis.prompt_id ? db.getPrompt(analysis.prompt_id) : null;
+    const prompt = analysis.prompt_id ? await db.getPrompt(analysis.prompt_id) : null;
     json(res, { ...analysis, stats: analysis.stats ? JSON.parse(analysis.stats) : null, prompt_name: prompt?.name || null });
     return;
   }
@@ -1146,19 +1150,20 @@ const server = http.createServer(async (req, res) => {
   if (rerunMatch && req.method === 'POST') {
     const campaignId = rerunMatch[1];
     const batchNum = parseInt(rerunMatch[2]);
-    db.deleteAnalysis(campaignId, batchNum);
-    batchEngine.runBatchAnalysis(campaignId, batchNum).then(() => {
-      const analysis = db.getAnalysis(campaignId, batchNum);
-      const prompt = analysis?.prompt_id ? db.getPrompt(analysis.prompt_id) : null;
+    await db.deleteAnalysis(campaignId, batchNum);
+    try {
+      await batchEngine.runBatchAnalysis(campaignId, batchNum);
+      const analysis = await db.getAnalysis(campaignId, batchNum);
+      const prompt = analysis?.prompt_id ? await db.getPrompt(analysis.prompt_id) : null;
       json(res, { ok: true, analysis: analysis ? { ...analysis, prompt_name: prompt?.name || null } : null });
-    }).catch(err => json(res, { error: err.message }, 500));
+    } catch (err) { json(res, { error: err.message }, 500); }
     return;
   }
 
   // List contacts
   const contactsMatch = parsed.pathname.match(/^\/api\/campaigns\/([^/]+)\/contacts$/);
   if (contactsMatch && req.method === 'GET') {
-    const contacts = db.getContacts(contactsMatch[1], {
+    const contacts = await db.getContacts(contactsMatch[1], {
       batchNumber: parsed.query.batch ? parseInt(parsed.query.batch) : undefined,
       status: parsed.query.status,
       outcome: parsed.query.outcome || undefined,
@@ -1191,8 +1196,8 @@ const server = http.createServer(async (req, res) => {
 
   // --- Employee WhatsApp Instances API ---
   if (parsed.pathname === '/api/employee-instances/auto-detect' && req.method === 'GET') {
-    const employeeNames = db.getUniqueEmployeeNames();
-    const mappings = db.listEmployeeInstances();
+    const employeeNames = await db.getUniqueEmployeeNames();
+    const mappings = await db.listEmployeeInstances();
     const result = employeeNames.map(name => {
       const mapping = mappings.find(m => m.employee_name.toLowerCase() === name.toLowerCase());
       return {
@@ -1230,39 +1235,41 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (parsed.pathname === '/api/employee-instances' && req.method === 'GET') {
-    json(res, db.listEmployeeInstances());
+    json(res, await db.listEmployeeInstances());
     return;
   }
 
   if (parsed.pathname === '/api/employee-instances' && req.method === 'POST') {
-    parseBody(req).then(body => {
+    try {
+      const body = await parseBody(req);
       if (!body.employee_name || !body.instance_name) { json(res, { error: 'employee_name and instance_name required' }, 400); return; }
-      const inst = db.createEmployeeInstance({
+      const inst = await db.createEmployeeInstance({
         employeeName: body.employee_name,
         instanceName: body.instance_name,
         phone: body.phone,
         status: body.status || 'pending',
       });
       json(res, inst, 201);
-    }).catch(err => json(res, { error: err.message }, 400));
+    } catch (err) { json(res, { error: err.message }, 400); }
     return;
   }
 
   const empInstMatch = parsed.pathname.match(/^\/api\/employee-instances\/([^/]+)$/);
   if (empInstMatch && req.method === 'PATCH') {
-    parseBody(req).then(body => {
-      const inst = db.updateEmployeeInstance(empInstMatch[1], {
+    try {
+      const body = await parseBody(req);
+      const inst = await db.updateEmployeeInstance(empInstMatch[1], {
         employeeName: body.employee_name, instanceName: body.instance_name,
         phone: body.phone, status: body.status,
       });
       if (!inst) { json(res, { error: 'Not found' }, 404); return; }
       json(res, inst);
-    }).catch(err => json(res, { error: err.message }, 400));
+    } catch (err) { json(res, { error: err.message }, 400); }
     return;
   }
 
   if (empInstMatch && req.method === 'DELETE') {
-    db.deleteEmployeeInstance(empInstMatch[1]);
+    await db.deleteEmployeeInstance(empInstMatch[1]);
     json(res, { ok: true });
     return;
   }
@@ -1322,45 +1329,47 @@ const server = http.createServer(async (req, res) => {
 
   // --- Named Prompts API ---
   if (parsed.pathname === '/api/prompts' && req.method === 'GET') {
-    json(res, db.listPrompts());
+    json(res, await db.listPrompts());
     return;
   }
 
   if (parsed.pathname === '/api/prompts' && req.method === 'POST') {
-    parseBody(req).then(body => {
+    try {
+      const body = await parseBody(req);
       if (!body.name || !body.body) { json(res, { error: 'name and body required' }, 400); return; }
-      const prompt = db.createPrompt({ name: body.name, body: body.body, isActive: !!body.is_active });
+      const prompt = await db.createPrompt({ name: body.name, body: body.body, isActive: !!body.is_active });
       json(res, prompt, 201);
-    }).catch(err => json(res, { error: err.message }, 400));
+    } catch (err) { json(res, { error: err.message }, 400); }
     return;
   }
 
   const promptMatch = parsed.pathname.match(/^\/api\/prompts\/([^/]+)$/);
   if (promptMatch && req.method === 'GET') {
-    const prompt = db.getPrompt(promptMatch[1]);
+    const prompt = await db.getPrompt(promptMatch[1]);
     if (!prompt) { json(res, { error: 'Not found' }, 404); return; }
     json(res, prompt);
     return;
   }
 
   if (promptMatch && req.method === 'PATCH') {
-    parseBody(req).then(body => {
-      const prompt = db.updatePrompt(promptMatch[1], { name: body.name, body: body.body });
+    try {
+      const body = await parseBody(req);
+      const prompt = await db.updatePrompt(promptMatch[1], { name: body.name, body: body.body });
       if (!prompt) { json(res, { error: 'Not found' }, 404); return; }
       json(res, prompt);
-    }).catch(err => json(res, { error: err.message }, 400));
+    } catch (err) { json(res, { error: err.message }, 400); }
     return;
   }
 
   if (promptMatch && req.method === 'DELETE') {
-    db.deletePrompt(promptMatch[1]);
+    await db.deletePrompt(promptMatch[1]);
     json(res, { ok: true });
     return;
   }
 
   const activateMatch = parsed.pathname.match(/^\/api\/prompts\/([^/]+)\/activate$/);
   if (activateMatch && req.method === 'POST') {
-    const prompt = db.setActivePrompt(activateMatch[1]);
+    const prompt = await db.setActivePrompt(activateMatch[1]);
     if (!prompt) { json(res, { error: 'Not found' }, 404); return; }
     json(res, prompt);
     return;
@@ -1368,14 +1377,14 @@ const server = http.createServer(async (req, res) => {
 
   if (parsed.pathname === '/api/prompts/active' && req.method === 'DELETE') {
     // Deactivate all prompts (fall back to file override or default)
-    db.db.prepare('UPDATE prompts SET is_active = 0').run();
+    await db.rawExecute('UPDATE prompts SET is_active = 0');
     json(res, { ok: true });
     return;
   }
 
   // --- Analytics API ---
   if (parsed.pathname === '/api/analytics' && req.method === 'GET') {
-    const campaigns = db.listCampaigns();
+    const campaigns = await db.listCampaigns();
     const calls = store.listCalls();
 
     // Aggregate outcomes from ALL calls (not just campaign contacts)
@@ -1402,7 +1411,7 @@ const server = http.createServer(async (req, res) => {
     const campaignPerf = [];
     let totalContacts = 0;
     for (const camp of campaigns) {
-      const s = db.getContactStats(camp.id);
+      const s = await db.getContactStats(camp.id);
       totalContacts += s.total || 0;
       const processed = (s.completed || 0) + (s.failed || 0);
       campaignPerf.push({
@@ -1709,7 +1718,7 @@ async function makeCall(toNumber, customerName, promptOverride, whatsappMessageK
   pendingSessions.set(realUuid, session);
 
   // Create call log entry
-  const activePrompt = promptOverride || getSystemInstruction();
+  const activePrompt = promptOverride || await getSystemInstruction();
   store.createCall(realUuid, {
     to: toNumber,
     customerName,
@@ -1727,7 +1736,7 @@ async function makeCall(toNumber, customerName, promptOverride, whatsappMessageK
 batchEngine.setMakeCallFn(makeCall);
 
 // Sync callback data from call store to DB contacts on startup
-function syncCallbackData() {
+async function syncCallbackData() {
   const allCalls = store.listCalls();
   let synced = 0;
   for (const call of allCalls) {
@@ -1760,14 +1769,14 @@ function syncCallbackData() {
 
     // Sync callback/outcome data to matching DB contacts
     try {
-      const contacts = db.db.prepare('SELECT id, outcome, callback_date FROM contacts WHERE call_uuid = ?').all(call.callUuid);
+      const contacts = await db.rawQuery('SELECT id, outcome, callback_date FROM contacts WHERE call_uuid = $1', [call.callUuid]);
       for (const contact of contacts) {
         const needsOutcomeUpdate = fullCall.outcome && fullCall.outcome !== contact.outcome;
         const needsCallbackUpdate = (fullCall.callbackDate || fullCall.callbackRequested) && !contact.callback_date;
         if (needsOutcomeUpdate || needsCallbackUpdate) {
           // Use raw SQL to allow overwriting outcome (COALESCE won't override existing)
-          db.db.prepare('UPDATE contacts SET outcome = ?, callback_date = ?, callback_note = ? WHERE id = ?')
-            .run(fullCall.outcome || contact.outcome, fullCall.callbackDate || null, fullCall.callbackRequested || null, contact.id);
+          await db.rawExecute('UPDATE contacts SET outcome = $1, callback_date = $2, callback_note = $3 WHERE id = $4',
+            [fullCall.outcome || contact.outcome, fullCall.callbackDate || null, fullCall.callbackRequested || null, contact.id]);
           synced++;
         }
       }
@@ -1778,10 +1787,10 @@ function syncCallbackData() {
 
 // Auto-callback cron — runs daily at 11:00 AM IST (5:30 AM UTC)
 async function runAutoCallbacks() {
-  const campaigns = db.listCampaigns();
+  const campaigns = await db.listCampaigns();
   for (const campaign of campaigns) {
     if (!campaign.auto_callback) continue;
-    const callbacks = db.getCallbackContacts(campaign.id);
+    const callbacks = await db.getCallbackContacts(campaign.id);
     const now = new Date();
     const due = callbacks.filter(c => c.callback_date && new Date(c.callback_date) <= now);
     if (due.length === 0) continue;
@@ -1790,7 +1799,7 @@ async function runAutoCallbacks() {
     for (const contact of due) {
       try {
         const result = await makeCall(contact.phone, contact.name || 'Sir', campaign.prompt_override || null, campaign.whatsapp_message_key || null, null, { enableAMD: true });
-        db.updateContact(contact.id, { status: 'calling', callUuid: result.callUuid, outcome: null, callbackDate: null, callbackNote: null });
+        await db.updateContact(contact.id, { status: 'calling', callUuid: result.callUuid, outcome: null, callbackDate: null, callbackNote: null });
         console.log(`[AutoCallback] Called ${contact.name || contact.phone}: ${result.callUuid}`);
         // Wait between calls
         await new Promise(r => setTimeout(r, 5000));
@@ -1822,15 +1831,21 @@ function scheduleAutoCallbackCron() {
   console.log('[AutoCallback] Cron scheduled: daily at 11:00 AM IST');
 }
 
-server.listen(PORT, () => {
-  console.log(`[Server] Gemini Live + Plivo bridge running on port ${PORT}`);
-  console.log(`[Server] Dashboard: ${PUBLIC_URL}/dashboard`);
-  setTimeout(syncCallbackData, 1000);
-  scheduleAutoCallbackCron();
-  // Fix campaigns stuck in 'running' after restart (no active runners in memory)
-  const stuck = db.db.prepare("SELECT id, name FROM campaigns WHERE status = 'running'").all();
-  for (const c of stuck) {
-    db.updateCampaign(c.id, { status: 'paused' });
-    console.log(`[Startup] Reset stuck campaign "${c.name}" from running -> paused`);
-  }
+// Initialize database then start server
+db.init().then(() => {
+  server.listen(PORT, async () => {
+    console.log(`[Server] Gemini Live + Plivo bridge running on port ${PORT}`);
+    console.log(`[Server] Dashboard: ${PUBLIC_URL}/dashboard`);
+    setTimeout(() => syncCallbackData().catch(err => console.error('[Sync] Error:', err.message)), 1000);
+    scheduleAutoCallbackCron();
+    // Fix campaigns stuck in 'running' after restart (no active runners in memory)
+    const stuck = await db.rawQuery("SELECT id, name FROM campaigns WHERE status = 'running'");
+    for (const c of stuck) {
+      await db.updateCampaign(c.id, { status: 'paused' });
+      console.log(`[Startup] Reset stuck campaign "${c.name}" from running -> paused`);
+    }
+  });
+}).catch(err => {
+  console.error('[DB] Failed to initialize:', err.message);
+  process.exit(1);
 });

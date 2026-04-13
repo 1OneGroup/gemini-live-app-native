@@ -77,11 +77,11 @@ Closing:
 - EMI: approx 1.2 lakh/month, bank pre-approved loans available
 - Amenities (30+): Swimming pool, clubhouse, tennis court, basketball court, open gym, jogging track, zen garden, gazebo, kids play area, landscaped parks, tree-lined boulevards, aesthetic boulevards, EV charging points, shopping complex, 24-hour water supply, power backup, biometric security, 24/7 CCTV surveillance, gated community, round-the-clock security personnel`;
 
-function getSystemInstruction() {
+async function getSystemInstruction() {
   // Priority 1: Active named prompt from DB
   try {
     const db = require('./db');
-    const active = db.getActivePrompt();
+    const active = await db.getActivePrompt();
     if (active?.body) return active.body;
   } catch (err) {
     // DB not ready yet (startup), fall through

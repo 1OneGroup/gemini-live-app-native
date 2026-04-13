@@ -45,11 +45,11 @@ function setBrochure(projectKey, { name, url, caption }) {
 }
 
 // Resolve which Evolution API instance to use for an employee
-function resolveInstance(employeeName) {
+async function resolveInstance(employeeName) {
   if (!employeeName) return EVOLUTION_INSTANCE;
   try {
     const db = require('./db');
-    const emp = db.getEmployeeByName(employeeName);
+    const emp = await db.getEmployeeByName(employeeName);
     if (emp?.instance_name) return emp.instance_name;
   } catch {}
   return EVOLUTION_INSTANCE;
@@ -77,7 +77,7 @@ async function sendBrochure(phoneNumber, projectName, employeeName) {
   if (!number.startsWith('91') && number.length === 10) number = '91' + number;
 
   // Route to employee's WhatsApp instance if available
-  const instance = resolveInstance(employeeName);
+  const instance = await resolveInstance(employeeName);
   console.log(`[WhatsApp] Using instance: ${instance} (employee: ${employeeName || 'default'})`);
 
   try {

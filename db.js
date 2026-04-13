@@ -1,138 +1,219 @@
-// SQLite database layer for campaigns, contacts, and batch analyses
-const Database = require('better-sqlite3');
-const path = require('path');
+// PostgreSQL database layer for campaigns, contacts, and batch analyses
+// Connects to Supabase PostgreSQL using the gemini_live schema
+const { Pool } = require('pg');
 const crypto = require('crypto');
 
-const DB_PATH = path.join(process.env.DATA_DIR || '/data', 'campaigns.db');
-const db = new Database(DB_PATH);
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
 
-// Enable WAL mode for better concurrent read performance
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
-
-// --- Schema ---
-db.exec(`
-  CREATE TABLE IF NOT EXISTS campaigns (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    status TEXT DEFAULT 'draft',
-    prompt_override TEXT,
-    batch_size INTEGER DEFAULT 100,
-    max_concurrent INTEGER DEFAULT 1,
-    total_contacts INTEGER DEFAULT 0,
-    completed_contacts INTEGER DEFAULT 0,
-    current_batch INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS contacts (
-    id TEXT PRIMARY KEY,
-    campaign_id TEXT NOT NULL REFERENCES campaigns(id),
-    phone TEXT NOT NULL,
-    name TEXT,
-    metadata TEXT,
-    batch_number INTEGER,
-    status TEXT DEFAULT 'pending',
-    call_uuid TEXT,
-    outcome TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_contacts_campaign ON contacts(campaign_id);
-  CREATE INDEX IF NOT EXISTS idx_contacts_batch ON contacts(campaign_id, batch_number);
-  CREATE INDEX IF NOT EXISTS idx_contacts_status ON contacts(campaign_id, status);
-
-  CREATE TABLE IF NOT EXISTS batch_analyses (
-    id TEXT PRIMARY KEY,
-    campaign_id TEXT NOT NULL REFERENCES campaigns(id),
-    batch_number INTEGER NOT NULL,
-    summary TEXT,
-    recommendations TEXT,
-    prompt_adjustments TEXT,
-    stats TEXT,
-    approved INTEGER DEFAULT 0,
-    approved_at TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_batch_campaign ON batch_analyses(campaign_id, batch_number);
-
-  CREATE TABLE IF NOT EXISTS employee_instances (
-    id TEXT PRIMARY KEY,
-    employee_name TEXT NOT NULL UNIQUE,
-    instance_name TEXT NOT NULL,
-    phone TEXT,
-    status TEXT DEFAULT 'pending',
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS prompts (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    body TEXT NOT NULL,
-    is_active INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-  );
-`);
-
-// Migration: add employee_name to contacts if missing
-try {
-  db.exec('ALTER TABLE contacts ADD COLUMN employee_name TEXT');
-} catch (e) { /* column already exists */ }
-
-// Migration: add callback tracking columns
-try {
-  db.exec('ALTER TABLE contacts ADD COLUMN callback_date TEXT');
-} catch (e) { /* column already exists */ }
-try {
-  db.exec('ALTER TABLE contacts ADD COLUMN callback_note TEXT');
-} catch (e) { /* column already exists */ }
-
-// Migration: add whatsapp_message_key to campaigns
-try {
-  db.exec('ALTER TABLE campaigns ADD COLUMN whatsapp_message_key TEXT');
-} catch (e) { /* column already exists */ }
-
-// Migration: add auto_callback flag to campaigns
-try {
-  db.exec('ALTER TABLE campaigns ADD COLUMN auto_callback INTEGER DEFAULT 0');
-} catch (e) { /* column already exists */ }
-
-// Migration: add prompt_id to batch_analyses for per-batch prompt tracking
-try {
-  db.exec('ALTER TABLE batch_analyses ADD COLUMN prompt_id TEXT');
-} catch (e) { /* column already exists */ }
+// Set search_path on every new client so all queries target gemini_live schema
+pool.on('connect', (client) => {
+  client.query('SET search_path TO gemini_live, public');
+});
 
 function uid() { return crypto.randomUUID(); }
 
-// --- Campaigns ---
-const stmts = {
-  createCampaign: db.prepare(`
-    INSERT INTO campaigns (id, name, status, prompt_override, batch_size, max_concurrent, whatsapp_message_key)
-    VALUES (?, ?, 'draft', ?, ?, ?, ?)
-  `),
-  getCampaign: db.prepare('SELECT * FROM campaigns WHERE id = ?'),
-  listCampaigns: db.prepare('SELECT * FROM campaigns ORDER BY created_at DESC'),
-  updateCampaign: db.prepare(`
-    UPDATE campaigns SET name = COALESCE(?, name), status = COALESCE(?, status),
-    prompt_override = COALESCE(?, prompt_override), batch_size = COALESCE(?, batch_size),
-    max_concurrent = COALESCE(?, max_concurrent), total_contacts = COALESCE(?, total_contacts),
-    completed_contacts = COALESCE(?, completed_contacts), current_batch = COALESCE(?, current_batch),
-    updated_at = datetime('now') WHERE id = ?
-  `),
-  deleteCampaign: db.prepare('DELETE FROM campaigns WHERE id = ?'),
+// --- Schema bootstrap (idempotent) ---
+async function ensureSchema() {
+  const client = await pool.connect();
+  try {
+    await client.query('SET search_path TO gemini_live, public');
+    await client.query(`
+      CREATE SCHEMA IF NOT EXISTS gemini_live;
 
-  // Contacts
-  insertContact: db.prepare(`
-    INSERT INTO contacts (id, campaign_id, phone, name, metadata, batch_number, employee_name)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `),
-  getContactsByCampaign: db.prepare('SELECT * FROM contacts WHERE campaign_id = ? ORDER BY batch_number, rowid'),
-  getContactsByBatch: db.prepare('SELECT * FROM contacts WHERE campaign_id = ? AND batch_number = ? ORDER BY rowid'),
-  getContactStats: db.prepare(`
+      CREATE TABLE IF NOT EXISTS gemini_live.campaigns (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        status TEXT DEFAULT 'draft',
+        prompt_override TEXT,
+        batch_size INTEGER DEFAULT 100,
+        max_concurrent INTEGER DEFAULT 1,
+        total_contacts INTEGER DEFAULT 0,
+        completed_contacts INTEGER DEFAULT 0,
+        current_batch INTEGER DEFAULT 0,
+        whatsapp_message_key TEXT,
+        auto_callback INTEGER DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS gemini_live.contacts (
+        id TEXT PRIMARY KEY,
+        campaign_id TEXT NOT NULL REFERENCES gemini_live.campaigns(id),
+        phone TEXT NOT NULL,
+        name TEXT,
+        metadata TEXT,
+        batch_number INTEGER,
+        status TEXT DEFAULT 'pending',
+        call_uuid TEXT,
+        outcome TEXT,
+        employee_name TEXT,
+        callback_date TEXT,
+        callback_note TEXT,
+        created_at TIMESTAMPTZ DEFAULT now()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_gl_contacts_campaign ON gemini_live.contacts(campaign_id);
+      CREATE INDEX IF NOT EXISTS idx_gl_contacts_batch ON gemini_live.contacts(campaign_id, batch_number);
+      CREATE INDEX IF NOT EXISTS idx_gl_contacts_status ON gemini_live.contacts(campaign_id, status);
+      CREATE INDEX IF NOT EXISTS idx_gl_contacts_call_uuid ON gemini_live.contacts(call_uuid);
+
+      CREATE TABLE IF NOT EXISTS gemini_live.batch_analyses (
+        id TEXT PRIMARY KEY,
+        campaign_id TEXT NOT NULL REFERENCES gemini_live.campaigns(id),
+        batch_number INTEGER NOT NULL,
+        summary TEXT,
+        recommendations TEXT,
+        prompt_adjustments TEXT,
+        stats TEXT,
+        prompt_id TEXT,
+        approved INTEGER DEFAULT 0,
+        approved_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT now()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_gl_batch_campaign ON gemini_live.batch_analyses(campaign_id, batch_number);
+
+      CREATE TABLE IF NOT EXISTS gemini_live.employee_instances (
+        id TEXT PRIMARY KEY,
+        employee_name TEXT NOT NULL UNIQUE,
+        instance_name TEXT NOT NULL,
+        phone TEXT,
+        status TEXT DEFAULT 'pending',
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS gemini_live.prompts (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        body TEXT NOT NULL,
+        is_active INTEGER DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+      );
+    `);
+    console.log('[DB] Schema ensured (gemini_live)');
+  } finally {
+    client.release();
+  }
+}
+
+// --- Helper: single-row query ---
+async function queryOne(sql, params = []) {
+  const { rows } = await pool.query(sql, params);
+  return rows[0] || null;
+}
+
+// --- Helper: multi-row query ---
+async function queryAll(sql, params = []) {
+  const { rows } = await pool.query(sql, params);
+  return rows;
+}
+
+// --- Helper: execute (no return) ---
+async function execute(sql, params = []) {
+  await pool.query(sql, params);
+}
+
+// --- Raw query helper (replaces db.db.prepare().all/run) ---
+async function rawQuery(sql, params = []) {
+  const { rows } = await pool.query(sql, params);
+  return rows;
+}
+
+async function rawExecute(sql, params = []) {
+  await pool.query(sql, params);
+}
+
+// --- Campaigns ---
+
+async function createCampaign({ name, promptOverride, batchSize = 100, maxConcurrent = 1, whatsappMessageKey = null }) {
+  const id = uid();
+  await execute(
+    `INSERT INTO campaigns (id, name, status, prompt_override, batch_size, max_concurrent, whatsapp_message_key)
+     VALUES ($1, $2, 'draft', $3, $4, $5, $6)`,
+    [id, name, promptOverride || null, batchSize, maxConcurrent, whatsappMessageKey || null]
+  );
+  return queryOne('SELECT * FROM campaigns WHERE id = $1', [id]);
+}
+
+async function getCampaign(id) {
+  return queryOne('SELECT * FROM campaigns WHERE id = $1', [id]);
+}
+
+async function listCampaigns() {
+  return queryAll('SELECT * FROM campaigns ORDER BY created_at DESC');
+}
+
+async function updateCampaign(id, updates) {
+  await execute(
+    `UPDATE campaigns SET
+      name = COALESCE($1, name), status = COALESCE($2, status),
+      prompt_override = COALESCE($3, prompt_override), batch_size = COALESCE($4, batch_size),
+      max_concurrent = COALESCE($5, max_concurrent), total_contacts = COALESCE($6, total_contacts),
+      completed_contacts = COALESCE($7, completed_contacts), current_batch = COALESCE($8, current_batch),
+      updated_at = now() WHERE id = $9`,
+    [
+      updates.name || null, updates.status || null, updates.promptOverride || null,
+      updates.batchSize || null, updates.maxConcurrent || null,
+      updates.totalContacts ?? null, updates.completedContacts ?? null,
+      updates.currentBatch ?? null, id
+    ]
+  );
+  return queryOne('SELECT * FROM campaigns WHERE id = $1', [id]);
+}
+
+async function deleteCampaign(id) {
+  await execute('DELETE FROM batch_analyses WHERE campaign_id = $1', [id]);
+  await execute('DELETE FROM contacts WHERE campaign_id = $1', [id]);
+  await execute('DELETE FROM campaigns WHERE id = $1', [id]);
+}
+
+// Bulk insert contacts from parsed CSV, auto-assign batch numbers
+async function insertContacts(campaignId, contacts, batchSize) {
+  const client = await pool.connect();
+  try {
+    await client.query('SET search_path TO gemini_live, public');
+    await client.query('BEGIN');
+    let batchNum = 1;
+    for (let i = 0; i < contacts.length; i++) {
+      if (i > 0 && i % batchSize === 0) batchNum++;
+      const c = contacts[i];
+      await client.query(
+        `INSERT INTO contacts (id, campaign_id, phone, name, metadata, batch_number, employee_name)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [uid(), campaignId, c.phone, c.name || null, c.metadata ? JSON.stringify(c.metadata) : null, batchNum, c.employeeName || null]
+      );
+    }
+    await client.query(
+      `UPDATE campaigns SET total_contacts = COALESCE($1, total_contacts), updated_at = now() WHERE id = $2`,
+      [contacts.length, campaignId]
+    );
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function getContacts(campaignId, { batchNumber, status, outcome, limit = 100, offset = 0 } = {}) {
+  let query = 'SELECT * FROM contacts WHERE campaign_id = $1';
+  const params = [campaignId];
+  let paramIdx = 2;
+  if (batchNumber) { query += ` AND batch_number = $${paramIdx++}`; params.push(batchNumber); }
+  if (status) { query += ` AND status = $${paramIdx++}`; params.push(status); }
+  if (outcome) { query += ` AND outcome = $${paramIdx++}`; params.push(outcome); }
+  query += ` ORDER BY batch_number, created_at LIMIT $${paramIdx++} OFFSET $${paramIdx++}`;
+  params.push(limit, offset);
+  return queryAll(query, params);
+}
+
+async function getContactStats(campaignId) {
+  const row = await queryOne(`
     SELECT
       COUNT(*) as total,
       SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
@@ -146,9 +227,19 @@ const stmts = {
       SUM(CASE WHEN outcome LIKE '%busy%' THEN 1 ELSE 0 END) as busy,
       SUM(CASE WHEN outcome LIKE '%brochure_sent%' THEN 1 ELSE 0 END) as brochure_sent,
       SUM(CASE WHEN outcome LIKE '%voicemail%' THEN 1 ELSE 0 END) as voicemail
-    FROM contacts WHERE campaign_id = ?
-  `),
-  getBatchStats: db.prepare(`
+    FROM contacts WHERE campaign_id = $1
+  `, [campaignId]);
+  // Convert bigint strings to numbers
+  if (row) {
+    for (const key of Object.keys(row)) {
+      row[key] = Number(row[key]) || 0;
+    }
+  }
+  return row || { total: 0, completed: 0, failed: 0, pending: 0, calling: 0, interested: 0, not_interested: 0, callback: 0, no_answer: 0, busy: 0, brochure_sent: 0, voicemail: 0 };
+}
+
+async function getBatchStats(campaignId, batchNumber) {
+  const row = await queryOne(`
     SELECT
       COUNT(*) as total,
       SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
@@ -160,233 +251,193 @@ const stmts = {
       SUM(CASE WHEN outcome LIKE '%busy%' THEN 1 ELSE 0 END) as busy,
       SUM(CASE WHEN outcome LIKE '%brochure_sent%' THEN 1 ELSE 0 END) as brochure_sent,
       SUM(CASE WHEN outcome LIKE '%voicemail%' THEN 1 ELSE 0 END) as voicemail
-    FROM contacts WHERE campaign_id = ? AND batch_number = ?
-  `),
-  updateContact: db.prepare(`
-    UPDATE contacts SET status = COALESCE(?, status), call_uuid = COALESCE(?, call_uuid),
-    outcome = COALESCE(?, outcome), callback_date = COALESCE(?, callback_date),
-    callback_note = COALESCE(?, callback_note) WHERE id = ?
-  `),
-  getNextPendingContact: db.prepare(`
-    SELECT * FROM contacts WHERE campaign_id = ? AND batch_number = ? AND status = 'pending'
-    ORDER BY rowid LIMIT 1
-  `),
-  countBatches: db.prepare('SELECT MAX(batch_number) as max_batch FROM contacts WHERE campaign_id = ?'),
-  deleteContactsByCampaign: db.prepare('DELETE FROM contacts WHERE campaign_id = ?'),
-
-  // Batch analyses
-  createAnalysis: db.prepare(`
-    INSERT INTO batch_analyses (id, campaign_id, batch_number, summary, recommendations, prompt_adjustments, stats, prompt_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `),
-  getAnalysis: db.prepare('SELECT * FROM batch_analyses WHERE campaign_id = ? AND batch_number = ?'),
-  listAnalyses: db.prepare('SELECT * FROM batch_analyses WHERE campaign_id = ? ORDER BY batch_number'),
-  approveAnalysis: db.prepare(`
-    UPDATE batch_analyses SET approved = 1, approved_at = datetime('now')
-    WHERE campaign_id = ? AND batch_number = ?
-  `),
-  rejectAnalysis: db.prepare(`
-    UPDATE batch_analyses SET approved = 2, approved_at = datetime('now')
-    WHERE campaign_id = ? AND batch_number = ?
-  `),
-  deleteAnalysis: db.prepare('DELETE FROM batch_analyses WHERE campaign_id = ? AND batch_number = ?'),
-};
-
-// --- Public API ---
-
-function createCampaign({ name, promptOverride, batchSize = 100, maxConcurrent = 1, whatsappMessageKey = null }) {
-  const id = uid();
-  stmts.createCampaign.run(id, name, promptOverride || null, batchSize, maxConcurrent, whatsappMessageKey || null);
-  return stmts.getCampaign.get(id);
-}
-
-function getCampaign(id) {
-  return stmts.getCampaign.get(id);
-}
-
-function listCampaigns() {
-  return stmts.listCampaigns.all();
-}
-
-function updateCampaign(id, updates) {
-  stmts.updateCampaign.run(
-    updates.name || null, updates.status || null, updates.promptOverride || null,
-    updates.batchSize || null, updates.maxConcurrent || null,
-    updates.totalContacts ?? null, updates.completedContacts ?? null,
-    updates.currentBatch ?? null, id
-  );
-  return stmts.getCampaign.get(id);
-}
-
-function deleteCampaign(id) {
-  db.prepare('DELETE FROM batch_analyses WHERE campaign_id = ?').run(id);
-  stmts.deleteContactsByCampaign.run(id);
-  stmts.deleteCampaign.run(id);
-}
-
-// Bulk insert contacts from parsed CSV, auto-assign batch numbers
-const insertContacts = db.transaction((campaignId, contacts, batchSize) => {
-  let batchNum = 1;
-  for (let i = 0; i < contacts.length; i++) {
-    if (i > 0 && i % batchSize === 0) batchNum++;
-    const c = contacts[i];
-    stmts.insertContact.run(uid(), campaignId, c.phone, c.name || null, c.metadata ? JSON.stringify(c.metadata) : null, batchNum, c.employeeName || null);
+    FROM contacts WHERE campaign_id = $1 AND batch_number = $2
+  `, [campaignId, batchNumber]);
+  if (row) {
+    for (const key of Object.keys(row)) {
+      row[key] = Number(row[key]) || 0;
+    }
   }
-  stmts.updateCampaign.run(null, null, null, null, null, contacts.length, null, null, campaignId);
-});
-
-function getContacts(campaignId, { batchNumber, status, outcome, limit = 100, offset = 0 } = {}) {
-  let query = 'SELECT * FROM contacts WHERE campaign_id = ?';
-  const params = [campaignId];
-  if (batchNumber) { query += ' AND batch_number = ?'; params.push(batchNumber); }
-  if (status) { query += ' AND status = ?'; params.push(status); }
-  if (outcome) { query += ' AND outcome = ?'; params.push(outcome); }
-  query += ' ORDER BY batch_number, rowid LIMIT ? OFFSET ?';
-  params.push(limit, offset);
-  return db.prepare(query).all(...params);
+  return row || { total: 0, completed: 0, failed: 0, interested: 0, not_interested: 0, callback: 0, no_answer: 0, busy: 0, brochure_sent: 0, voicemail: 0 };
 }
 
-function getContactStats(campaignId) {
-  return stmts.getContactStats.get(campaignId);
+async function updateContact(id, { status, callUuid, outcome, callbackDate, callbackNote }) {
+  await execute(
+    `UPDATE contacts SET
+      status = COALESCE($1, status), call_uuid = COALESCE($2, call_uuid),
+      outcome = COALESCE($3, outcome), callback_date = COALESCE($4, callback_date),
+      callback_note = COALESCE($5, callback_note) WHERE id = $6`,
+    [status || null, callUuid || null, outcome || null, callbackDate || null, callbackNote || null, id]
+  );
 }
 
-function getBatchStats(campaignId, batchNumber) {
-  return stmts.getBatchStats.get(campaignId, batchNumber);
-}
-
-function updateContact(id, { status, callUuid, outcome, callbackDate, callbackNote }) {
-  stmts.updateContact.run(status || null, callUuid || null, outcome || null, callbackDate || null, callbackNote || null, id);
-}
-
-function getCallbackContacts(campaignId) {
-  let query = 'SELECT * FROM contacts WHERE outcome LIKE \'%callback%\'';
+async function getCallbackContacts(campaignId) {
+  let query = "SELECT * FROM contacts WHERE outcome LIKE '%callback%'";
   const params = [];
-  if (campaignId) { query += ' AND campaign_id = ?'; params.push(campaignId); }
+  if (campaignId) { query += ' AND campaign_id = $1'; params.push(campaignId); }
   query += ' ORDER BY callback_date ASC, created_at DESC';
-  return db.prepare(query).all(...params);
+  return queryAll(query, params);
 }
 
-function getNextPendingContact(campaignId, batchNumber) {
-  return stmts.getNextPendingContact.get(campaignId, batchNumber);
+async function getNextPendingContact(campaignId, batchNumber) {
+  return queryOne(
+    `SELECT * FROM contacts WHERE campaign_id = $1 AND batch_number = $2 AND status = 'pending'
+     ORDER BY created_at LIMIT 1`,
+    [campaignId, batchNumber]
+  );
 }
 
-function getMaxBatch(campaignId) {
-  const row = stmts.countBatches.get(campaignId);
+async function getMaxBatch(campaignId) {
+  const row = await queryOne('SELECT MAX(batch_number) as max_batch FROM contacts WHERE campaign_id = $1', [campaignId]);
   return row?.max_batch || 0;
 }
 
-function createAnalysis(campaignId, batchNumber, { summary, recommendations, promptAdjustments, stats, promptId }) {
+// --- Batch Analyses ---
+
+async function createAnalysis(campaignId, batchNumber, { summary, recommendations, promptAdjustments, stats, promptId }) {
   const id = uid();
-  stmts.createAnalysis.run(id, campaignId, batchNumber, summary, recommendations, promptAdjustments, JSON.stringify(stats), promptId || null);
-  return stmts.getAnalysis.get(campaignId, batchNumber);
+  await execute(
+    `INSERT INTO batch_analyses (id, campaign_id, batch_number, summary, recommendations, prompt_adjustments, stats, prompt_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [id, campaignId, batchNumber, summary, recommendations, promptAdjustments, JSON.stringify(stats), promptId || null]
+  );
+  return queryOne('SELECT * FROM batch_analyses WHERE campaign_id = $1 AND batch_number = $2', [campaignId, batchNumber]);
 }
 
-function getAnalysis(campaignId, batchNumber) {
-  return stmts.getAnalysis.get(campaignId, batchNumber);
+async function getAnalysis(campaignId, batchNumber) {
+  return queryOne('SELECT * FROM batch_analyses WHERE campaign_id = $1 AND batch_number = $2', [campaignId, batchNumber]);
 }
 
-function listAnalyses(campaignId) {
-  return stmts.listAnalyses.all(campaignId);
+async function listAnalyses(campaignId) {
+  return queryAll('SELECT * FROM batch_analyses WHERE campaign_id = $1 ORDER BY batch_number', [campaignId]);
 }
 
-function approveAnalysis(campaignId, batchNumber) {
-  stmts.approveAnalysis.run(campaignId, batchNumber);
-  return stmts.getAnalysis.get(campaignId, batchNumber);
+async function approveAnalysis(campaignId, batchNumber) {
+  await execute(
+    `UPDATE batch_analyses SET approved = 1, approved_at = now()
+     WHERE campaign_id = $1 AND batch_number = $2`,
+    [campaignId, batchNumber]
+  );
+  return queryOne('SELECT * FROM batch_analyses WHERE campaign_id = $1 AND batch_number = $2', [campaignId, batchNumber]);
 }
 
-function rejectAnalysis(campaignId, batchNumber) {
-  stmts.rejectAnalysis.run(campaignId, batchNumber);
-  return stmts.getAnalysis.get(campaignId, batchNumber);
+async function rejectAnalysis(campaignId, batchNumber) {
+  await execute(
+    `UPDATE batch_analyses SET approved = 2, approved_at = now()
+     WHERE campaign_id = $1 AND batch_number = $2`,
+    [campaignId, batchNumber]
+  );
+  return queryOne('SELECT * FROM batch_analyses WHERE campaign_id = $1 AND batch_number = $2', [campaignId, batchNumber]);
 }
 
-function deleteAnalysis(campaignId, batchNumber) {
-  stmts.deleteAnalysis.run(campaignId, batchNumber);
+async function deleteAnalysis(campaignId, batchNumber) {
+  await execute('DELETE FROM batch_analyses WHERE campaign_id = $1 AND batch_number = $2', [campaignId, batchNumber]);
 }
 
 // --- Named Prompts ---
-const promptStmts = {
-  create: db.prepare('INSERT INTO prompts (id, name, body, is_active) VALUES (?, ?, ?, ?)'),
-  get: db.prepare('SELECT * FROM prompts WHERE id = ?'),
-  list: db.prepare('SELECT * FROM prompts ORDER BY is_active DESC, updated_at DESC'),
-  update: db.prepare('UPDATE prompts SET name = COALESCE(?, name), body = COALESCE(?, body), updated_at = datetime(\'now\') WHERE id = ?'),
-  delete: db.prepare('DELETE FROM prompts WHERE id = ?'),
-  clearActive: db.prepare('UPDATE prompts SET is_active = 0'),
-  setActive: db.prepare('UPDATE prompts SET is_active = 1, updated_at = datetime(\'now\') WHERE id = ?'),
-  getActive: db.prepare('SELECT * FROM prompts WHERE is_active = 1 LIMIT 1'),
-};
 
-function createPrompt({ name, body, isActive = false }) {
+async function createPrompt({ name, body, isActive = false }) {
   const id = uid();
-  if (isActive) promptStmts.clearActive.run();
-  promptStmts.create.run(id, name, body, isActive ? 1 : 0);
-  return promptStmts.get.get(id);
+  if (isActive) await execute('UPDATE prompts SET is_active = 0');
+  await execute(
+    'INSERT INTO prompts (id, name, body, is_active) VALUES ($1, $2, $3, $4)',
+    [id, name, body, isActive ? 1 : 0]
+  );
+  return queryOne('SELECT * FROM prompts WHERE id = $1', [id]);
 }
 
-function listPrompts() { return promptStmts.list.all(); }
-function getPrompt(id) { return promptStmts.get.get(id); }
-
-function updatePrompt(id, { name, body }) {
-  promptStmts.update.run(name || null, body || null, id);
-  return promptStmts.get.get(id);
+async function listPrompts() {
+  return queryAll('SELECT * FROM prompts ORDER BY is_active DESC, updated_at DESC');
 }
 
-function deletePrompt(id) { promptStmts.delete.run(id); }
-
-function setActivePrompt(id) {
-  promptStmts.clearActive.run();
-  promptStmts.setActive.run(id);
-  return promptStmts.get.get(id);
+async function getPrompt(id) {
+  return queryOne('SELECT * FROM prompts WHERE id = $1', [id]);
 }
 
-function getActivePrompt() { return promptStmts.getActive.get(); }
+async function updatePrompt(id, { name, body }) {
+  await execute(
+    "UPDATE prompts SET name = COALESCE($1, name), body = COALESCE($2, body), updated_at = now() WHERE id = $3",
+    [name || null, body || null, id]
+  );
+  return queryOne('SELECT * FROM prompts WHERE id = $1', [id]);
+}
+
+async function deletePrompt(id) {
+  await execute('DELETE FROM prompts WHERE id = $1', [id]);
+}
+
+async function setActivePrompt(id) {
+  await execute('UPDATE prompts SET is_active = 0');
+  await execute("UPDATE prompts SET is_active = 1, updated_at = now() WHERE id = $1", [id]);
+  return queryOne('SELECT * FROM prompts WHERE id = $1', [id]);
+}
+
+async function getActivePrompt() {
+  return queryOne('SELECT * FROM prompts WHERE is_active = 1 LIMIT 1');
+}
 
 // --- Employee WhatsApp Instances ---
-const empStmts = {
-  create: db.prepare('INSERT OR REPLACE INTO employee_instances (id, employee_name, instance_name, phone, status) VALUES (?, ?, ?, ?, ?)'),
-  get: db.prepare('SELECT * FROM employee_instances WHERE id = ?'),
-  getByName: db.prepare('SELECT * FROM employee_instances WHERE employee_name = ? COLLATE NOCASE'),
-  getByInstance: db.prepare('SELECT * FROM employee_instances WHERE instance_name = ?'),
-  list: db.prepare('SELECT * FROM employee_instances ORDER BY employee_name'),
-  update: db.prepare('UPDATE employee_instances SET employee_name = COALESCE(?, employee_name), instance_name = COALESCE(?, instance_name), phone = COALESCE(?, phone), status = COALESCE(?, status), updated_at = datetime(\'now\') WHERE id = ?'),
-  delete: db.prepare('DELETE FROM employee_instances WHERE id = ?'),
-};
 
-function createEmployeeInstance({ employeeName, instanceName, phone, status }) {
-  const existing = empStmts.getByName.get(employeeName);
+async function createEmployeeInstance({ employeeName, instanceName, phone, status }) {
+  const existing = await queryOne('SELECT * FROM employee_instances WHERE employee_name = $1', [employeeName]);
   const id = existing?.id || uid();
-  empStmts.create.run(id, employeeName, instanceName, phone || null, status || 'pending');
-  return empStmts.get.get(id);
+  await execute(
+    `INSERT INTO employee_instances (id, employee_name, instance_name, phone, status)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (id) DO UPDATE SET employee_name = $2, instance_name = $3, phone = $4, status = $5, updated_at = now()`,
+    [id, employeeName, instanceName, phone || null, status || 'pending']
+  );
+  return queryOne('SELECT * FROM employee_instances WHERE id = $1', [id]);
 }
 
-function listEmployeeInstances() { return empStmts.list.all(); }
-function getEmployeeInstance(id) { return empStmts.get.get(id); }
-function getEmployeeByName(name) { return empStmts.getByName.get(name); }
-
-function updateEmployeeInstance(id, { employeeName, instanceName, phone, status }) {
-  empStmts.update.run(employeeName || null, instanceName || null, phone || null, status || null, id);
-  return empStmts.get.get(id);
+async function listEmployeeInstances() {
+  return queryAll('SELECT * FROM employee_instances ORDER BY employee_name');
 }
 
-function deleteEmployeeInstance(id) { empStmts.delete.run(id); }
+async function getEmployeeInstance(id) {
+  return queryOne('SELECT * FROM employee_instances WHERE id = $1', [id]);
+}
 
-// Get unique employee names across all campaign contacts
-function getUniqueEmployeeNames() {
-  return db.prepare(`
+async function getEmployeeByName(name) {
+  return queryOne('SELECT * FROM employee_instances WHERE employee_name = $1', [name]);
+}
+
+async function updateEmployeeInstance(id, { employeeName, instanceName, phone, status }) {
+  await execute(
+    `UPDATE employee_instances SET
+      employee_name = COALESCE($1, employee_name), instance_name = COALESCE($2, instance_name),
+      phone = COALESCE($3, phone), status = COALESCE($4, status), updated_at = now()
+     WHERE id = $5`,
+    [employeeName || null, instanceName || null, phone || null, status || null, id]
+  );
+  return queryOne('SELECT * FROM employee_instances WHERE id = $1', [id]);
+}
+
+async function deleteEmployeeInstance(id) {
+  await execute('DELETE FROM employee_instances WHERE id = $1', [id]);
+}
+
+async function getUniqueEmployeeNames() {
+  const rows = await queryAll(`
     SELECT DISTINCT employee_name FROM contacts
     WHERE employee_name IS NOT NULL AND employee_name != ''
     ORDER BY employee_name
-  `).all().map(r => r.employee_name);
+  `);
+  return rows.map(r => r.employee_name);
 }
 
 // Seed default prompt if table is empty
-function seedDefaultPrompt() {
-  const count = db.prepare('SELECT COUNT(*) as c FROM prompts').get().c;
-  if (count === 0) {
+async function seedDefaultPrompt() {
+  const row = await queryOne('SELECT COUNT(*) as c FROM prompts');
+  if (Number(row.c) === 0) {
     try {
       const { DEFAULT_PROMPT } = require('./prompts');
       if (DEFAULT_PROMPT) {
         const id = uid();
-        promptStmts.create.run(id, 'Clermont Cold Call — Standard', DEFAULT_PROMPT, 1);
+        await execute(
+          'INSERT INTO prompts (id, name, body, is_active) VALUES ($1, $2, $3, 1)',
+          [id, 'Clermont Cold Call — Standard', DEFAULT_PROMPT]
+        );
         console.log('[DB] Seeded default Clermont prompt as active');
       }
     } catch (err) {
@@ -394,14 +445,21 @@ function seedDefaultPrompt() {
     }
   }
 }
-seedDefaultPrompt();
+
+// Initialize: ensure schema + seed
+async function init() {
+  await ensureSchema();
+  await seedDefaultPrompt();
+  console.log('[DB] PostgreSQL initialized (gemini_live schema)');
+}
 
 module.exports = {
+  init, pool,
+  rawQuery, rawExecute,
   createCampaign, getCampaign, listCampaigns, updateCampaign, deleteCampaign,
   insertContacts, getContacts, getContactStats, getBatchStats, updateContact,
   getNextPendingContact, getMaxBatch, getCallbackContacts,
   createAnalysis, getAnalysis, listAnalyses, approveAnalysis, rejectAnalysis, deleteAnalysis,
   createPrompt, listPrompts, getPrompt, updatePrompt, deletePrompt, setActivePrompt, getActivePrompt,
   createEmployeeInstance, listEmployeeInstances, getEmployeeInstance, getEmployeeByName, updateEmployeeInstance, deleteEmployeeInstance, getUniqueEmployeeNames,
-  db,
 };
