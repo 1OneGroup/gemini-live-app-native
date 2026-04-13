@@ -956,7 +956,7 @@ function getDashboardHtml() {
       if (!confirm('Re-run AI analysis for batch ' + batchNumber + '? This will replace the current analysis.')) return;
       const el = document.getElementById('batch-analysis-section');
       el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-muted)">Re-running AI analysis...</div>';
-      const res = await fetch(`/api/campaigns/${campaignId}/batches/${batchNumber}/rerun-analysis`, { method: 'POST' });
+      const res = await fetch(\`/api/campaigns/\${campaignId}/batches/\${batchNumber}/rerun-analysis\`, { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
         if (data.analysis) renderBatchAnalysis(campaignId, { batchNumber, analysis: data.analysis });
