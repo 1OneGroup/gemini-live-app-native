@@ -1453,9 +1453,19 @@ function getDashboardHtml() {
       const el = document.getElementById('whatsapp-content');
       el.innerHTML = '<div style="color:var(--text-muted);padding:24px">Loading...</div>';
       let status = { connected: false, name: '', number: '', instance: '' };
+      let evoInstances = [];
+      let evoConfig = { url: 'http://localhost:5000', instance: '' };
       try {
         const r = await fetch('/api/whatsapp/status');
         if (r.ok) status = await r.json();
+      } catch {}
+      try {
+        const r = await fetch('/api/evolution/instances');
+        if (r.ok) evoInstances = await r.json();
+      } catch {}
+      try {
+        const r = await fetch('/api/evo/config');
+        if (r.ok) evoConfig = await r.json();
       } catch {}
 
       el.innerHTML = \`
@@ -1541,7 +1551,7 @@ function getDashboardHtml() {
             <div style="display:flex;flex-direction:column;gap:10px">
               <div>
                 <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px">Evolution API URL</label>
-                <input class="form-input" id="evo-url" value="http://localhost:4000" placeholder="http://localhost:4000" style="width:100%;font-family:monospace;font-size:13px">
+                <input class="form-input" id="evo-url" value="\${esc(evoConfig.url)}" placeholder="http://localhost:5000" style="width:100%;font-family:monospace;font-size:13px">
               </div>
               <div>
                 <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px">API Key / Instance Token</label>
@@ -1549,7 +1559,13 @@ function getDashboardHtml() {
               </div>
               <div>
                 <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px">Instance Name</label>
-                <input class="form-input" id="evo-instance" value="\${esc(status.instance || '')}" placeholder="test-instance" style="width:100%;font-family:monospace;font-size:13px">
+                \${evoInstances.length > 0 ? \`
+                  <select class="form-input" id="evo-instance" style="width:100%;font-family:monospace;font-size:13px">
+                    \${evoInstances.map(i => \`<option value="\${esc(i.name)}" \${i.name === (status.instance || '') ? 'selected' : ''}>\${esc(i.name)}\${i.connected ? ' ✓ Connected' : ' ○ Disconnected'}</option>\`).join('')}
+                  </select>
+                \` : \`
+                  <input class="form-input" id="evo-instance" value="\${esc(status.instance || '')}" placeholder="test-instance" style="width:100%;font-family:monospace;font-size:13px">
+                \`}
               </div>
               <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
                 <button class="btn btn-primary btn-sm" onclick="testEvoConnection()">Test Connection</button>
