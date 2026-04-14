@@ -764,7 +764,12 @@ const server = http.createServer(async (req, res) => {
   // Dashboard
   if (parsed.pathname === '/' || parsed.pathname === '/dashboard') {
     res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-cache, no-store, must-revalidate' });
-    res.end(getDashboardHtml());
+    const automationApiUrl = process.env.AUTOMATION_API_URL || 'http://localhost:5001';
+    const dashHtml = getDashboardHtml().replace(
+      '</head>',
+      `<script>window.__AUTOMATION_API_URL__='${automationApiUrl}';</script></head>`
+    );
+    res.end(dashHtml);
     return;
   }
 

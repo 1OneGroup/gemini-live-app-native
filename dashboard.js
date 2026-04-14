@@ -2330,7 +2330,7 @@ function getDashboardHtml() {
 
     let _evoInstances = []; // cached for dropdown use
 
-    var AUTOMATION_API = 'http://localhost:5001';
+    var AUTOMATION_API = window.__AUTOMATION_API_URL__ || 'http://localhost:5001';
     var automationSubPage = null;
     var automationItems = [];
     var _abEditId = null;
