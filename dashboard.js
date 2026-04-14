@@ -25,7 +25,7 @@ function getDashboardHtml() {
       --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 
     /* === LAYOUT === */
     .app { display: flex; min-height: 100vh; }
@@ -55,7 +55,7 @@ function getDashboardHtml() {
     .sidebar-footer .btn { width: 100%; justify-content: center; }
 
     /* Main content */
-    .main { flex: 1; margin-left: var(--sidebar-width); min-height: 100vh; }
+    .main { flex: 1; margin-left: var(--sidebar-width); min-height: 100vh; overflow-x: hidden; min-width: 0; }
 
     /* Top bar */
     .topbar { padding: 16px 28px; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 30; background: rgba(245,243,237,0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
@@ -66,7 +66,7 @@ function getDashboardHtml() {
     .mobile-menu-btn svg { width: 22px; height: 22px; }
 
     /* Content area */
-    .content { padding: 24px 28px; max-width: 1200px; overflow-x: hidden; }
+    .content { padding: 24px 28px; max-width: 100%; overflow-x: hidden; box-sizing: border-box; }
 
     /* === COMPONENTS === */
 
@@ -322,7 +322,20 @@ function getDashboardHtml() {
     /* Mobile sidebar overlay */
     .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 39; }
     .sidebar-overlay.open { display: block; }
+
+    /* Excel-like sheet view */
+    .xl-sheet { border: 1px solid #c6c6c6; border-radius: 4px; overflow: auto; max-height: 420px; background: #fff; font-family: 'Segoe UI', Arial, sans-serif; }
+    .xl-sheet table { border-collapse: collapse; width: max-content; min-width: 100%; }
+    .xl-sheet th.xl-corner { background: #e7e9ed; border: 1px solid #c6c6c6; width: 42px; min-width: 42px; height: 22px; position: sticky; top: 0; left: 0; z-index: 3; }
+    .xl-sheet th.xl-col { background: #f3f4f6; border: 1px solid #c6c6c6; color: #444; font-size: 11px; font-weight: 500; padding: 3px 8px; text-align: center; min-width: 130px; height: 22px; position: sticky; top: 0; z-index: 2; }
+    .xl-sheet th.xl-col.xl-mapped { background: #dbeafe; color: #1e40af; font-weight: 600; }
+    .xl-sheet td.xl-row-num { background: #f3f4f6; border: 1px solid #c6c6c6; color: #444; font-size: 11px; font-weight: 500; text-align: center; padding: 3px 8px; min-width: 42px; position: sticky; left: 0; z-index: 1; }
+    .xl-sheet td.xl-cell { border: 1px solid #d8dadc; padding: 4px 8px; font-size: 12px; color: #222; background: #fff; white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+    .xl-sheet td.xl-cell.xl-mapped { background: #eff6ff; }
+    .xl-sheet tr.xl-header-row th.xl-col-data { background: #f9fafb; color: #111; font-weight: 700; padding: 6px 10px; border: 1px solid #c6c6c6; font-size: 12px; text-align: left; min-width: 130px; position: sticky; top: 22px; z-index: 2; }
+    .xl-sheet tr.xl-header-row th.xl-col-data.xl-mapped { background: #bfdbfe; color: #1e3a8a; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <div class="app">
@@ -389,6 +402,10 @@ function getDashboardHtml() {
           <div class="nav-item" onclick="navigate('website', this)" id="nav-website">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
             Website Leads
+          </div>
+          <div class="nav-item" onclick="navigate('automation', this)" id="nav-automation">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="6" height="6" rx="1"/><rect x="16" y="3" width="6" height="6" rx="1"/><rect x="9" y="15" width="6" height="6" rx="1"/><path d="M5 9v3a2 2 0 002 2h10a2 2 0 002-2V9"/><line x1="12" y1="12" x2="12" y2="15"/></svg>
+            Automation
           </div>
         </div>
       </nav>
@@ -505,6 +522,16 @@ function getDashboardHtml() {
         <!-- Settings Page -->
         <div id="page-settings" class="hidden">
           <div id="settings-content"></div>
+        </div>
+
+        <!-- Automation Page -->
+        <div id="page-automation" class="hidden">
+          <div id="automation-content"></div>
+        </div>
+
+        <!-- Vendor Follow-up Page -->
+        <div id="page-vendor" class="hidden">
+          <div id="vendor-content"></div>
         </div>
       </div>
     </div>
@@ -685,10 +712,13 @@ function getDashboardHtml() {
     function navigate(page, el) {
       currentPage = page;
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-      if (el) el.classList.add('active');
-      const pages = ['campaigns','calls','analytics','prompts','whatsapp','brochures','settings','wa-settings','devices','website'];
+      // Prefer the actual nav item; fall back to el only if it IS a nav item
+      var navEl = document.getElementById('nav-' + page);
+      if (navEl) navEl.classList.add('active');
+      else if (el && el.classList && el.classList.contains('nav-item')) el.classList.add('active');
+      const pages = ['campaigns','calls','analytics','prompts','whatsapp','brochures','settings','wa-settings','devices','website','automation','vendor'];
       pages.forEach(p => document.getElementById('page-' + p)?.classList.toggle('hidden', p !== page));
-      const titles = { campaigns: 'Campaigns', calls: 'Call History', analytics: 'Analytics', prompts: 'Prompt Library', brochures: 'WhatsApp Messages', settings: 'Settings', whatsapp: 'Send Message', 'wa-settings': 'WhatsApp Settings', devices: 'Devices', website: 'Website' };
+      const titles = { campaigns: 'Campaigns', calls: 'Call History', analytics: 'Analytics', prompts: 'Prompt Library', brochures: 'WhatsApp Messages', settings: 'Settings', whatsapp: 'Send Message', 'wa-settings': 'WhatsApp Settings', devices: 'Devices', website: 'Website', automation: 'Automation', vendor: 'Vendor Follow-up' };
       document.getElementById('page-title').textContent = titles[page] || page;
       if (page === 'campaigns') loadCampaigns();
       if (page === 'calls') loadCalls();
@@ -700,6 +730,8 @@ function getDashboardHtml() {
       if (page === 'website') loadWebsite();
       if (page === 'brochures') loadBrochures();
       if (page === 'settings') loadSettings();
+      if (page === 'automation') loadAutomation();
+      if (page === 'vendor') loadVendorFollowups();
       closeSidebar();
     }
 
@@ -1761,7 +1793,7 @@ function getDashboardHtml() {
       const el = document.getElementById('wa-settings-content');
       el.innerHTML = '<div style="color:var(--text-muted);padding:24px">Loading...</div>';
       let status = { connected: false, name: '', number: '', instance: '' };
-      let config = { url: 'http://localhost:4000', instance: '', waWebhookOutUrl: '' };
+      let config = { url: 'http://localhost:5000', instance: '', waWebhookOutUrl: '' };
       let evoInstances = [];
       try { const r = await fetch('/api/whatsapp/status'); status = await r.json(); } catch {}
       try { const r = await fetch('/api/evo/config'); config = await r.json(); } catch {}
@@ -1842,8 +1874,8 @@ function getDashboardHtml() {
             <div style="display:flex;flex-direction:column;gap:12px">
               <div>
                 <label style="font-size:12px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:6px">Evolution API URL</label>
-                <input class="form-input" id="evo-url" value="\${esc(config.url)}" placeholder="http://YOUR_VPS_IP:4000" style="width:100%;font-family:monospace;font-size:13px">
-                <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Local: http://localhost:4000 &nbsp;|&nbsp; VPS: http://IP:4000</div>
+                <input class="form-input" id="evo-url" value="\${esc(config.url)}" placeholder="http://localhost:5000" style="width:100%;font-family:monospace;font-size:13px">
+                <div style="font-size:11px;color:var(--text-dim);margin-top:4px">Local: http://localhost:5000 &nbsp;|&nbsp; VPS: http://VPS_IP:5000</div>
               </div>
               <div>
                 <label style="font-size:12px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:6px">API Key / Instance Token</label>
@@ -2298,6 +2330,1174 @@ function getDashboardHtml() {
 
     let _evoInstances = []; // cached for dropdown use
 
+    var AUTOMATION_API = 'http://localhost:5001';
+    var automationSubPage = null;
+    var automationItems = [];
+    var _abEditId = null;
+
+    function loadAutomationsList() {
+      return fetch(AUTOMATION_API + '/api/automations')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          automationItems = data.map(function(a) { return { id: a.id, label: a.name, raw: a }; });
+          return automationItems;
+        })
+        .catch(function() { return []; });
+    }
+
+    var _autoViewMode = 'card'; // 'card' or 'list'
+
+    function loadAutomation(sub) {
+      if (sub) automationSubPage = sub;
+      var el = document.getElementById('automation-content');
+      if (!el) return;
+      loadAutomationsList().then(function(items) {
+        if (automationSubPage === '__settings__') {
+          _renderAutomationPage(items);
+          _renderPlatformSettings();
+        } else if (automationSubPage) {
+          _renderAutomationPage(items);
+          _renderAutomationDetail(automationSubPage);
+        } else {
+          automationSubPage = null;
+          _renderAutomationPage(items);
+          _renderAutomationOverview(items);
+        }
+      });
+    }
+
+    function _renderAutomationPage(items) {
+      var el = document.getElementById('automation-content');
+      if (!el) return;
+      el.innerHTML = '<div style="width:100%;min-height:100%;box-sizing:border-box"><div id="automation-main" style="width:100%;min-width:0;overflow-x:hidden"></div></div>';
+    }
+
+    var _currentAutoObj = null;
+
+    function _renderAutomationOverview(items) {
+      var main = document.getElementById('automation-main');
+      if (!main) return;
+
+      var topbar = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">'
+        + '<div style="font-size:18px;font-weight:700;color:var(--text);font-family:Playfair Display,Georgia,serif">Automations</div>'
+        + '<div style="display:flex;gap:8px;align-items:center">'
+        + '<div style="display:flex;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden">'
+        + '<button onclick="_autoSetView(\\'card\\')" id="view-card-btn" style="padding:5px 11px;border:none;cursor:pointer;font-size:12px;background:' + (_autoViewMode==='card'?'var(--accent)':'var(--surface)') + ';color:' + (_autoViewMode==='card'?'#fff':'var(--text-secondary)') + '" title="Card View"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></svg></button>'
+        + '<button onclick="_autoSetView(\\'list\\')" id="view-list-btn" style="padding:5px 11px;border:none;cursor:pointer;font-size:12px;background:' + (_autoViewMode==='list'?'var(--accent)':'var(--surface)') + ';color:' + (_autoViewMode==='list'?'#fff':'var(--text-secondary)') + '" title="List View"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>'
+        + '</div>'
+        + '<button onclick="automationBuilderOpen(null)" style="padding:7px 16px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-weight:700">+ New Automation</button>'
+        + '<button onclick="loadAutomation(\\'__settings__\\')" style="padding:7px 14px;background:var(--surface);color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-size:13px">&#9881; Settings</button>'
+        + '</div></div>';
+
+      if (!items || items.length === 0) {
+        main.innerHTML = '<div style="padding:28px">' + topbar
+          + '<div style="text-align:center;padding:60px 20px;border:2px dashed var(--border);border-radius:var(--radius);color:var(--text-muted)">'
+          + '<div style="font-size:32px;margin-bottom:12px">🤖</div>'
+          + '<div style="font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text)">No automations yet</div>'
+          + '<div style="font-size:13px;margin-bottom:20px">Create your first automation to start sending WhatsApp messages automatically.</div>'
+          + '<button onclick="automationBuilderOpen(null)" style="padding:9px 22px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:14px;font-weight:700">+ New Automation</button>'
+          + '</div></div>';
+        return;
+      }
+
+      var content = '';
+      if (_autoViewMode === 'card') {
+        content = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">';
+        for (var i = 0; i < items.length; i++) {
+          var a = items[i].raw;
+          var aid = a.id;
+          var isOn = a.enabled;
+          content += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;display:flex;flex-direction:column;gap:10px;transition:box-shadow .15s,border-color .15s;cursor:default">'
+            + '<div style="display:flex;align-items:flex-start;gap:8px">'
+            + '<div style="flex:1;min-width:0">'
+            + '<div style="font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px">' + esc(a.name) + '</div>'
+            + '<div style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(a.description || 'No description') + '</div>'
+            + '</div>'
+            + '<span style="flex-shrink:0;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;background:' + (isOn ? '#dcfce7' : 'var(--bg-secondary)') + ';color:' + (isOn ? '#16a34a' : 'var(--text-muted)') + '">' + (isOn ? 'ON' : 'OFF') + '</span>'
+            + '</div>'
+            + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+            + '<span style="font-size:11px;padding:3px 8px;background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:12px;color:var(--text-muted)">📋 ' + esc((a.data_source||{}).type||'manual') + '</span>'
+            + '<span style="font-size:11px;padding:3px 8px;background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:12px;color:var(--text-muted)">⏰ ' + esc(((a.schedule||{}).time)||'09:00') + '</span>'
+            + '<span style="font-size:11px;padding:3px 8px;background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:12px;color:var(--text-muted)">📱 ' + esc(a.whatsapp_instance||'—') + '</span>'
+            + '</div>'
+            + '<div style="display:flex;gap:6px;border-top:1px solid var(--border-subtle);padding-top:10px;flex-wrap:wrap">'
+            + '<button onclick="automationSubPage=\\'' + aid + '\\';loadAutomation(\\'' + aid + '\\')" style="flex:1;padding:6px 10px;font-size:12px;font-weight:600;background:var(--accent-bg);color:var(--accent-hover);border:1px solid var(--accent-border);border-radius:var(--radius-sm);cursor:pointer">Open →</button>'
+            + '<button onclick="automationRunNow(\\'' + aid + '\\')" style="padding:6px 10px;font-size:12px;background:var(--surface);color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer">▶ Run</button>'
+            + '<button onclick="automationToggleEnabled(\\'' + aid + '\\',' + (!isOn) + ')" style="padding:6px 10px;font-size:12px;background:var(--surface);color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer">' + (isOn ? 'Disable' : 'Enable') + '</button>'
+            + '</div></div>';
+        }
+        // Vendor Follow-up special card (card view)
+        content += '<div style="background:var(--surface);border:2px solid #e0d4f7;border-radius:var(--radius);padding:18px 20px;display:flex;flex-direction:column;gap:10px">'
+          + '<div style="display:flex;align-items:flex-start;gap:8px">'
+          + '<div style="flex:1;min-width:0">'
+          + '<div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px">Vendor Follow-up</div>'
+          + '<div style="font-size:11px;color:var(--text-muted)">Track &amp; send follow-ups to vendors for bills, quotations &amp; more</div>'
+          + '</div>'
+          + '<span style="flex-shrink:0;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;background:#f3e8ff;color:#7c3aed">MODULE</span>'
+          + '</div>'
+          + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+          + '<span style="font-size:11px;padding:3px 8px;background:#f3e8ff;border:1px solid #e0d4f7;border-radius:12px;color:#7c3aed">🤝 Bill / Quotation</span>'
+          + '<span style="font-size:11px;padding:3px 8px;background:#f3e8ff;border:1px solid #e0d4f7;border-radius:12px;color:#7c3aed">🤖 AI Messages</span>'
+          + '<span style="font-size:11px;padding:3px 8px;background:#f3e8ff;border:1px solid #e0d4f7;border-radius:12px;color:#7c3aed">📱 WhatsApp</span>'
+          + '</div>'
+          + '<div style="display:flex;gap:6px;border-top:1px solid var(--border-subtle);padding-top:10px">'
+          + '<button onclick="navigate(\\'vendor\\',this)" style="flex:1;padding:6px 10px;font-size:12px;font-weight:600;background:#f3e8ff;color:#7c3aed;border:1px solid #e0d4f7;border-radius:var(--radius-sm);cursor:pointer">Open →</button>'
+          + '</div></div>';
+        content += '</div>';
+      } else {
+        // List view
+        content = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">'
+          + '<table style="width:100%;border-collapse:collapse">'
+          + '<thead><tr style="background:var(--bg-secondary);border-bottom:1px solid var(--border)">'
+          + '<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase">Name</th>'
+          + '<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase">Status</th>'
+          + '<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase">Source</th>'
+          + '<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase">Schedule</th>'
+          + '<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase">Instance</th>'
+          + '<th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase">Actions</th>'
+          + '</tr></thead><tbody>';
+        for (var j = 0; j < items.length; j++) {
+          var b = items[j].raw;
+          var bid = b.id;
+          var bon = b.enabled;
+          content += '<tr style="border-bottom:1px solid var(--border-subtle)">'
+            + '<td style="padding:12px 14px">'
+            + '<div style="font-size:13px;font-weight:600;color:var(--text)">' + esc(b.name) + '</div>'
+            + '<div style="font-size:11px;color:var(--text-muted);margin-top:2px">' + esc(b.description||'') + '</div>'
+            + '</td>'
+            + '<td style="padding:12px 14px"><span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700;background:' + (bon?'#dcfce7':'var(--bg-secondary)') + ';color:' + (bon?'#16a34a':'var(--text-muted)') + '">' + (bon?'ON':'OFF') + '</span></td>'
+            + '<td style="padding:12px 14px;font-size:12px;color:var(--text-muted)">' + esc((b.data_source||{}).type||'manual') + '</td>'
+            + '<td style="padding:12px 14px;font-size:12px;color:var(--text-muted)">' + esc(((b.schedule||{}).time)||'09:00') + '</td>'
+            + '<td style="padding:12px 14px;font-size:12px;color:var(--text-muted)">' + esc(b.whatsapp_instance||'—') + '</td>'
+            + '<td style="padding:12px 14px;text-align:right">'
+            + '<div style="display:flex;gap:6px;justify-content:flex-end">'
+            + '<button onclick="automationSubPage=\\'' + bid + '\\';loadAutomation(\\'' + bid + '\\')" style="padding:5px 10px;font-size:11px;font-weight:600;background:var(--accent-bg);color:var(--accent-hover);border:1px solid var(--accent-border);border-radius:var(--radius-sm);cursor:pointer">Open</button>'
+            + '<button onclick="automationRunNow(\\'' + bid + '\\')" style="padding:5px 10px;font-size:11px;background:var(--surface);color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer">Run</button>'
+            + '<button onclick="automationToggleEnabled(\\'' + bid + '\\',' + (!bon) + ')" style="padding:5px 10px;font-size:11px;background:var(--surface);color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer">' + (bon?'Disable':'Enable') + '</button>'
+            + '</div></td></tr>';
+        }
+        // Vendor Follow-up special row (list view)
+        content += '<tr style="border-bottom:1px solid var(--border-subtle);background:#fdf8ff">'
+          + '<td style="padding:12px 14px">'
+          + '<div style="font-size:13px;font-weight:600;color:#7c3aed">Vendor Follow-up</div>'
+          + '<div style="font-size:11px;color:var(--text-muted);margin-top:2px">Track &amp; send follow-ups for bills, quotations &amp; more</div>'
+          + '</td>'
+          + '<td style="padding:12px 14px"><span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700;background:#f3e8ff;color:#7c3aed">MODULE</span></td>'
+          + '<td style="padding:12px 14px;font-size:12px;color:var(--text-muted)">manual</td>'
+          + '<td style="padding:12px 14px;font-size:12px;color:var(--text-muted)">on-demand</td>'
+          + '<td style="padding:12px 14px;font-size:12px;color:var(--text-muted)">WhatsApp</td>'
+          + '<td style="padding:12px 14px;text-align:right">'
+          + '<button onclick="navigate(\\'vendor\\',this)" style="padding:5px 10px;font-size:11px;font-weight:600;background:#f3e8ff;color:#7c3aed;border:1px solid #e0d4f7;border-radius:var(--radius-sm);cursor:pointer">Open</button>'
+          + '</td></tr>';
+        content += '</tbody></table></div>';
+      }
+
+      main.innerHTML = '<div style="padding:0;max-width:100%;box-sizing:border-box">' + topbar + content + '</div>';
+    }
+
+    function _autoSetView(mode) {
+      _autoViewMode = mode;
+      _renderAutomationOverview(automationItems);
+    }
+
+    function _renderAutomationDetail(aid) {
+      var main = document.getElementById('automation-main');
+      if (!main) return;
+      main.innerHTML = '<div style="padding:24px;color:var(--text-muted);font-size:13px">Loading...</div>';
+      var auto = null;
+      for (var i = 0; i < automationItems.length; i++) {
+        if (automationItems[i].id === aid) { auto = automationItems[i].raw; break; }
+      }
+      if (!auto) return;
+      _currentAutoObj = auto;
+      var enabledBadge = auto.enabled
+        ? '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#dcfce7;color:#16a34a;font-weight:600">ON</span>'
+        : '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--bg-secondary);color:var(--text-muted);font-weight:600">OFF</span>';
+      var html = '<div style="padding:0;max-width:100%;box-sizing:border-box">'
+        + '<div style="margin-bottom:14px">'
+        + '<button onclick="automationSubPage=null;loadAutomation(null)" style="padding:5px 12px;font-size:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;color:var(--text-secondary)">← Back to Automations</button>'
+        + '</div>'
+        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">'
+        + '<h2 style="font-size:16px;font-weight:700;color:var(--text);margin:0">' + esc(auto.name) + '</h2>'
+        + enabledBadge
+        + '<div style="flex:1"></div>'
+        + '<button onclick="automationBuilderOpen(_currentAutoObj)" style="padding:5px 10px;font-size:11px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);cursor:pointer">Edit</button>'
+        + '<button onclick="automationToggleEnabled(\\'' + aid + '\\',' + (!auto.enabled) + ')" style="padding:5px 10px;font-size:11px;border:1px solid var(--accent-border);border-radius:var(--radius-sm);background:var(--accent-bg);color:var(--accent-hover);cursor:pointer">' + (auto.enabled ? 'Disable' : 'Enable') + '</button>'
+        + '<button onclick="automationRunNow(\\'' + aid + '\\')" style="padding:5px 10px;font-size:11px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-weight:600">Run Now</button>'
+        + '<button onclick="automationDelete(\\'' + aid + '\\')" style="padding:5px 10px;font-size:11px;border:1px solid #fecaca;border-radius:var(--radius-sm);background:#fef2f2;color:#dc2626;cursor:pointer">Delete</button>'
+        + '</div>'
+        + '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">' + esc(auto.description || '') + '</p>'
+        + '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">'
+        + _infoPill('Match', (auto.match_rule || {}).type || '—')
+        + _infoPill('Source', (auto.data_source || {}).type || 'manual')
+        + _infoPill('Schedule', ((auto.schedule || {}).time) || '09:00')
+        + _infoPill('Instance', auto.whatsapp_instance || '—')
+        + '</div>'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">'
+        + '<div style="font-size:13px;font-weight:600;color:var(--text)">Data Rows</div>'
+        + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+        + '<button onclick="automationAddRowOpen(\\'' + aid + '\\')" style="padding:4px 12px;font-size:11px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-weight:600">+ Add Row</button>'
+        + '<label style="padding:4px 12px;font-size:11px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer"><input type="file" accept=".csv,.xlsx,.xls" style="display:none" onchange="automationUploadCsv(\\'' + aid + '\\',this)">Upload CSV</label>'
+        + '</div>'
+        + '</div>'
+        + '<div id="auto-data-table" style="width:100%;overflow-x:auto;margin-bottom:4px">Loading rows...</div>'
+        + '<div style="font-size:13px;font-weight:600;color:var(--text);margin:16px 0 8px">Recent Activity</div>'
+        + '<div id="auto-activity-log" style="width:100%;overflow-x:auto">Loading...</div>'
+        + '</div>';
+      main.innerHTML = html;
+      _loadDataTable(aid);
+      _loadActivityLog(aid);
+    }
+
+    function _infoPill(label, val) {
+      return '<div style="padding:6px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:20px;font-size:12px;color:var(--text-muted)">'
+        + '<span style="font-weight:600;color:var(--text)">' + esc(label) + ':</span> ' + esc(val) + '</div>';
+    }
+
+    function _loadDataTable(aid) {
+      fetch(AUTOMATION_API + '/api/automations/' + aid + '/data')
+        .then(function(r) { return r.json(); })
+        .then(function(rows) {
+          var wrap = document.getElementById('auto-data-table');
+          if (!wrap) return;
+          if (!rows || rows.length === 0) {
+            wrap.innerHTML = '<div style="padding:20px;border:1px solid var(--border);border-radius:8px;text-align:center;color:var(--text-muted);font-size:13px">No data rows yet. Click "+ Add Row" or upload a CSV.</div>';
+            return;
+          }
+          // Collect all unique keys from ALL rows (CSV may have different columns)
+          var keySet = {};
+          for (var ri = 0; ri < rows.length; ri++) {
+            var rd = rows[ri].data || rows[ri];
+            Object.keys(rd).forEach(function(k) { if (k !== '_id' && k !== '_last_processed') keySet[k] = 1; });
+          }
+          var keys = Object.keys(keySet);
+          var html = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:auto">'
+            + '<table style="width:100%;border-collapse:collapse;min-width:400px">'
+            + '<thead><tr style="border-bottom:1px solid var(--border)">';
+          for (var k = 0; k < keys.length; k++) {
+            html += '<th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;white-space:nowrap">' + esc(keys[k]) + '</th>';
+          }
+          html += '<th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase">Actions</th></tr></thead><tbody>';
+          for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+            var data = row.data || row;
+            var rowId = row.id || '';
+            html += '<tr style="border-bottom:1px solid var(--border-subtle)">';
+            for (var k2 = 0; k2 < keys.length; k2++) {
+              var cellVal = data[keys[k2]];
+              html += '<td style="padding:8px 12px;font-size:13px;color:var(--text);white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="' + esc(cellVal != null ? String(cellVal) : '') + '">' + esc(cellVal != null ? String(cellVal) : '') + '</td>';
+            }
+            html += '<td style="padding:8px 12px;text-align:right">'
+              + '<button onclick="automationDeleteRow(\\'' + rowId + '\\',\\'' + aid + '\\')" style="padding:3px 10px;font-size:11px;border:1px solid #fecaca;border-radius:var(--radius-sm);background:#fef2f2;color:#dc2626;cursor:pointer">Delete</button>'
+              + '</td></tr>';
+          }
+          html += '</tbody></table></div>';
+          wrap.innerHTML = html;
+        });
+    }
+
+    function _loadActivityLog(aid) {
+      fetch(AUTOMATION_API + '/api/activity-log')
+        .then(function(r) { return r.json(); })
+        .then(function(logs) {
+          var wrap = document.getElementById('auto-activity-log');
+          if (!wrap) return;
+          var filtered = logs.filter(function(l) { return l.automation_id === aid; }).slice(0, 20);
+          if (!filtered.length) {
+            wrap.innerHTML = '<div style="padding:16px;border:1px solid var(--border);border-radius:8px;text-align:center;color:var(--text-muted);font-size:13px">No activity yet.</div>';
+            return;
+          }
+          var html = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:auto">'
+            + '<table style="width:100%;border-collapse:collapse">'
+            + '<thead><tr style="border-bottom:1px solid var(--border)">'
+            + '<th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text-dim)">Time</th>'
+            + '<th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text-dim)">Recipient</th>'
+            + '<th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text-dim)">Phone</th>'
+            + '<th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text-dim)">Status</th>'
+            + '<th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text-dim)">Message</th>'
+            + '</tr></thead><tbody>';
+          for (var i = 0; i < filtered.length; i++) {
+            var l = filtered[i];
+            var statusColor = l.status === 'sent' ? '#16a34a' : '#dc2626';
+            var statusBg = l.status === 'sent' ? '#dcfce7' : '#fef2f2';
+            html += '<tr style="border-bottom:1px solid var(--border-subtle)">'
+              + '<td style="padding:8px 12px;font-size:12px;color:var(--text-muted)">' + esc((l.sent_at || '').replace('T', ' ').slice(0, 16)) + '</td>'
+              + '<td style="padding:8px 12px;font-size:13px;color:var(--text)">' + esc(l.recipient_name || '') + '</td>'
+              + '<td style="padding:8px 12px;font-size:12px;color:var(--text-muted)">' + esc(l.recipient_phone || '') + '</td>'
+              + '<td style="padding:8px 12px"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:' + statusBg + ';color:' + statusColor + ';font-weight:600">' + esc(l.status || '') + '</span></td>'
+              + '<td style="padding:8px 12px;font-size:12px;color:var(--text-muted);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(l.message_sent || '') + '</td>'
+              + '</tr>';
+          }
+          html += '</tbody></table></div>';
+          wrap.innerHTML = html;
+        });
+    }
+
+    function _renderPlatformSettings() {
+      var main = document.getElementById('automation-main');
+      if (!main) return;
+      main.innerHTML = '<div style="padding:0;max-width:100%;box-sizing:border-box">'
+        + '<div style="margin-bottom:14px"><button onclick="automationSubPage=null;loadAutomation(null)" style="padding:5px 12px;font-size:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;color:var(--text-secondary)">← Back to Automations</button></div>'
+        + '<h2 style="font-size:16px;font-weight:700;margin-bottom:4px;color:var(--text)">Platform Settings</h2>'
+        + '<p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">Configure API keys used by all automations.</p>'
+        + '<div id="plat-settings-form"><div style="color:var(--text-muted);font-size:13px">Loading...</div></div>'
+        + '</div>';
+      fetch(AUTOMATION_API + '/api/settings')
+        .then(function(r) { return r.json(); })
+        .then(function(s) {
+          var inputStyle = 'width:100%;max-width:480px;box-sizing:border-box;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-size:13px';
+          var labelStyle = 'font-size:11px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:4px;margin-top:14px';
+          var sectionHdr = 'display:block;font-size:12px;font-weight:700;color:var(--text);margin:20px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--border-subtle);text-transform:uppercase;letter-spacing:.06em';
+          var html = '<div style="' + sectionHdr + '">WhatsApp / Evolution API</div>'
+            + '<label style="' + labelStyle + '">Evolution API URL</label>'
+            + '<input id="ps-evo-url" type="text" value="' + esc(s.evolution_api_url || '') + '" style="' + inputStyle + '">'
+            + '<label style="' + labelStyle + '">Evolution API Key</label>'
+            + '<input id="ps-evo-key" type="password" value="' + esc(s.evolution_api_key || '') + '" style="' + inputStyle + '">'
+            + '<div style="' + sectionHdr + '">AI</div>'
+            + '<label style="' + labelStyle + '">Gemini API Key</label>'
+            + '<input id="ps-gemini-key" type="password" value="' + esc(s.gemini_api_key || '') + '" style="' + inputStyle + '">'
+            + '<div style="' + sectionHdr + '">N8N Workflow Integration</div>'
+            + '<label style="' + labelStyle + '">N8N Vendor Follow-up Webhook URL</label>'
+            + '<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Paste the n8n webhook URL here — vendor form submissions will be sent automatically to n8n which handles AI email + WhatsApp sending.</div>'
+            + '<input id="ps-n8n-url" type="text" placeholder="http://your-n8n-host:5678/webhook/934c6e26-..." value="' + esc(s.n8n_webhook_url || '') + '" style="' + inputStyle + '">'
+            + '<label style="' + labelStyle + '">WhatsApp Sending API URL (n8n)</label>'
+            + '<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">The URL your n8n workflow uses to send WhatsApp messages.</div>'
+            + '<input id="ps-wa-api-url" type="text" placeholder="http://72.61.170.222:3008/send" value="' + esc(s.whatsapp_api_url || 'http://72.61.170.222:3008/send') + '" style="' + inputStyle + '">'
+            + '<div style="margin-top:18px">'
+            + '<button onclick="platformSettingsSave()" style="padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-weight:600">Save Settings</button>'
+            + '<span id="ps-status" style="margin-left:12px;font-size:13px;color:var(--text-muted)"></span>'
+            + '</div>';
+          document.getElementById('plat-settings-form').innerHTML = html;
+        });
+    }
+
+    function platformSettingsSave() {
+      var payload = {
+        evolution_api_url: document.getElementById('ps-evo-url').value,
+        evolution_api_key:  document.getElementById('ps-evo-key').value,
+        gemini_api_key:     document.getElementById('ps-gemini-key').value,
+        n8n_webhook_url:    document.getElementById('ps-n8n-url').value,
+        whatsapp_api_url:   document.getElementById('ps-wa-api-url').value,
+      };
+      fetch(AUTOMATION_API + '/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        .then(function(r) { return r.json(); })
+        .then(function() { document.getElementById('ps-status').textContent = 'Saved!'; setTimeout(function() { document.getElementById('ps-status').textContent = ''; }, 2000); });
+    }
+
+    function automationToggleEnabled(aid, enabled) {
+      var auto = null;
+      for (var i = 0; i < automationItems.length; i++) { if (automationItems[i].id === aid) { auto = automationItems[i].raw; break; } }
+      if (!auto) return;
+      var payload = Object.assign({}, auto, { enabled: enabled });
+      fetch(AUTOMATION_API + '/api/automations/' + aid, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        .then(function() {
+          // If we're in detail view, reload detail; if in overview, reload overview
+          if (automationSubPage === aid) { loadAutomation(aid); } else { loadAutomation(null); }
+        });
+    }
+
+    function automationRunNow(aid) {
+      var btn = event && event.target;
+      if (btn) { btn.textContent = 'Running...'; btn.disabled = true; }
+      fetch(AUTOMATION_API + '/api/automations/' + aid + '/run', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          if (btn) { btn.textContent = 'Run Now'; btn.disabled = false; }
+          alert('Done: sent=' + (res.sent || 0) + ', failed=' + (res.failed || 0) + ', skipped=' + (res.skipped || 0));
+          _loadActivityLog(aid);
+        });
+    }
+
+    function automationDelete(aid) {
+      if (!confirm('Delete this automation and all its data?')) return;
+      fetch(AUTOMATION_API + '/api/automations/' + aid, { method: 'DELETE' })
+        .then(function() { automationSubPage = null; loadAutomation(null); });
+    }
+
+    function automationRunNowOverview(aid) {
+      fetch(AUTOMATION_API + '/api/automations/' + aid + '/run', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          alert('Done: sent=' + (res.sent || 0) + ', failed=' + (res.failed || 0) + ', skipped=' + (res.skipped || 0));
+        });
+    }
+
+    function automationDeleteRow(rowId, aid) {
+      fetch(AUTOMATION_API + '/api/data/' + rowId, { method: 'DELETE' })
+        .then(function() { _loadDataTable(aid); });
+    }
+
+    function automationUploadCsv(aid, input) {
+      var file = input && input.files && input.files[0];
+      if (!file) return;
+      var fd = new FormData();
+      fd.append('file', file);
+      fetch(AUTOMATION_API + '/api/automations/' + aid + '/upload', { method: 'POST', body: fd })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          alert('Imported ' + (res.imported || 0) + ' rows.');
+          _loadDataTable(aid);
+          input.value = '';
+        });
+    }
+
+    function automationAddRowOpen(aid) {
+      var main = document.getElementById('automation-main');
+      if (!main) return;
+      var existing = document.getElementById('add-row-modal');
+      if (existing) { existing.remove(); return; }
+      var div = document.createElement('div');
+      div.id = 'add-row-modal';
+      div.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9000';
+      div.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:24px;width:440px;max-width:90vw">'
+        + '<div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:14px">Add Row</div>'
+        + '<div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Enter a JSON object with the row fields, e.g. <code>{"name":"Rahul","phone":"9876543210","birthday":"04-14"}</code></div>'
+        + '<textarea id="add-row-json" rows="5" style="width:100%;box-sizing:border-box;font-size:12px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-family:monospace"></textarea>'
+        + '<div id="add-row-err" style="color:#dc2626;font-size:12px;margin-top:6px"></div>'
+        + '<div style="display:flex;gap:8px;margin-top:14px">'
+        + '<button onclick="automationAddRowSave(\\'' + aid + '\\')" style="padding:7px 18px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-weight:600">Save</button>'
+        + '<button onclick="document.getElementById(\\'add-row-modal\\').remove()" style="padding:7px 14px;background:var(--surface);color:var(--text-muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-size:13px">Cancel</button>'
+        + '</div></div>';
+      document.body.appendChild(div);
+    }
+
+    function automationAddRowSave(aid) {
+      var txt = document.getElementById('add-row-json').value.trim();
+      var data;
+      try { data = JSON.parse(txt); } catch(e) { document.getElementById('add-row-err').textContent = 'Invalid JSON: ' + e.message; return; }
+      fetch(AUTOMATION_API + '/api/automations/' + aid + '/data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: data }) })
+        .then(function(r) { return r.json(); })
+        .then(function() {
+          document.getElementById('add-row-modal').remove();
+          _loadDataTable(aid);
+        });
+    }
+
+    // ── Automation Builder Modal ──────────────────────────────────────────────
+    function automationBuilderOpen(rawJson) {
+      var existing = document.getElementById('automation-builder-modal');
+      if (existing) existing.remove();
+      var existing2 = automationItems;
+      // Fetch instances fresh each time the builder opens
+      fetch('/api/evolution/instances')
+        .then(function(r) { return r.json(); })
+        .then(function(insts) {
+          if (Array.isArray(insts)) _evoInstances = insts;
+          _automationBuilderRender(rawJson);
+        })
+        .catch(function() { _automationBuilderRender(rawJson); });
+    }
+
+    function _automationBuilderRender(rawJson) {
+      var evoOpts = '<option value="">— select instance —</option>';
+      for (var k = 0; k < _evoInstances.length; k++) {
+        evoOpts += '<option value="' + esc(_evoInstances[k].name) + '">' + esc(_evoInstances[k].name) + ((_evoInstances[k].connected) ? ' ✓' : '') + '</option>';
+      }
+      var modal = document.createElement('div');
+      modal.id = 'automation-builder-modal';
+      modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;z-index:9000;overflow-y:auto;padding:32px 24px';
+      var inputStyle = 'width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-size:13px';
+      var labelStyle = 'font-size:11px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:4px;margin-top:12px';
+      var sectionStyle = 'background:var(--bg-secondary);border-radius:8px;padding:14px 16px;margin-top:14px;border:1px solid var(--border-subtle)';
+      modal.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:28px;width:560px;max-width:96vw">'
+        + '<div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:18px" id="ab-title">New Automation</div>'
+        + '<input type="hidden" id="ab-edit-id" value="">'
+        + '<label style="' + labelStyle + '">Name *</label><input id="ab-name" type="text" placeholder="e.g. Employee Birthday Wish" style="' + inputStyle + '">'
+        + '<label style="' + labelStyle + '">Description</label><input id="ab-desc" type="text" placeholder="Optional description" style="' + inputStyle + '">'
+        + '<label style="' + labelStyle + '" for="ab-enabled">Enabled</label><input type="checkbox" id="ab-enabled" style="width:16px;height:16px">'
+
+        + '<div style="' + sectionStyle + '"><div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Data Source</div>'
+        + '<label style="' + labelStyle + '">Type</label>'
+        + '<select id="ab-source-type" style="' + inputStyle + '">'
+        + '<option value="manual">Manual Entry</option>'
+        + '<option value="supabase_table">Supabase Table</option>'
+        + '<option value="google_sheets">Google Sheets</option>'
+        + '</select></div>'
+
+        + '<div style="' + sectionStyle + '"><div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Match Rule</div>'
+        + '<label style="' + labelStyle + '">Type</label>'
+        + '<select id="ab-rule-type" style="' + inputStyle + '">'
+        + '<option value="today_field">Today\\'s Date Match (e.g. birthday)</option>'
+        + '<option value="days_before">Days Before Date (e.g. payment due)</option>'
+        + '<option value="interval">Interval Followup (e.g. vendor)</option>'
+        + '</select>'
+        + '<label style="' + labelStyle + '">Field Name (in data row)</label><input id="ab-rule-field" type="text" placeholder="e.g. birthday" style="' + inputStyle + '">'
+        + '<label style="' + labelStyle + '">Format / Days</label><input id="ab-rule-format" type="text" placeholder="MM-DD  or  7,3,1  or  7" style="' + inputStyle + '">'
+        + '</div>'
+
+        + '<div style="' + sectionStyle + '"><div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Message</div>'
+        + '<label style="' + labelStyle + '">Template (use {field} for variables)</label>'
+        + '<textarea id="ab-template" rows="3" placeholder="Happy Birthday {name}! 🎂" style="' + inputStyle + '"></textarea>'
+        + '<label style="' + labelStyle + '">Use Image Personalization</label><input type="checkbox" id="ab-use-image" style="width:16px;height:16px">'
+        + '<label style="' + labelStyle + '">Image Template URL</label><input id="ab-image-url" type="text" placeholder="https://..." style="' + inputStyle + '">'
+        + '<label style="' + labelStyle + '">Image Prompt (use {field} for variables)</label>'
+        + '<textarea id="ab-image-prompt" rows="2" placeholder="Replace name at bottom with: {name}" style="' + inputStyle + '"></textarea>'
+        + '</div>'
+
+        + '<div style="' + sectionStyle + '"><div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Delivery</div>'
+        + '<label style="' + labelStyle + '">WhatsApp Instance</label>'
+        + '<select id="ab-instance" style="' + inputStyle + '">' + evoOpts + '</select>'
+        + '</div>'
+
+        + '<div style="' + sectionStyle + '"><div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Schedule</div>'
+        + '<label style="' + labelStyle + '">Type</label>'
+        + '<select id="ab-sched-type" style="' + inputStyle + '"><option value="daily">Daily</option><option value="manual">Manual Only</option></select>'
+        + '<label style="' + labelStyle + '">Time (24h)</label><input id="ab-sched-time" type="time" value="09:00" style="' + inputStyle + '">'
+        + '</div>'
+
+        + '<div id="ab-err" style="color:#dc2626;font-size:12px;margin-top:10px"></div>'
+        + '<div style="display:flex;gap:8px;margin-top:20px">'
+        + '<button onclick="automationBuilderSave()" style="padding:8px 22px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-weight:700">Save</button>'
+        + '<button onclick="document.getElementById(\\'automation-builder-modal\\').remove()" style="padding:8px 14px;background:var(--surface);color:var(--text-muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-size:13px">Cancel</button>'
+        + '</div></div>';
+      document.body.appendChild(modal);
+
+      // Populate if editing
+      if (rawJson) {
+        var a = typeof rawJson === 'string' ? JSON.parse(rawJson) : rawJson;
+        document.getElementById('ab-title').textContent = 'Edit Automation';
+        document.getElementById('ab-edit-id').value = a.id || '';
+        document.getElementById('ab-name').value = a.name || '';
+        document.getElementById('ab-desc').value = a.description || '';
+        document.getElementById('ab-enabled').checked = !!a.enabled;
+        var src = a.data_source || {};
+        document.getElementById('ab-source-type').value = src.type || 'manual';
+        var rule = a.match_rule || {};
+        document.getElementById('ab-rule-type').value = rule.type || 'today_field';
+        document.getElementById('ab-rule-field').value = rule.field || '';
+        var fmtOrDays = rule.format || (Array.isArray(rule.days) ? rule.days.join(',') : (rule.days || ''));
+        document.getElementById('ab-rule-format').value = fmtOrDays;
+        document.getElementById('ab-template').value = a.message_template || '';
+        document.getElementById('ab-use-image').checked = !!a.use_image;
+        document.getElementById('ab-image-url').value = a.image_template_url || '';
+        document.getElementById('ab-image-prompt').value = a.image_prompt || '';
+        document.getElementById('ab-instance').value = a.whatsapp_instance || '';
+        var sched = a.schedule || {};
+        document.getElementById('ab-sched-type').value = sched.type || 'daily';
+        document.getElementById('ab-sched-time').value = sched.time || '09:00';
+      }
+    }
+
+    function automationBuilderSave() {
+      var name = document.getElementById('ab-name').value.trim();
+      if (!name) { document.getElementById('ab-err').textContent = 'Name is required.'; return; }
+      var ruleType = document.getElementById('ab-rule-type').value;
+      var fmtVal = document.getElementById('ab-rule-format').value.trim();
+      var matchRule = { type: ruleType, field: document.getElementById('ab-rule-field').value.trim() };
+      if (ruleType === 'today_field') matchRule.format = fmtVal || 'MM-DD';
+      else if (ruleType === 'days_before') matchRule.days = fmtVal.split(',').map(function(x) { return parseInt(x.trim(), 10); }).filter(function(x) { return !isNaN(x); });
+      else if (ruleType === 'interval') matchRule.days = parseInt(fmtVal, 10) || 7;
+      var payload = {
+        name: name,
+        description: document.getElementById('ab-desc').value,
+        enabled: document.getElementById('ab-enabled').checked,
+        data_source: { type: document.getElementById('ab-source-type').value },
+        match_rule: matchRule,
+        message_template: document.getElementById('ab-template').value,
+        use_image: document.getElementById('ab-use-image').checked,
+        image_template_url: document.getElementById('ab-image-url').value,
+        image_prompt: document.getElementById('ab-image-prompt').value,
+        whatsapp_instance: document.getElementById('ab-instance').value,
+        schedule: { type: document.getElementById('ab-sched-type').value, time: document.getElementById('ab-sched-time').value || '09:00' },
+      };
+      var editId = document.getElementById('ab-edit-id').value;
+      var url = editId ? AUTOMATION_API + '/api/automations/' + editId : AUTOMATION_API + '/api/automations';
+      var method = editId ? 'PUT' : 'POST';
+      fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          document.getElementById('automation-builder-modal').remove();
+          loadAutomation(res.id || editId);
+        })
+        .catch(function(e) { document.getElementById('ab-err').textContent = 'Error: ' + e.message; });
+    }
+
+    // ─── Birthday Automation Functions (legacy helpers kept, not called by new platform) ─
+
+    function birthdayLoadList() {
+      var wrap = document.getElementById('birthday-list-wrap');
+      if (!wrap) return;
+      birthdayPopulateInstDropdown('bday-global-inst', '');
+      fetch(AUTOMATION_API + '/api/automation/birthday').then(function(r) { return r.json(); }).then(function(employees) {
+        if (!employees || employees.length === 0) {
+          wrap.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:24px;text-align:center;color:var(--text-muted);font-size:13px">No employees added yet. Click "+ Add Employee" to get started.</div>';
+          return;
+        }
+        var html = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden">'
+          + '<table style="width:100%;border-collapse:collapse">'
+          + '<thead><tr style="border-bottom:1px solid var(--border)">'
+          + '<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em">Name</th>'
+          + '<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em">Phone</th>'
+          + '<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em">Birthday</th>'
+          + '<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em">Instance</th>'
+          + '<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em">Status</th>'
+          + '<th style="padding:10px 14px;text-align:right;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em">Actions</th>'
+          + '</tr></thead><tbody>';
+        for (var i = 0; i < employees.length; i++) {
+          var e = employees[i];
+          var rowBg = i % 2 === 1 ? 'background:var(--bg-secondary)' : '';
+          var statusBadge = e.enabled
+            ? '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#dcfce7;color:#16a34a;font-weight:600">Active</span>'
+            : '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--bg-secondary);color:var(--text-muted);font-weight:600">Disabled</span>';
+          var safeId = JSON.stringify(e.id);
+          var safeName = JSON.stringify(e.name);
+          var safePhone = JSON.stringify(e.phone);
+          var safeBday = JSON.stringify(e.birthday);
+          var safeInst = JSON.stringify(e.whatsapp_instance);
+          var safeMsg = JSON.stringify(e.message_template);
+          var safeEnabled = e.enabled ? 'true' : 'false';
+          html += '<tr style="border-bottom:1px solid var(--border-subtle);' + rowBg + '">'
+            + '<td style="padding:10px 14px;font-size:13px;color:var(--text);font-weight:500">' + esc(e.name) + '</td>'
+            + '<td style="padding:10px 14px;font-size:13px;color:var(--text-muted)">' + esc(e.phone) + '</td>'
+            + '<td style="padding:10px 14px;font-size:13px;color:var(--text-muted)">' + esc(e.birthday) + '</td>'
+            + '<td style="padding:10px 14px;font-size:13px;color:var(--text-muted)">' + (e.whatsapp_instance ? esc(e.whatsapp_instance) : '<em style="color:var(--text-dim)">default</em>') + '</td>'
+            + '<td style="padding:10px 14px">' + statusBadge + '</td>'
+            + '<td style="padding:10px 14px;text-align:right;white-space:nowrap">'
+            + '<button onclick="birthdayEdit(' + safeId + ',' + safeName + ',' + safePhone + ',' + safeBday + ',' + safeInst + ',' + safeMsg + ',' + safeEnabled + ')" style="padding:4px 10px;font-size:11px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);cursor:pointer;margin-right:4px">Edit</button>'
+            + '<button onclick="birthdayTest(' + safeId + ')" style="padding:4px 10px;font-size:11px;border:1px solid var(--accent-border);border-radius:var(--radius-sm);background:var(--accent-bg);color:var(--accent-hover);cursor:pointer;margin-right:4px">Test</button>'
+            + '<button onclick="birthdayDelete(' + safeId + ')" style="padding:4px 10px;font-size:11px;border:1px solid #fecaca;border-radius:var(--radius-sm);background:#fef2f2;color:#dc2626;cursor:pointer">Delete</button>'
+            + '</td></tr>';
+        }
+        html += '</tbody></table></div>';
+        wrap.innerHTML = html;
+      }).catch(function(err) {
+        wrap.innerHTML = '<div style="color:#dc2626;font-size:13px;padding:16px">Error loading employees: ' + esc(err.message) + '</div>';
+      });
+    }
+
+    function birthdayShowAdd() {
+      var form = document.getElementById('birthday-add-form');
+      var title = document.getElementById('birthday-form-title');
+      if (!form) return;
+      document.getElementById('bday-edit-id').value = '';
+      document.getElementById('bday-name').value = '';
+      document.getElementById('bday-phone').value = '';
+      document.getElementById('bday-bday').value = '';
+      birthdayPopulateInstDropdown('bday-inst', '');
+      if (title) title.textContent = 'Add Employee';
+      form.style.display = 'block';
+      document.getElementById('bday-name').focus();
+    }
+
+    function birthdayHideForm() {
+      var form = document.getElementById('birthday-add-form');
+      if (form) form.style.display = 'none';
+    }
+
+    function birthdayEdit(id, name, phone, bday, inst, msg, enabled) {
+      var form = document.getElementById('birthday-add-form');
+      var title = document.getElementById('birthday-form-title');
+      if (!form) return;
+      document.getElementById('bday-edit-id').value = id;
+      document.getElementById('bday-name').value = name;
+      document.getElementById('bday-phone').value = phone;
+      document.getElementById('bday-bday').value = bday;
+      birthdayPopulateInstDropdown('bday-inst', inst);
+      if (title) title.textContent = 'Edit Employee';
+      form.style.display = 'block';
+      document.getElementById('bday-name').focus();
+    }
+
+    function birthdaySave() {
+      var id = document.getElementById('bday-edit-id').value;
+      var name = document.getElementById('bday-name').value.trim();
+      var phone = document.getElementById('bday-phone').value.trim();
+      var bday = document.getElementById('bday-bday').value.trim();
+      var inst = document.getElementById('bday-inst').value.trim();
+      if (!name || !phone || !bday) {
+        alert('Name, Phone, and Birthday are required.');
+        return;
+      }
+      if (!/^\\d{2}-\\d{2}$/.test(bday)) {
+        alert('Birthday must be in MM-DD format (e.g. 04-15).');
+        return;
+      }
+
+      if (id) {
+        var payload = JSON.stringify({ name: name, phone: phone, birthday: bday, instance: inst, enabled: true });
+        fetch(AUTOMATION_API + '/api/automation/birthday/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: payload })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.error) { alert('Error: ' + data.error); return; }
+            birthdayHideForm();
+            loadAutomation('birthday');
+          })
+          .catch(function(err) { alert('Error: ' + err.message); });
+        return;
+      }
+
+      if (!_bdaySheetData) {
+        _bdaySheetData = {
+          rows: [['Name', 'Phone', 'Birthday']],
+          mapping: { name: 0, phone: 1, bday: 2 },
+          skipped: 0
+        };
+        _bdaySheetHeaders = ['Name', 'Phone', 'Birthday'];
+        for (var vi = 0; vi < _bdayVariables.length; vi++) {
+          var bv = _bdayVariables[vi];
+          if (bv.col < 0) {
+            if (bv.key === 'name') bv.col = 0;
+            else if (bv.key === 'phone') bv.col = 1;
+            else if (bv.key === 'birthday') bv.col = 2;
+          }
+        }
+        birthdayRenderVariables();
+      }
+
+      var m = _bdaySheetData.mapping;
+      var numCols = 0;
+      for (var r = 0; r < _bdaySheetData.rows.length; r++) {
+        if (_bdaySheetData.rows[r] && _bdaySheetData.rows[r].length > numCols) numCols = _bdaySheetData.rows[r].length;
+      }
+      if (numCols < 3) numCols = 3;
+      var newRow = [];
+      for (var c = 0; c < numCols; c++) newRow.push('');
+      var nameCol = m.name >= 0 ? m.name : 0;
+      var phoneCol = m.phone >= 0 ? m.phone : 1;
+      var bdayCol = m.bday >= 0 ? m.bday : 2;
+      newRow[nameCol] = name;
+      newRow[phoneCol] = phone;
+      newRow[bdayCol] = bday;
+      _bdaySheetData.rows.push(newRow);
+      birthdayExtractAndStore();
+      birthdayRenderSheet();
+      birthdayHideForm();
+      document.getElementById('bday-name').value = '';
+      document.getElementById('bday-phone').value = '';
+      document.getElementById('bday-bday').value = '';
+    }
+
+    function birthdayDelete(id) {
+      if (!confirm('Delete this employee from birthday automation?')) return;
+      fetch(AUTOMATION_API + '/api/automation/birthday/' + id, { method: 'DELETE' })
+        .then(function() { loadAutomation('birthday'); })
+        .catch(function(err) { alert('Error: ' + err.message); });
+    }
+
+    function birthdayTest(id) {
+      if (!confirm('Send a test birthday message to this employee now?')) return;
+      fetch(AUTOMATION_API + '/api/automation/birthday/test/' + id, { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.error) { alert('Error sending test: ' + data.error); return; }
+          alert('Test message sent successfully!');
+        })
+        .catch(function(err) { alert('Error: ' + err.message); });
+    }
+
+    function birthdaySaveTmpl() {
+      var tmpl = document.getElementById('birthday-tmpl');
+      if (!tmpl) return;
+      var val = tmpl.value.trim();
+      if (!val) { alert('Template cannot be empty.'); return; }
+      alert('Default template saved. Individual employees without a custom message will use this template.');
+    }
+
+    function birthdayToggleAuto(chk) {
+      if (chk.checked) {
+        alert('Auto Send enabled. Birthday messages will be sent automatically at midnight IST.');
+      } else {
+        alert('Auto Send disabled. Birthday messages will not be sent automatically.');
+      }
+    }
+
+    function birthdayPopulateInstDropdown(selectId, selectedVal) {
+      var sel = document.getElementById(selectId);
+      if (!sel) return;
+      fetch('/api/evolution/instances').then(function(r) { return r.json(); }).then(function(instances) {
+        var opts = '<option value="">-- Select Instance --</option>';
+        for (var i = 0; i < instances.length; i++) {
+          var inst = instances[i];
+          var dot = inst.connectionStatus === 'open' ? '● ' : '○ ';
+          var label = inst.profileName ? inst.name + ' (' + inst.profileName + ')' : inst.name;
+          var isSelected = inst.name === selectedVal ? ' selected' : '';
+          opts += '<option value="' + esc(inst.name) + '"' + isSelected + '>' + dot + esc(label) + '</option>';
+        }
+        sel.innerHTML = opts;
+      }).catch(function() {
+        sel.innerHTML = '<option value="">No instances found</option>';
+      });
+    }
+
+    function birthdayCsvClick() {
+      var f = document.getElementById('bday-csv-file');
+      if (f) f.click();
+    }
+
+    var _bdayPendingRows = null;
+    var _bdaySheetData = null;
+    var _bdaySheetHeaders = [];
+    var _bdayVariables = [];
+
+    function birthdayAddVariable() {
+      _bdayVariables.push({ key: '', col: -1 });
+      birthdayRenderVariables();
+    }
+
+    function birthdayRemoveVariable(idx) {
+      _bdayVariables.splice(idx, 1);
+      birthdayRenderVariables();
+    }
+
+    function birthdayUpdateVarKey(idx, val) {
+      if (!_bdayVariables[idx]) return;
+      _bdayVariables[idx].key = String(val || '').replace(/[^a-zA-Z0-9_]/g, '');
+      birthdayRenderVarChips();
+    }
+
+    function birthdayUpdateVarCol(idx, val) {
+      if (!_bdayVariables[idx]) return;
+      _bdayVariables[idx].col = parseInt(val, 10);
+      if (isNaN(_bdayVariables[idx].col)) _bdayVariables[idx].col = -1;
+    }
+
+    function birthdayRenderVariables() {
+      var wrap = document.getElementById('bday-vars-list');
+      if (!wrap) return;
+      var headers = _bdaySheetHeaders || [];
+      var html = '';
+      if (_bdayVariables.length === 0) {
+        html = '<div style="padding:14px;text-align:center;color:var(--text-muted);font-size:12px;font-style:italic;background:var(--bg-secondary);border-radius:6px">No variables defined yet. Click "+ Add Variable" to create one.</div>';
+      } else {
+        html = '<div style="display:grid;grid-template-columns:1fr 1.6fr 40px;gap:10px;margin-bottom:6px;padding:0 2px">'
+          + '<div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em">Placeholder Name</div>'
+          + '<div style="font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em">Map to Sheet Column</div>'
+          + '<div></div>'
+          + '</div>';
+        for (var i = 0; i < _bdayVariables.length; i++) {
+          var v = _bdayVariables[i];
+          html += '<div style="display:grid;grid-template-columns:1fr 1.6fr 40px;gap:10px;align-items:center;margin-bottom:8px">';
+          html += '<div style="position:relative">';
+          html += '<span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-dim);font-family:monospace;font-size:13px;pointer-events:none">&#123;</span>';
+          html += '<input type="text" value="' + esc(v.key) + '" placeholder="name" oninput="birthdayUpdateVarKey(' + i + ', this.value)" style="width:100%;box-sizing:border-box;padding:7px 20px 7px 22px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-size:13px;font-family:monospace">';
+          html += '<span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--text-dim);font-family:monospace;font-size:13px;pointer-events:none">&#125;</span>';
+          html += '</div>';
+          html += '<div>';
+          if (headers.length > 0) {
+            html += '<select onchange="birthdayUpdateVarCol(' + i + ', this.value)" style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-size:13px">';
+            html += '<option value="-1">-- Select column --</option>';
+            for (var c = 0; c < headers.length; c++) {
+              var selAttr = c === v.col ? ' selected' : '';
+              var headerLabel = String(headers[c] || '(empty)');
+              html += '<option value="' + c + '"' + selAttr + '>' + birthdayColLetter(c) + ' &middot; ' + esc(headerLabel) + '</option>';
+            }
+            html += '</select>';
+          } else {
+            html += '<div style="padding:7px 10px;border:1px dashed var(--border);border-radius:var(--radius-sm);color:var(--text-dim);font-size:12px;font-style:italic;background:var(--bg-secondary)">Upload a sheet first to map columns</div>';
+          }
+          html += '</div>';
+          html += '<button onclick="birthdayRemoveVariable(' + i + ')" title="Remove variable" style="padding:7px 0;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:var(--radius-sm);cursor:pointer;font-size:16px;font-weight:600;line-height:1">&times;</button>';
+          html += '</div>';
+        }
+      }
+      wrap.innerHTML = html;
+      birthdayRenderVarChips();
+    }
+
+    function birthdayRenderVarChips() {
+      var chips = document.getElementById('bday-var-chips');
+      if (!chips) return;
+      var any = false;
+      var html = '';
+      for (var i = 0; i < _bdayVariables.length; i++) {
+        var v = _bdayVariables[i];
+        if (!v.key) continue;
+        any = true;
+        html += '<span onclick="birthdayInsertByIdx(' + i + ')" style="display:inline-block;padding:4px 12px;background:var(--accent-bg);color:var(--accent-hover);border:1px solid var(--accent-border);border-radius:12px;font-size:11px;font-family:monospace;cursor:pointer;margin:2px 4px 2px 0;user-select:none" title="Click to insert">&#123;' + esc(v.key) + '&#125;</span>';
+      }
+      if (!any) html = '<span style="color:var(--text-dim);font-size:11px;font-style:italic">No variables defined. Add variables above to see chips here.</span>';
+      chips.innerHTML = html;
+    }
+
+    function birthdayInsertByIdx(idx) {
+      var v = _bdayVariables[idx];
+      if (!v || !v.key) return;
+      var tmpl = document.getElementById('birthday-tmpl');
+      if (!tmpl) return;
+      var pos = (tmpl.selectionStart != null) ? tmpl.selectionStart : tmpl.value.length;
+      var text = tmpl.value;
+      var insert = '{' + v.key + '}';
+      tmpl.value = text.substring(0, pos) + insert + text.substring(pos);
+      tmpl.focus();
+      var newPos = pos + insert.length;
+      try { tmpl.selectionStart = tmpl.selectionEnd = newPos; } catch (e) {}
+    }
+
+    function birthdayImportFile(input) {
+      var file = input.files && input.files[0];
+      if (!file) return;
+      var status = document.getElementById('bday-import-status');
+      if (status) status.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:10px">Reading file...</div>';
+      var name = (file.name || '').toLowerCase();
+      var isExcel = name.endsWith('.xlsx') || name.endsWith('.xls');
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var sheet2D = null;
+        try {
+          if (isExcel) {
+            if (typeof XLSX === 'undefined') {
+              status.innerHTML = '<div style="color:#dc2626;font-size:13px;padding:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px">Excel library not loaded. Please check your internet connection and reload the page.</div>';
+              return;
+            }
+            var wb = XLSX.read(e.target.result, { type: 'array' });
+            var wsName = wb.SheetNames[0];
+            var ws = wb.Sheets[wsName];
+            sheet2D = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+          } else {
+            var text = e.target.result;
+            if (text.charCodeAt(0) === 0xFEFF) text = text.substring(1);
+            sheet2D = birthdayParseCsvTo2D(text);
+          }
+        } catch (err) {
+          status.innerHTML = '<div style="color:#dc2626;font-size:13px;padding:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px">Failed to parse file: ' + esc(err.message || String(err)) + '</div>';
+          return;
+        }
+        input.value = '';
+        if (!sheet2D || sheet2D.length < 2) {
+          status.innerHTML = '<div style="color:#dc2626;font-size:13px;padding:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px">File is empty or has no data rows.</div>';
+          return;
+        }
+        var detected = birthdayDetectColumns(sheet2D[0]);
+        _bdaySheetData = { rows: sheet2D, mapping: detected };
+        _bdaySheetHeaders = sheet2D[0] || [];
+        // Auto-map existing variables to detected columns if still unmapped
+        for (var vi = 0; vi < _bdayVariables.length; vi++) {
+          var bv = _bdayVariables[vi];
+          if (bv.col < 0) {
+            if (bv.key === 'name' && detected.name >= 0) bv.col = detected.name;
+            else if (bv.key === 'phone' && detected.phone >= 0) bv.col = detected.phone;
+            else if (bv.key === 'birthday' && detected.bday >= 0) bv.col = detected.bday;
+          }
+        }
+        birthdayRenderVariables();
+        birthdayExtractAndStore();
+        birthdayRenderSheet();
+      };
+      if (isExcel) reader.readAsArrayBuffer(file);
+      else reader.readAsText(file);
+    }
+
+    function birthdayParseCsvTo2D(text) {
+      var lines = text.split(/\\r?\\n/);
+      var out = [];
+      var firstLine = lines[0] || '';
+      var delim = ',';
+      if (firstLine.indexOf(';') >= 0 && firstLine.split(';').length > firstLine.split(',').length) delim = ';';
+      else if (firstLine.indexOf('\\t') >= 0 && firstLine.indexOf(',') < 0) delim = '\\t';
+      for (var i = 0; i < lines.length; i++) {
+        if (!lines[i] && i === lines.length - 1) continue;
+        var cols = lines[i].split(delim).map(function(c) { return c.trim().replace(/^["']|["']$/g, ''); });
+        out.push(cols);
+      }
+      return out;
+    }
+
+    function birthdayDetectColumns(headerRow) {
+      var headers = headerRow.map(function(h) { return String(h || '').trim().toLowerCase().replace(/[^a-z]/g, ''); });
+      function findIdx(patterns) {
+        for (var p = 0; p < patterns.length; p++) {
+          for (var i = 0; i < headers.length; i++) {
+            if (headers[i] === patterns[p]) return i;
+          }
+        }
+        for (var p2 = 0; p2 < patterns.length; p2++) {
+          for (var j = 0; j < headers.length; j++) {
+            if (headers[j].indexOf(patterns[p2]) >= 0) return j;
+          }
+        }
+        return -1;
+      }
+      return {
+        name:  findIdx(['name', 'employeename', 'fullname', 'employee', 'empname']),
+        phone: findIdx(['phone', 'mobile', 'contact', 'whatsapp', 'number', 'mobilenumber', 'phonenumber']),
+        bday:  findIdx(['birthday', 'dob', 'birthdate', 'bday', 'birth'])
+      };
+    }
+
+    function birthdayExtractAndStore() {
+      if (!_bdaySheetData) { _bdayPendingRows = null; return; }
+      var m = _bdaySheetData.mapping;
+      var data = _bdaySheetData.rows;
+      if (m.name < 0 || m.phone < 0 || m.bday < 0) { _bdayPendingRows = null; return; }
+      var valid = [];
+      var skipped = 0;
+      for (var i = 1; i < data.length; i++) {
+        var row = data[i] || [];
+        var nm = String(row[m.name] || '').trim();
+        var ph = String(row[m.phone] || '').trim().replace(/\\s/g, '');
+        var bd = String(row[m.bday] || '').trim().replace(/\\//g, '-');
+        if (!nm || !ph || !bd) { skipped++; continue; }
+        var mt = bd.match(/^(\\d{1,2})-(\\d{1,2})$/);
+        if (!mt) { skipped++; continue; }
+        var mm = mt[1].length === 1 ? '0' + mt[1] : mt[1];
+        var dd = mt[2].length === 1 ? '0' + mt[2] : mt[2];
+        valid.push({ name: nm, phone: ph, birthday: mm + '-' + dd, _row: row });
+      }
+      _bdayPendingRows = valid;
+      _bdaySheetData.skipped = skipped;
+    }
+
+    function birthdayBuildVarsForRow(rawRow) {
+      var obj = {};
+      if (!rawRow) return obj;
+      for (var j = 0; j < _bdayVariables.length; j++) {
+        var v = _bdayVariables[j];
+        if (v.key && v.col >= 0) {
+          obj[v.key] = String(rawRow[v.col] || '').trim();
+        }
+      }
+      return obj;
+    }
+
+    function birthdayColLetter(idx) {
+      var s = '';
+      idx = idx + 1;
+      while (idx > 0) {
+        var r = (idx - 1) % 26;
+        s = String.fromCharCode(65 + r) + s;
+        idx = Math.floor((idx - 1) / 26);
+      }
+      return s;
+    }
+
+    function birthdayRenderSheet() {
+      var status = document.getElementById('bday-import-status');
+      if (!status || !_bdaySheetData) return;
+      var data = _bdaySheetData.rows;
+      var mapping = _bdaySheetData.mapping;
+      var numCols = 0;
+      for (var r = 0; r < data.length; r++) {
+        if (data[r] && data[r].length > numCols) numCols = data[r].length;
+      }
+      var mappedCols = {};
+      mappedCols[mapping.name] = 'Name';
+      mappedCols[mapping.phone] = 'Phone';
+      mappedCols[mapping.bday] = 'Birthday';
+
+      var html = '<div style="margin-top:10px">';
+
+      // Summary bar
+      var validCount = _bdayPendingRows ? _bdayPendingRows.length : 0;
+      var skipped = _bdaySheetData.skipped || 0;
+      var dataRows = data.length - 1;
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-bottom:none;border-radius:6px 6px 0 0;flex-wrap:wrap;gap:10px">';
+      html += '<div style="font-size:12px;color:var(--text)">';
+      html += '<b style="font-size:13px">Sheet1</b> &nbsp;&middot;&nbsp; ' + dataRows + ' data rows &nbsp;&middot;&nbsp; ' + numCols + ' columns';
+      if (validCount > 0) html += ' &nbsp;&middot;&nbsp; <span style="color:#16a34a;font-weight:600">' + validCount + ' valid</span>';
+      if (skipped > 0) html += ' &nbsp;&middot;&nbsp; <span style="color:#d97706;font-weight:600">' + skipped + ' skipped</span>';
+      html += '</div>';
+      html += '<div style="font-size:11px;color:var(--text-muted)">Blue columns are auto-mapped for import</div>';
+      html += '</div>';
+
+      // Mapping error
+      if (mapping.name < 0 || mapping.phone < 0 || mapping.bday < 0) {
+        html += '<div style="padding:10px 14px;background:#fef3c7;border:1px solid #fcd34d;border-top:none;color:#92400e;font-size:12px">';
+        html += 'Could not auto-detect required columns. Need: <b>Name</b>, <b>Phone</b>, <b>Birthday</b>. Found headers: ';
+        for (var h = 0; h < data[0].length; h++) {
+          html += (h > 0 ? ', ' : '') + '<b>' + esc(String(data[0][h] || '(empty)')) + '</b>';
+        }
+        html += '</div>';
+      }
+
+      // Excel-like sheet
+      html += '<div class="xl-sheet" style="border-radius:0">';
+      html += '<table>';
+
+      // Column letter row (A, B, C...)
+      html += '<thead><tr>';
+      html += '<th class="xl-corner"></th>';
+      for (var c = 0; c < numCols; c++) {
+        var cls = mappedCols[c] !== undefined ? 'xl-col xl-mapped' : 'xl-col';
+        var title = mappedCols[c] !== undefined ? ' title="Mapped to: ' + mappedCols[c] + '"' : '';
+        html += '<th class="' + cls + '"' + title + '>' + birthdayColLetter(c) + '</th>';
+      }
+      html += '</tr>';
+
+      // Header row (row 1 from file)
+      var headerRow = data[0] || [];
+      html += '<tr class="xl-header-row">';
+      html += '<td class="xl-row-num">1</td>';
+      for (var c2 = 0; c2 < numCols; c2++) {
+        var cls2 = mappedCols[c2] !== undefined ? 'xl-col-data xl-mapped' : 'xl-col-data';
+        html += '<th class="' + cls2 + '">' + esc(String(headerRow[c2] || '')) + '</th>';
+      }
+      html += '</tr></thead>';
+
+      // Data rows
+      html += '<tbody>';
+      for (var ri = 1; ri < data.length; ri++) {
+        var row = data[ri] || [];
+        html += '<tr>';
+        html += '<td class="xl-row-num">' + (ri + 1) + '</td>';
+        for (var ci = 0; ci < numCols; ci++) {
+          var cellCls = mappedCols[ci] !== undefined ? 'xl-cell xl-mapped' : 'xl-cell';
+          html += '<td class="' + cellCls + '">' + esc(String(row[ci] || '')) + '</td>';
+        }
+        html += '</tr>';
+      }
+      html += '</tbody></table></div>';
+
+      // Action bar
+      html += '<div style="padding:10px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;display:flex;gap:8px;justify-content:flex-end;align-items:center">';
+      html += '<button onclick="birthdayCancelImport()" style="padding:7px 16px;background:var(--surface);color:var(--text-muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-size:12px">Cancel</button>';
+      if (validCount > 0) {
+        html += '<button onclick="birthdayConfirmImport()" style="padding:7px 18px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-weight:600">Import ' + validCount + ' Employee' + (validCount !== 1 ? 's' : '') + '</button>';
+      } else {
+        html += '<button disabled style="padding:7px 18px;background:#e5e7eb;color:#9ca3af;border:none;border-radius:var(--radius-sm);cursor:not-allowed;font-size:12px;font-weight:600">No valid rows to import</button>';
+      }
+      html += '</div>';
+
+      html += '</div>';
+      status.innerHTML = html;
+    }
+
+    function birthdayCancelImport() {
+      _bdayPendingRows = null;
+      _bdaySheetData = null;
+      var status = document.getElementById('bday-import-status');
+      if (status) status.innerHTML = '';
+    }
+
+    function birthdayConfirmImport() {
+      var rows = _bdayPendingRows;
+      if (!rows || !rows.length) return;
+      var status = document.getElementById('bday-import-status');
+      var globalInst = '';
+      var gsel = document.getElementById('bday-global-inst');
+      if (gsel) globalInst = gsel.value;
+      if (status) status.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:10px">Importing ' + rows.length + ' employees...</div>';
+      var tmplEl = document.getElementById('birthday-tmpl');
+      var tmplVal = tmplEl ? tmplEl.value : '';
+      var imported = 0, errors = 0;
+      var promises = [];
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        var varsObj = birthdayBuildVarsForRow(row._row);
+        var payload = JSON.stringify({ name: row.name, phone: row.phone, birthday: row.birthday, instance: globalInst, message: tmplVal, enabled: true, variables: varsObj });
+        promises.push(
+          fetch(AUTOMATION_API + '/api/automation/birthday', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload })
+            .then(function(r) { return r.json(); })
+            .then(function(d) { if (d.error) errors++; else imported++; })
+            .catch(function() { errors++; })
+        );
+      }
+      Promise.all(promises).then(function() {
+        var color = errors > 0 ? '#d97706' : '#16a34a';
+        var bg = errors > 0 ? '#fef3c7' : '#dcfce7';
+        var border = errors > 0 ? '#fcd34d' : '#86efac';
+        var msg = '&#10003; Imported ' + imported + ' employee' + (imported !== 1 ? 's' : '') + '.';
+        if (errors > 0) msg += ' ' + errors + ' failed.';
+        if (status) status.innerHTML = '<div style="color:' + color + ';font-size:13px;font-weight:600;padding:10px 14px;background:' + bg + ';border:1px solid ' + border + ';border-radius:6px">' + msg + '</div>';
+        _bdayPendingRows = null;
+        _bdaySheetData = null;
+        birthdayLoadList();
+        setTimeout(function() {
+          var wrap = document.getElementById('birthday-list-wrap');
+          if (wrap && wrap.scrollIntoView) wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 300);
+      });
+    }
+
     async function loadSettings() {
       const [modelRes, autoRes, evoRes] = await Promise.all([
         fetch('/api/model'),
@@ -2498,6 +3698,397 @@ function getDashboardHtml() {
       if (!confirm('Remove this employee instance mapping?')) return;
       await fetch('/api/employee-instances/' + id, { method: 'DELETE' });
       loadSettings();
+    }
+
+    // ─── Vendor Follow-ups ──────────────────
+    let _vendorList = [];
+
+    async function loadVendorFollowups() {
+      const el = document.getElementById('vendor-content');
+      if (!el) return;
+      el.innerHTML = '<p style="color:var(--text-muted);padding:20px">Loading...</p>';
+      try {
+        // Load instances if not already loaded
+        if (_evoInstances.length === 0) {
+          try {
+            const inst = await fetch('/api/evolution/instances').then(r => r.json());
+            if (Array.isArray(inst)) _evoInstances = inst;
+          } catch {}
+        }
+        _vendorList = await fetch(AUTOMATION_API + '/api/vendor-followups').then(r => r.json());
+        _renderVendorPage(_vendorList);
+      } catch(e) {
+        el.innerHTML = '<p style="color:var(--red);padding:20px">Failed to load: ' + esc(String(e)) + '</p>';
+      }
+    }
+
+    function _renderVendorPage(vendors) {
+      const el = document.getElementById('vendor-content');
+      const statusBadge = {
+        draft:          '<span style="background:#f1f5f9;color:#64748b;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600">Draft</span>',
+        awaiting_reply: '<span style="background:#fff7ed;color:#ea580c;border:1px solid #fed7aa;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600">Awaiting Reply</span>',
+        done:           '<span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600">Done</span>',
+        rescheduled:    '<span style="background:var(--accent-bg);color:var(--accent-hover);border:1px solid var(--accent-border);padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600">Rescheduled</span>'
+      };
+      const urgencyMap = { high: {dot:'🔴',label:'High',color:'#dc2626',bg:'#fef2f2',border:'#fecaca'},
+                           medium:{dot:'🟡',label:'Medium',color:'#d97706',bg:'#fffbeb',border:'#fde68a'},
+                           low:   {dot:'🟢',label:'Low',color:'#16a34a',bg:'#f0fdf4',border:'#bbf7d0'} };
+
+      const listHtml = vendors.length === 0
+        ? '<div style="text-align:center;padding:40px 20px;color:var(--text-muted)"><div style="font-size:32px;margin-bottom:8px">📋</div><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">No follow-ups yet</div><div style="font-size:13px">Submit the form to add your first vendor follow-up.</div></div>'
+        : vendors.map(function(v) {
+            var urg = urgencyMap[v.urgency] || urgencyMap.medium;
+            var badge = statusBadge[v.status] || statusBadge.draft;
+            var fid = esc(v.id);
+            return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px">'
+              + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap">'
+              + '<div style="flex:1;min-width:0">'
+              + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+              + '<span style="font-size:14px;font-weight:700;color:var(--text)">' + esc(v.vendor_name) + '</span>'
+              + '<span style="font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;background:' + urg.bg + ';color:' + urg.color + ';border:1px solid ' + urg.border + '">' + urg.dot + ' ' + urg.label + '</span>'
+              + badge
+              + '</div>'
+              + (v.email ? '<div style="font-size:12px;color:var(--text-muted)">📧 ' + esc(v.email) + '</div>' : '')
+              + (v.phone ? '<div style="font-size:12px;color:var(--text-muted)">📱 ' + esc(v.phone) + '</div>' : '')
+              + '<div style="font-size:12px;color:var(--text-dim);margin-top:4px">' + esc(v.reason || '') + '</div>'
+              + (v.next_followup_date ? '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">Next follow-up: ' + esc(v.next_followup_date) + '</div>' : '')
+              + '</div>'
+              + '<div style="display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0">'
+              + (v.status !== 'done' ? '<button onclick="vendorUpdateStatus(\\'' + fid + '\\',\\'done\\')" style="padding:4px 10px;font-size:11px;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;border-radius:6px;cursor:pointer;font-weight:600">Mark Done</button>' : '')
+              + '<button onclick="vendorUpdateStatus(\\'' + fid + '\\',\\'rescheduled\\')" style="padding:4px 10px;font-size:11px;background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border);border-radius:6px;cursor:pointer">Reschedule</button>'
+              + '<button onclick="vendorDelete(\\'' + fid + '\\')" style="padding:4px 10px;font-size:11px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;cursor:pointer">Delete</button>'
+              + '</div></div></div>';
+          }).join('');
+
+      el.innerHTML = '<div style="display:grid;grid-template-columns:360px 1fr;gap:24px;align-items:flex-start">'
+
+        // LEFT: Form
+        + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;position:sticky;top:24px">'
+        + '<div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px">New Vendor Follow-up</div>'
+        + '<div style="font-size:12px;color:var(--text-muted);margin-bottom:20px">Fill details — message will be sent directly via Evolution GO WhatsApp.</div>'
+
+        + '<div style="margin-bottom:14px">'
+        + '<label style="display:block;font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">WhatsApp Instance <span style="color:var(--red)">*</span></label>'
+        + (function(){
+            var opts = '<option value="">— select instance —</option>';
+            for (var i = 0; i < _evoInstances.length; i++) {
+              var inst = _evoInstances[i];
+              opts += '<option value="' + esc(inst.name||inst) + '">' + esc(inst.name||inst) + (inst.connected ? ' ✓' : '') + '</option>';
+            }
+            return '<select id="vf-instance" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-size:13px;box-sizing:border-box">' + opts + '</select>';
+          })()
+        + '</div>'
+
+        + '<div style="margin-bottom:14px">'
+        + '<label style="display:block;font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">Vendor Name <span style="color:var(--red)">*</span></label>'
+        + '<input id="vf-name" type="text" placeholder="e.g. Raj Suppliers Pvt Ltd" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-size:13px;box-sizing:border-box">'
+        + '</div>'
+
+        + '<div style="margin-bottom:14px">'
+        + '<label style="display:block;font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">Phone Number <span style="color:var(--red)">*</span></label>'
+        + '<input id="vf-phone" type="tel" placeholder="+91 9876543210" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-size:13px;box-sizing:border-box">'
+        + '</div>'
+
+        + '<div style="margin-bottom:14px">'
+        + '<label style="display:block;font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">Follow-up Reason <span style="color:var(--red)">*</span></label>'
+        + '<textarea id="vf-reason" rows="3" placeholder="e.g. Pending bill for March order, quotation required" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-size:13px;box-sizing:border-box;resize:vertical" oninput="vfPreviewMessage()"></textarea>'
+        + '</div>'
+
+        + '<div style="margin-bottom:14px">'
+        + '<label style="display:block;font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Urgency <span style="color:var(--red)">*</span></label>'
+        + '<div style="display:flex;gap:8px">'
+        + '<label style="flex:1;cursor:pointer"><input type="radio" name="vf-urgency" value="High" style="display:none" id="vf-urg-high"><div id="vf-urg-high-btn" onclick="vfSetUrgency(\\'High\\')" style="text-align:center;padding:8px 6px;border:2px solid #fecaca;border-radius:8px;background:#fef2f2;font-size:12px;font-weight:700;color:#dc2626;cursor:pointer">🔴 High</div></label>'
+        + '<label style="flex:1;cursor:pointer"><input type="radio" name="vf-urgency" value="Medium" checked style="display:none" id="vf-urg-medium"><div id="vf-urg-medium-btn" onclick="vfSetUrgency(\\'Medium\\')" style="text-align:center;padding:8px 6px;border:2px solid var(--amber-border);border-radius:8px;background:var(--amber-bg);font-size:12px;font-weight:700;color:var(--amber);cursor:pointer;box-shadow:0 0 0 2px var(--amber)">🟡 Medium</div></label>'
+        + '<label style="flex:1;cursor:pointer"><input type="radio" name="vf-urgency" value="Low" style="display:none" id="vf-urg-low"><div id="vf-urg-low-btn" onclick="vfSetUrgency(\\'Low\\')" style="text-align:center;padding:8px 6px;border:2px solid #bbf7d0;border-radius:8px;background:#f0fdf4;font-size:12px;font-weight:700;color:#16a34a;cursor:pointer">🟢 Low</div></label>'
+        + '</div>'
+        + '</div>'
+
+        + '<div style="margin-bottom:14px">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">'
+        + '<label style="font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em">WhatsApp Message</label>'
+        + '<button onclick="vfPreviewMessage()" style="font-size:11px;padding:2px 8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--text-secondary)">↺ Refresh</button>'
+        + '</div>'
+        + '<textarea id="vf-wa-preview" rows="5" placeholder="Message will appear here..." style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-size:12px;box-sizing:border-box;resize:vertical;font-family:monospace"></textarea>'
+        + '</div>'
+
+        + '<div id="vf-submit-status" style="font-size:12px;margin-bottom:10px;min-height:18px"></div>'
+        + '<button id="vf-submit-btn" onclick="vendorSubmitDirect()" style="width:100%;padding:10px;background:#16a34a;color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:14px;font-weight:700">📱 Send via WhatsApp</button>'
+        + '<div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:8px">Sends directly via Evolution GO — no N8N required</div>'
+        + '</div>'
+
+        // RIGHT: List
+        + '<div>'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'
+        + '<div style="font-size:15px;font-weight:700;color:var(--text)">Follow-up History</div>'
+        + '<div style="display:flex;gap:8px">'
+        + '<span style="font-size:12px;padding:3px 10px;background:var(--amber-bg);color:var(--amber);border-radius:10px;font-weight:600">' + vendors.filter(function(v){return v.status==='awaiting_reply';}).length + ' Pending</span>'
+        + '<span style="font-size:12px;padding:3px 10px;background:#f0fdf4;color:#16a34a;border-radius:10px;font-weight:600">' + vendors.filter(function(v){return v.status==='done';}).length + ' Done</span>'
+        + '</div></div>'
+        + listHtml
+        + '</div>'
+        + '</div>';
+
+      // Set default urgency selection visually + populate message preview
+      vfSetUrgency('Medium');
+      setTimeout(vfPreviewMessage, 50);
+    }
+
+    var _vfCurrentUrgency = 'Medium';
+    function vfSetUrgency(val) {
+      _vfCurrentUrgency = val;
+      var btns = { High:'vf-urg-high-btn', Medium:'vf-urg-medium-btn', Low:'vf-urg-low-btn' };
+      var styles = {
+        High:   {border:'#fecaca',bg:'#fef2f2',color:'#dc2626',shadow:'#dc2626'},
+        Medium: {border:'var(--amber-border)',bg:'var(--amber-bg)',color:'var(--amber)',shadow:'var(--amber)'},
+        Low:    {border:'#bbf7d0',bg:'#f0fdf4',color:'#16a34a',shadow:'#16a34a'}
+      };
+      Object.keys(btns).forEach(function(k) {
+        var el = document.getElementById(btns[k]);
+        if (!el) return;
+        var s = styles[k];
+        if (k === val) {
+          el.style.border = '2px solid ' + s.color;
+          el.style.background = s.bg;
+          el.style.color = s.color;
+          el.style.boxShadow = '0 0 0 2px ' + s.shadow;
+        } else {
+          el.style.border = '2px solid ' + s.border;
+          el.style.background = s.bg;
+          el.style.color = s.color;
+          el.style.boxShadow = 'none';
+        }
+      });
+      vfPreviewMessage();
+    }
+
+    async function vendorSubmit() {
+      var name   = (document.getElementById('vf-name').value || '').trim();
+      var email  = (document.getElementById('vf-email').value || '').trim();
+      var phone  = (document.getElementById('vf-phone').value || '').trim();
+      var reason = (document.getElementById('vf-reason').value || '').trim();
+      if (!name || !email || !phone || !reason) {
+        var st = document.getElementById('vf-submit-status');
+        st.textContent = 'Please fill all required fields.';
+        st.style.color = 'var(--red)';
+        return;
+      }
+      var btn = document.getElementById('vf-submit-btn');
+      var st  = document.getElementById('vf-submit-status');
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      st.textContent = '';
+      try {
+        var res = await fetch(AUTOMATION_API + '/api/vendor-followups/submit-n8n', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ vendor_name:name, email:email, phone:phone, reason:reason, urgency:_vfCurrentUrgency, notes:'' })
+        });
+        var data = await res.json();
+        if (data.n8n_triggered) {
+          st.textContent = 'Sent! N8N is generating AI email + WhatsApp message.';
+          st.style.color = 'var(--green)';
+          // Clear form
+          ['vf-name','vf-email','vf-phone','vf-reason'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+          vfSetUrgency('Medium');
+        } else {
+          st.textContent = 'Saved locally. Set N8N Webhook URL in Automation > Settings to enable auto-sending.';
+          st.style.color = 'var(--amber)';
+        }
+        // Reload list
+        _vendorList = await fetch(AUTOMATION_API + '/api/vendor-followups').then(function(r){return r.json();});
+        document.getElementById('vf-list') && (_renderVendorPage(_vendorList));
+        loadVendorFollowups();
+      } catch(e) {
+        st.textContent = 'Error: ' + e.message;
+        st.style.color = 'var(--red)';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Send Follow-up via N8N';
+      }
+    }
+
+    function vfPreviewMessage() {
+      var name   = (document.getElementById('vf-name') && document.getElementById('vf-name').value.trim()) || 'Vendor';
+      var reason = (document.getElementById('vf-reason') && document.getElementById('vf-reason').value.trim()) || '';
+      var urgencyEmoji = { High:'🔴', Medium:'🟡', Low:'🟢' }[_vfCurrentUrgency] || '🟡';
+      var msg = 'Hello ' + name + ',\\n\\n' + (reason || 'We need to follow up with you.') + '\\n\\nUrgency: ' + urgencyEmoji + ' ' + _vfCurrentUrgency + '\\n\\nPlease respond at your earliest convenience.\\n\\nRegards';
+      var el = document.getElementById('vf-wa-preview');
+      if (el && !el._userEdited) el.value = msg;
+    }
+
+    async function vendorSubmitDirect() {
+      var instance = (document.getElementById('vf-instance') && document.getElementById('vf-instance').value) || '';
+      var name     = (document.getElementById('vf-name').value || '').trim();
+      var phone    = (document.getElementById('vf-phone').value || '').trim();
+      var reason   = (document.getElementById('vf-reason').value || '').trim();
+      var message  = (document.getElementById('vf-wa-preview') && document.getElementById('vf-wa-preview').value.trim()) || '';
+      if (!instance) { var s=document.getElementById('vf-submit-status'); s.textContent='Please select a WhatsApp instance.'; s.style.color='var(--red)'; return; }
+      if (!name || !phone || !reason) { var s=document.getElementById('vf-submit-status'); s.textContent='Please fill Vendor Name, Phone and Reason.'; s.style.color='var(--red)'; return; }
+      var btn = document.getElementById('vf-submit-btn');
+      var st  = document.getElementById('vf-submit-status');
+      btn.disabled = true; btn.textContent = 'Sending...'; st.textContent = '';
+      try {
+        var res = await fetch(AUTOMATION_API + '/api/vendor-followups/send-direct', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ vendor_name:name, phone:phone, reason:reason, urgency:_vfCurrentUrgency, whatsapp_instance:instance, message:message })
+        });
+        var data = await res.json();
+        if (data.ok) {
+          st.textContent = '✅ Message sent successfully!';
+          st.style.color = 'var(--green)';
+          ['vf-name','vf-phone','vf-reason'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+          var prev = document.getElementById('vf-wa-preview'); if(prev) { prev.value=''; prev._userEdited=false; }
+          vfSetUrgency('Medium');
+          loadVendorFollowups();
+        } else {
+          st.textContent = '❌ Failed: ' + (data.error || 'Check Evolution GO instance & connection.');
+          st.style.color = 'var(--red)';
+        }
+      } catch(e) {
+        st.textContent = '❌ Error: ' + e.message;
+        st.style.color = 'var(--red)';
+      } finally {
+        btn.disabled = false; btn.textContent = '📱 Send via WhatsApp';
+      }
+    }
+
+    // Keep old function stubs so existing buttons don't break
+    function vendorModalClose() {}
+    function vendorNewOpen(fid) { loadVendorFollowups(); }
+    async function vendorGenerate() {
+      const name = document.getElementById('vf-name') && document.getElementById('vf-name').value.trim();
+      if (!name) { alert('Please enter a vendor name first.'); return; }
+      const btn = document.getElementById('vf-gen-btn');
+      const status = document.getElementById('vf-gen-status');
+      if(btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+      if(status) status.textContent = '';
+      try {
+        const res = await fetch(AUTOMATION_API + '/api/vendor-followups/generate-messages', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            vendor_name: name,
+            company: document.getElementById('vf-company') ? document.getElementById('vf-company').value.trim() : '',
+            reason: document.getElementById('vf-reason').value,
+            urgency: document.getElementById('vf-urgency').value,
+            notes: document.getElementById('vf-notes').value.trim()
+          })
+        });
+        const data = await res.json();
+        if (data.whatsapp) document.getElementById('vf-wa-msg').value = data.whatsapp;
+        if (data.email_body) document.getElementById('vf-email-msg').value = (data.email_subject ? 'Subject: ' + data.email_subject + '\\n\\n' : '') + data.email_body;
+        status.textContent = 'Messages generated!';
+        status.style.color = 'var(--green)';
+      } catch(e) {
+        status.textContent = 'Generation failed: ' + String(e);
+        status.style.color = 'var(--red)';
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> Generate with AI';
+      }
+    }
+
+    async function vendorSave(fid) {
+      const name = document.getElementById('vf-name').value.trim();
+      if (!name) { alert('Vendor name is required.'); return; }
+      const payload = {
+        vendor_name: name,
+        company: document.getElementById('vf-company').value.trim(),
+        phone: document.getElementById('vf-phone').value.trim(),
+        email: document.getElementById('vf-email').value.trim(),
+        reason: document.getElementById('vf-reason').value,
+        urgency: document.getElementById('vf-urgency').value,
+        notes: document.getElementById('vf-notes').value.trim(),
+        whatsapp_instance: document.getElementById('vf-instance') ? document.getElementById('vf-instance').value : '',
+        whatsapp_message: document.getElementById('vf-wa-msg') ? document.getElementById('vf-wa-msg').value.trim() : '',
+        email_message: document.getElementById('vf-email-msg') ? document.getElementById('vf-email-msg').value.trim() : '',
+        status: 'draft',
+        next_followup_date: ''
+      };
+      try {
+        // If new follow-up (not editing), submit to n8n workflow which handles AI + email + WhatsApp
+        if (!fid) {
+          const n8nPayload = {
+            vendor_name: payload.vendor_name,
+            email: payload.email,
+            phone: payload.phone,
+            reason: payload.reason,
+            urgency: payload.urgency.charAt(0).toUpperCase() + payload.urgency.slice(1),
+            notes: payload.notes
+          };
+          const n8nRes = await fetch(AUTOMATION_API + '/api/vendor-followups/submit-n8n', {
+            method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(n8nPayload)
+          });
+          const n8nData = await n8nRes.json();
+          vendorModalClose();
+          loadVendorFollowups();
+          if (n8nData.n8n_triggered) {
+            setTimeout(function() { alert('Follow-up submitted! N8N is processing: AI email + WhatsApp message will be sent automatically.'); }, 300);
+          } else {
+            setTimeout(function() { alert('Saved locally. N8N not triggered — check n8n Webhook URL in Platform Settings > N8N Integration.'); }, 300);
+          }
+          return;
+        }
+        // Editing existing
+        const url = AUTOMATION_API + '/api/vendor-followups/' + fid;
+        const res = await fetch(url, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        if (!res.ok) throw new Error('Save failed: ' + res.status);
+        vendorModalClose();
+        loadVendorFollowups();
+      } catch(e) {
+        alert('Error saving: ' + e.message);
+      }
+    }
+
+    function vendorSendConfirm(fid, instance, phone, message) {
+      if (!instance || !phone) { alert('Instance and phone number are required to send.'); return; }
+      if (!confirm('Send WhatsApp message to ' + phone + '?')) return;
+      vendorSend(fid, instance, phone, message);
+    }
+
+    async function vendorSend(fid, instance, phone, message) {
+      try {
+        const res = await fetch('/api/vendor-followups/' + fid + '/send', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ instance, phone, message })
+        });
+        const data = await res.json();
+        if (data.ok || data.key) {
+          alert('Message sent successfully!');
+        } else {
+          alert('Send result: ' + JSON.stringify(data));
+        }
+        loadVendorFollowups();
+      } catch(e) {
+        alert('Send error: ' + e.message);
+      }
+    }
+
+    async function vendorUpdateStatus(fid, status) {
+      const labels = { done: 'Mark as Done', rescheduled: 'Reschedule' };
+      if (!confirm(labels[status] + '?')) return;
+      try {
+        await fetch(AUTOMATION_API + '/api/vendor-followups/' + fid + '/status', {
+          method: 'PUT',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ status: status })
+        });
+        loadVendorFollowups();
+      } catch(e) {
+        alert('Error updating status: ' + e.message);
+      }
+    }
+
+    async function vendorDelete(fid) {
+      if (!confirm('Delete this vendor follow-up?')) return;
+      try {
+        await fetch(AUTOMATION_API + '/api/vendor-followups/' + fid, { method: 'DELETE' });
+        loadVendorFollowups();
+      } catch(e) {
+        alert('Error deleting: ' + e.message);
+      }
     }
 
     // ─── Utils ──────────────────────────────

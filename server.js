@@ -1368,7 +1368,7 @@ const server = http.createServer(async (req, res) => {
 
   if (parsed.pathname === '/api/evolution/instances' && req.method === 'GET') {
     try {
-      const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:4000';
+      const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:5000';
       const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
       const evoRes = await fetch(`${EVOLUTION_API_URL}/instance/all`, {
         headers: { 'apikey': EVOLUTION_API_KEY },
@@ -1633,7 +1633,7 @@ const server = http.createServer(async (req, res) => {
       // Auto-send WhatsApp if enabled
       const settings = db.getWebsiteSettings();
       if (settings.autoWaEnabled && lead.phone) {
-        const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:4000';
+        const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:5000';
         const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
         const EVOLUTION_INSTANCE = settings.autoWaInstance || process.env.EVOLUTION_INSTANCE || '';
         (async () => {
@@ -1693,7 +1693,7 @@ const server = http.createServer(async (req, res) => {
     if (!lead) { json(res, { error: 'Lead not found' }, 404); return; }
     parseBody(req).then(async body => {
       try {
-        const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:4000';
+        const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:5000';
         const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
         const waSettings = db.getWebsiteSettings();
         const EVOLUTION_INSTANCE = body.instance || waSettings.autoWaInstance || process.env.EVOLUTION_INSTANCE || '';
@@ -1717,7 +1717,7 @@ const server = http.createServer(async (req, res) => {
   // Return current Evolution config (for pre-filling settings page)
   if (parsed.pathname === '/api/evo/config' && req.method === 'GET') {
     json(res, {
-      url: process.env.EVOLUTION_API_URL || 'http://localhost:4000',
+      url: process.env.EVOLUTION_API_URL || 'http://localhost:5000',
       instance: process.env.EVOLUTION_INSTANCE || '',
     });
     return;
@@ -1759,7 +1759,7 @@ const server = http.createServer(async (req, res) => {
   // WhatsApp status endpoint
   if (parsed.pathname === '/api/whatsapp/status' && req.method === 'GET') {
     try {
-      const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:4000';
+      const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:5000';
       const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
       const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || '';
       const r = await fetch(`${EVOLUTION_API_URL}/instance/all`, { headers: { 'apikey': EVOLUTION_API_KEY } });
@@ -1783,7 +1783,7 @@ const server = http.createServer(async (req, res) => {
   if (parsed.pathname === '/api/whatsapp/send' && req.method === 'POST') {
     parseBody(req).then(async body => {
       if (!body.number || !body.text) { json(res, { error: 'number and text required' }, 400); return; }
-      const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:4000';
+      const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://localhost:5000';
       const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || '';
       // Get instance token
       const instR = await fetch(`${EVOLUTION_API_URL}/instance/all`, { headers: { 'apikey': process.env.EVOLUTION_API_KEY || '' } });
@@ -1989,6 +1989,83 @@ const server = http.createServer(async (req, res) => {
     });
     return;
   }
+
+  // ── Birthday Automation API ─────────────────────────────────────────────
+  if (parsed.pathname === '/api/automation/birthday' && req.method === 'GET') {
+    json(res, db.listBirthdayEmployees());
+    return;
+  }
+
+  if (parsed.pathname === '/api/automation/birthday' && req.method === 'POST') {
+    parseBody(req).then(body => {
+      if (!body.name || !body.phone || !body.birthday) {
+        json(res, { error: 'name, phone, and birthday (MM-DD) are required' }, 400);
+        return;
+      }
+      const emp = db.createBirthdayEmployee({
+        name: body.name,
+        phone: body.phone,
+        birthday: body.birthday,
+        whatsapp_instance: body.instance || body.whatsapp_instance || '',
+        enabled: body.enabled !== undefined ? body.enabled : true,
+        message_template: body.message || body.message_template || '',
+        variables: body.variables || {},
+      });
+      json(res, emp, 201);
+    }).catch(err => json(res, { error: err.message }, 400));
+    return;
+  }
+
+  const birthdayMatch = parsed.pathname.match(/^\/api\/automation\/birthday\/([^/]+)$/);
+  if (birthdayMatch && req.method === 'PUT') {
+    parseBody(req).then(body => {
+      const emp = db.updateBirthdayEmployee(birthdayMatch[1], {
+        name: body.name,
+        phone: body.phone,
+        birthday: body.birthday,
+        whatsapp_instance: body.instance || body.whatsapp_instance,
+        enabled: body.enabled,
+        message_template: body.message || body.message_template,
+        variables: body.variables,
+      });
+      if (!emp) { json(res, { error: 'Not found' }, 404); return; }
+      json(res, emp);
+    }).catch(err => json(res, { error: err.message }, 400));
+    return;
+  }
+
+  if (birthdayMatch && req.method === 'DELETE') {
+    db.deleteBirthdayEmployee(birthdayMatch[1]);
+    json(res, { ok: true });
+    return;
+  }
+
+  const birthdayTestMatch = parsed.pathname.match(/^\/api\/automation\/birthday\/test\/([^/]+)$/);
+  if (birthdayTestMatch && req.method === 'POST') {
+    const emp = db.listBirthdayEmployees().find(e => e.id === birthdayTestMatch[1]);
+    if (!emp) { json(res, { error: 'Employee not found' }, 404); return; }
+    try {
+      const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://evolution-api-fgxi-api-1:8080';
+      const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
+      const instance = emp.whatsapp_instance || process.env.EVOLUTION_INSTANCE || 'onegroup';
+      let number = emp.phone.replace(/[^0-9]/g, '');
+      if (number.startsWith('0')) number = '91' + number.substring(1);
+      if (!number.startsWith('91') && number.length === 10) number = '91' + number;
+      const text = renderBirthdayTemplate(emp.message_template, emp);
+      const evoRes = await fetch(`${EVOLUTION_API_URL}/message/sendText/${instance}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': EVOLUTION_API_KEY },
+        body: JSON.stringify({ number, text }),
+      });
+      const data = await evoRes.json();
+      console.log(`[Birthday] Test message sent to ${emp.name} (${number}) via ${instance}`);
+      json(res, { ok: true, data, instance });
+    } catch (err) {
+      json(res, { error: err.message }, 500);
+    }
+    return;
+  }
+  // ── End Birthday Automation API ─────────────────────────────────────────
 
   res.writeHead(404);
   res.end('Not found');
@@ -2352,11 +2429,81 @@ function scheduleAutoCallbackCron() {
   console.log('[AutoCallback] Cron scheduled: daily at 11:00 AM IST');
 }
 
+// Birthday Wish cron — runs daily at midnight IST (18:30 UTC previous day)
+function renderBirthdayTemplate(template, emp) {
+  const vars = (emp && emp.variables && typeof emp.variables === 'object') ? emp.variables : {};
+  const tmpl = template || 'Happy Birthday {name}!';
+  return tmpl.replace(/\{([a-zA-Z0-9_]+)\}/g, (match, key) => {
+    if (vars[key] !== undefined && vars[key] !== null && vars[key] !== '') return String(vars[key]);
+    if (key === 'name') return emp.name || '';
+    if (key === 'phone') return emp.phone || '';
+    if (key === 'birthday') return emp.birthday || '';
+    return match;
+  });
+}
+
+async function runBirthdayWishes() {
+  const employees = db.listBirthdayEmployees();
+  const now = new Date();
+  // Get today's date in IST (UTC+5:30)
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const istNow = new Date(now.getTime() + istOffset);
+  const month = String(istNow.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(istNow.getUTCDate()).padStart(2, '0');
+  const todayMMDD = month + '-' + day;
+
+  const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://evolution-api-fgxi-api-1:8080';
+  const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
+
+  for (const emp of employees) {
+    if (!emp.enabled) continue;
+    if (emp.birthday !== todayMMDD) continue;
+    try {
+      const instance = emp.whatsapp_instance || process.env.EVOLUTION_INSTANCE || 'onegroup';
+      let number = emp.phone.replace(/[^0-9]/g, '');
+      if (number.startsWith('0')) number = '91' + number.substring(1);
+      if (!number.startsWith('91') && number.length === 10) number = '91' + number;
+      const text = renderBirthdayTemplate(emp.message_template, emp);
+      const evoRes = await fetch(`${EVOLUTION_API_URL}/message/sendText/${instance}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': EVOLUTION_API_KEY },
+        body: JSON.stringify({ number, text }),
+      });
+      const data = await evoRes.json();
+      console.log(`[Birthday] Sent wish to ${emp.name} (${number}) via ${instance}: ${JSON.stringify(data).substring(0, 100)}`);
+    } catch (err) {
+      console.error(`[Birthday] Failed to send to ${emp.name}:`, err.message);
+    }
+  }
+}
+
+function scheduleBirthdayCron() {
+  const CHECK_INTERVAL_MS = 60000; // Check every minute
+  let lastRunDate = null;
+
+  setInterval(() => {
+    const now = new Date();
+    // Midnight IST = 18:30 UTC of the previous day
+    const utcHour = now.getUTCHours();
+    const utcMin = now.getUTCMinutes();
+    const todayStr = now.toISOString().split('T')[0];
+
+    if (utcHour === 18 && utcMin === 30 && lastRunDate !== todayStr) {
+      lastRunDate = todayStr;
+      console.log(`[Birthday] Cron triggered at midnight IST (${todayStr})`);
+      runBirthdayWishes().catch(err => console.error('[Birthday] Cron error:', err.message));
+    }
+  }, CHECK_INTERVAL_MS);
+
+  console.log('[Birthday] Cron scheduled: daily at midnight IST');
+}
+
 server.listen(PORT, () => {
   console.log(`[Server] Gemini Live + Plivo bridge running on port ${PORT}`);
   console.log(`[Server] Dashboard: ${PUBLIC_URL}/dashboard`);
   setTimeout(syncCallbackData, 1000);
   scheduleAutoCallbackCron();
+  scheduleBirthdayCron();
   // Fix campaigns stuck in 'running' after restart (no active runners in memory)
   const stuck = db.db.prepare("SELECT id, name FROM campaigns WHERE status = 'running'").all();
   for (const c of stuck) {
