@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gemini Live — Lead Call Classifier</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ── NAVBAR ──────────────────────────────────────────────────────────── -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <span class="brand-dot"></span>
+      <div>
+        <span class="brand-name">Gemini Live</span>
+        <span class="brand-sub">Lead Call Classifier</span>
+      </div>
+    </div>
+    <div class="navbar-actions">
+      <button id="fetchCallsBtn" class="btn btn-secondary">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Fetch New Calls
+      </button>
+      <button id="processAllBtn" class="btn btn-primary">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Process All New Calls
+      </button>
+    </div>
+  </nav>
+
+  <!-- ── WEBHOOK INFO BANNER ────────────────────────────────────────────── -->
+  <div id="webhookBanner" class="webhook-banner">
+    <div class="webhook-info">
+      <span class="webhook-label">Webhook URL</span>
+      <code id="webhookUrl" class="webhook-url">Loading...</code>
+      <button class="btn btn-sm btn-secondary" onclick="copyWebhookUrl()">Copy</button>
+    </div>
+    <div class="webhook-hint">
+      Point your Gemini Live platform to POST <code>{ phone, recordingUrl }</code> here. Leads are auto-transcribed and classified on arrival.
+    </div>
+  </div>
+
+  <!-- ── PROGRESS BANNER ─────────────────────────────────────────────────── -->
+  <div id="progressBanner" class="progress-banner hidden">
+    <div class="progress-header">
+      <span id="progressTitle">Processing...</span>
+      <span id="progressStep"></span>
+    </div>
+    <div class="progress-track">
+      <div id="progressFill" class="progress-fill"></div>
+    </div>
+    <div id="progressLog" class="progress-log"></div>
+  </div>
+
+  <!-- ── STATS ROW ────────────────────────────────────────────────────────── -->
+  <section class="stats-row">
+    <div class="stat-card" data-filter="all" onclick="setFilter('all')">
+      <span class="stat-num" id="statTotal">0</span>
+      <span class="stat-label">Total Leads</span>
+    </div>
+    <div class="stat-card interested" data-filter="INTERESTED" onclick="setFilter('INTERESTED')">
+      <span class="stat-num" id="statInterested">0</span>
+      <span class="stat-label">Interested</span>
+    </div>
+    <div class="stat-card not-interested" data-filter="NOT_INTERESTED" onclick="setFilter('NOT_INTERESTED')">
+      <span class="stat-num" id="statNotInterested">0</span>
+      <span class="stat-label">Not Interested</span>
+    </div>
+    <div class="stat-card follow-up" data-filter="FOLLOW_UP_LATER" onclick="setFilter('FOLLOW_UP_LATER')">
+      <span class="stat-num" id="statFollowUp">0</span>
+      <span class="stat-label">Follow Up</span>
+    </div>
+    <div class="stat-card review" data-filter="review" onclick="setFilter('review')">
+      <span class="stat-num" id="statReview">0</span>
+      <span class="stat-label">Needs Review</span>
+    </div>
+  </section>
+
+  <!-- ── FILTER + SEARCH BAR ─────────────────────────────────────────────── -->
+  <section class="controls">
+    <div class="filter-group">
+      <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">All</button>
+      <button class="filter-btn" data-filter="INTERESTED" onclick="setFilter('INTERESTED')">Interested</button>
+      <button class="filter-btn" data-filter="NOT_INTERESTED" onclick="setFilter('NOT_INTERESTED')">Not Interested</button>
+      <button class="filter-btn" data-filter="FOLLOW_UP_LATER" onclick="setFilter('FOLLOW_UP_LATER')">Follow Up Later</button>
+      <button class="filter-btn" data-filter="review" onclick="setFilter('review')">Needs Review</button>
+      <button class="filter-btn" data-filter="unprocessed" onclick="setFilter('unprocessed')">Unprocessed</button>
+    </div>
+    <div class="search-wrap">
+      <svg class="search-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="searchInput" class="search-input" placeholder="Search by phone number or keyword...">
+    </div>
+  </section>
+
+  <!-- ── LEADS GRID ──────────────────────────────────────────────────────── -->
+  <main id="leadsGrid" class="leads-grid">
+    <div class="empty-state">
+      <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+      <p>No leads yet. Click <strong>Fetch New Calls</strong> to get started.</p>
+    </div>
+  </main>
+
+  <!-- ── TRANSCRIPT MODAL ────────────────────────────────────────────────── -->
+  <div id="transcriptModal" class="modal-overlay hidden" onclick="closeModal(event)">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div>
+          <h3 id="modalPhone">Lead Transcript</h3>
+          <span id="modalMeta" class="modal-meta"></span>
+        </div>
+        <button class="modal-close" onclick="closeModalDirect()">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div id="modalTranscript" class="modal-transcript"></div>
+    </div>
+  </div>
+
+  <!-- ── TOAST CONTAINER ─────────────────────────────────────────────────── -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

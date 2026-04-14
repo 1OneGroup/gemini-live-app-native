@@ -1,0 +1,27 @@
+# Secrets
+.env
+.env.*
+
+# Dependencies
+node_modules/
+
+# Data (contains customer PII)
+leads.json
+leads.backup*.json
+leads.broken-*.json
+missing_cdr.json
+tmp_*.json
+plivo_cdr/
+
+# Logs & runtime
+*.log
+server.backup.js
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Claude local
+.claude/
