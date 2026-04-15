@@ -37,18 +37,6 @@
     </div>
   </nav>
 
-  <!-- ── WEBHOOK INFO BANNER ────────────────────────────────────────────── -->
-  <div id="webhookBanner" class="webhook-banner">
-    <div class="webhook-info">
-      <span class="webhook-label">Webhook URL</span>
-      <code id="webhookUrl" class="webhook-url">Loading...</code>
-      <button class="btn btn-sm btn-secondary" onclick="copyWebhookUrl()">Copy</button>
-    </div>
-    <div class="webhook-hint">
-      Point your Gemini Live platform to POST <code>{ phone, recordingUrl }</code> here. Leads are auto-transcribed and classified on arrival.
-    </div>
-  </div>
-
   <!-- ── PROGRESS BANNER ─────────────────────────────────────────────────── -->
   <div id="progressBanner" class="progress-banner hidden">
     <div class="progress-header">
@@ -82,38 +70,6 @@
         </div>
         <ul id="chartLegend" class="chart-legend"></ul>
       </div>
-    </div>
-  </section>
-
-  <!-- ── STATS ROW ────────────────────────────────────────────────────────── -->
-  <section class="stats-row">
-    <div class="stat-card" data-filter="all" onclick="setFilter('all')">
-      <span class="stat-num" id="statTotal">0</span>
-      <span class="stat-label">Total Leads</span>
-    </div>
-    <div class="stat-card interested" data-filter="INTERESTED" onclick="setFilter('INTERESTED')">
-      <span class="stat-num" id="statInterested">0</span>
-      <span class="stat-label">Interested</span>
-    </div>
-    <div class="stat-card visiting" data-filter="VISITING" onclick="setFilter('VISITING')">
-      <span class="stat-num" id="statVisiting">0</span>
-      <span class="stat-label">Visiting</span>
-    </div>
-    <div class="stat-card not-visiting" data-filter="NOT_VISITING" onclick="setFilter('NOT_VISITING')">
-      <span class="stat-num" id="statNotVisiting">0</span>
-      <span class="stat-label">Not Visiting</span>
-    </div>
-    <div class="stat-card not-interested" data-filter="NOT_INTERESTED" onclick="setFilter('NOT_INTERESTED')">
-      <span class="stat-num" id="statNotInterested">0</span>
-      <span class="stat-label">Not Interested</span>
-    </div>
-    <div class="stat-card follow-up" data-filter="FOLLOW_UP_LATER" onclick="setFilter('FOLLOW_UP_LATER')">
-      <span class="stat-num" id="statFollowUp">0</span>
-      <span class="stat-label">Follow Up</span>
-    </div>
-    <div class="stat-card review" data-filter="review" onclick="setFilter('review')">
-      <span class="stat-num" id="statReview">0</span>
-      <span class="stat-label">Needs Review</span>
     </div>
   </section>
 

@@ -22,7 +22,6 @@ const CHART_SEGMENTS = [
 
 document.addEventListener('DOMContentLoaded', () => {
   loadLeads();
-  loadWebhookInfo();
   bindGlobalEvents();
 });
 
@@ -62,35 +61,7 @@ function bindGlobalEvents() {
     advancedFilter = e.target.value;
     renderLeads(filterLeads(allLeads));
   });
-}
 
-// ── Webhook Info ──────────────────────────────────────────────────────────────
-
-/**
- * Fetches the webhook URL from the backend and displays it in the banner.
- */
-async function loadWebhookInfo() {
-  try {
-    const info = await apiGet('/api/webhook-info');
-    const urlEl = document.getElementById('webhookUrl');
-    if (urlEl) urlEl.textContent = info.webhookUrl;
-  } catch {
-    // Non-critical — silently ignore if this fails
-  }
-}
-
-/**
- * Copies the webhook URL to clipboard.
- */
-async function copyWebhookUrl() {
-  const urlEl = document.getElementById('webhookUrl');
-  if (!urlEl) return;
-  try {
-    await navigator.clipboard.writeText(urlEl.textContent);
-    showToast('Webhook URL copied to clipboard!', 'success');
-  } catch {
-    showToast('Copy failed — please copy manually.', 'warning');
-  }
 }
 
 // ── Data Loading ──────────────────────────────────────────────────────────────
@@ -101,7 +72,7 @@ async function copyWebhookUrl() {
 async function loadLeads() {
   try {
     allLeads = await apiGet('/api/leads');
-    renderStats(allLeads); renderChart(allLeads);
+    renderChart(allLeads);
     renderChart(allLeads);
     renderLeads(filterLeads(allLeads));
   } catch (err) {
@@ -124,8 +95,8 @@ function setFilter(filter) {
     btn.classList.toggle('active', btn.dataset.filter === filter);
   });
 
-  // Update stat card active state
-  document.querySelectorAll('.stat-card').forEach(card => {
+  // Update legend card active state
+  document.querySelectorAll('.legend-item').forEach(card => {
     card.classList.toggle('active', card.dataset.filter === filter);
   });
 
@@ -213,26 +184,6 @@ function filterLeads(leads) {
 // ── Rendering ─────────────────────────────────────────────────────────────────
 
 /**
- * Updates the stats row with current counts.
- * @param {Array} leads
- */
-function renderStats(leads) {
-  document.getElementById('statTotal').textContent = leads.length;
-  document.getElementById('statInterested').textContent =
-    leads.filter(l => l.classification === 'INTERESTED').length;
-  document.getElementById('statNotInterested').textContent =
-    leads.filter(l => l.classification === 'NOT_INTERESTED').length;
-  document.getElementById('statFollowUp').textContent =
-    leads.filter(l => l.classification === 'FOLLOW_UP_LATER').length;
-  document.getElementById('statVisiting').textContent =
-    leads.filter(l => l.classification === 'INTERESTED' && l.subClassification === 'VISITING').length;
-  document.getElementById('statNotVisiting').textContent =
-    leads.filter(l => l.classification === 'INTERESTED' && l.subClassification === 'NOT_VISITING').length;
-  document.getElementById('statReview').textContent =
-    leads.filter(l => l.needsManualReview).length;
-}
-
-/**
  * Renders the donut chart of classification breakdown.
  * @param {Array} leads
  */
@@ -286,7 +237,7 @@ function renderChart(leads) {
   centerLabel.textContent = total === 1 ? 'lead' : 'leads';
   totalLabel.textContent = `${total} ${total === 1 ? 'lead' : 'leads'}`;
 
-  // Legend
+  // Legend — stat cards beside the chart
   legendEl.innerHTML = CHART_SEGMENTS.map(seg => {
     const value = counts[seg.key];
     const pct = total ? Math.round((value / sumSlices) * 100) : 0;
@@ -294,10 +245,13 @@ function renderChart(leads) {
                      : seg.key === 'review' ? 'review'
                      : seg.key;
     return `
-      <li class="legend-item" data-filter="${filterAttr}" onclick="setFilter('${filterAttr}')">
-        <span class="legend-dot" style="background:${seg.color}"></span>
-        <span class="legend-label">${seg.label}</span>
-        <span class="legend-value">${value}<span class="legend-pct"> · ${pct}%</span></span>
+      <li class="legend-item" data-filter="${filterAttr}" onclick="setFilter('${filterAttr}')" style="--seg-color:${seg.color}">
+        <span class="legend-accent"></span>
+        <div class="legend-meta">
+          <span class="legend-label">${seg.label}</span>
+          <span class="legend-pct">${pct}%</span>
+        </div>
+        <span class="legend-value">${value}</span>
       </li>`;
   }).join('');
 }
@@ -532,6 +486,7 @@ function closeDetailModal(e) {
 function closeDetailModalDirect() {
   document.getElementById('detailModal').classList.add('hidden');
 }
+
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 
@@ -812,7 +767,7 @@ async function classifyOne(leadId) {
     showToast('Classifying transcript...', 'info');
     const lead = await apiPost(`/api/classify/${leadId}`);
     updateLeadInState(lead);
-    renderStats(allLeads); renderChart(allLeads);
+    renderChart(allLeads);
     renderLeads(filterLeads(allLeads));
     showToast(`Classified as ${lead.classification}`, 'success');
   } catch (err) {
@@ -880,7 +835,7 @@ async function manualOverride(leadId, classification) {
     }
     const lead = await apiPatch(`/api/leads/${leadId}`, body);
     updateLeadInState(lead);
-    renderStats(allLeads); renderChart(allLeads);
+    renderChart(allLeads);
     renderLeads(filterLeads(allLeads));
     showToast(`Classification overridden to ${classification}`, 'success');
   } catch (err) {
@@ -899,7 +854,7 @@ async function subClassificationOverride(leadId, subClassification) {
   try {
     const lead = await apiPatch(`/api/leads/${leadId}`, { subClassification });
     updateLeadInState(lead);
-    renderStats(allLeads); renderChart(allLeads);
+    renderChart(allLeads);
     renderLeads(filterLeads(allLeads));
     viewLeadDetail(leadId);
     showToast(`Sub-classification set to ${subClassification.replace(/_/g, ' ')}`, 'success');
@@ -919,7 +874,7 @@ async function deleteLead(leadId) {
   try {
     await apiDelete(`/api/leads/${leadId}`);
     allLeads = allLeads.filter(l => l.id !== leadId);
-    renderStats(allLeads); renderChart(allLeads);
+    renderChart(allLeads);
     renderLeads(filterLeads(allLeads));
     showToast('Lead deleted.', 'info');
   } catch (err) {
