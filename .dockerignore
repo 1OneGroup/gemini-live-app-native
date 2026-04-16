@@ -11,6 +11,7 @@ leads.broken-*.json
 tmp_*.json
 missing_cdr.json
 plivo_cdr
+data
 Dockerfile
 .dockerignore
 README.md

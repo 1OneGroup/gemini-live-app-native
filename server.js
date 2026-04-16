@@ -14,7 +14,7 @@ const { classifyTranscript } = require('./classifier');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const LEADS_FILE = path.join(__dirname, 'leads.json');
+const LEADS_FILE = path.join(__dirname, 'data', 'leads.json');
 
 // ─── Middleware ────────────────────────────────────────────────────────────────
 
