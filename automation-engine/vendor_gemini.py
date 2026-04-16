@@ -32,7 +32,7 @@ Respond ONLY with valid JSON in this exact format:
 }}"""
 
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
         resp = requests.post(url, json={"contents": [{"parts": [{"text": prompt}]}]}, timeout=15)
         resp.raise_for_status()
         text = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()

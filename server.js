@@ -773,6 +773,138 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Public form: /form/:automation_id  (no auth — shareable link)
+  if (parsed.pathname && parsed.pathname.startsWith('/form/')) {
+    const aid = parsed.pathname.substring('/form/'.length);
+    const automationApiUrl = process.env.AUTOMATION_API_URL || 'http://localhost:5001';
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(`<!doctype html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Submit Form</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .card { background: #fff; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 520px; width: 100%; overflow: hidden; }
+  .header { background: linear-gradient(135deg, #25d366 0%, #128c7e 100%); color: #fff; padding: 28px 32px; }
+  .header h1 { margin: 0 0 6px; font-size: 22px; font-weight: 700; }
+  .header p { margin: 0; font-size: 14px; opacity: 0.9; }
+  .body { padding: 28px 32px; }
+  .field { margin-bottom: 18px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+  label .req { color: #dc2626; }
+  input, textarea, select { width: 100%; padding: 11px 14px; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 14px; font-family: inherit; transition: border-color 0.2s; }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: #25d366; }
+  textarea { min-height: 90px; resize: vertical; }
+  button { width: 100%; padding: 13px; background: #25d366; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  button:hover { background: #128c7e; }
+  button:disabled { background: #9ca3af; cursor: not-allowed; }
+  .msg { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 14px; text-align: center; display: none; }
+  .msg.ok { background: #dcfce7; color: #166534; display: block; }
+  .msg.err { background: #fee2e2; color: #991b1b; display: block; }
+  .loading { text-align: center; padding: 60px; color: #6b7280; }
+</style>
+</head><body>
+<div class="card">
+  <div class="header">
+    <h1 id="title">Loading...</h1>
+    <p id="desc">Please wait</p>
+  </div>
+  <div class="body" id="body">
+    <div class="loading">Loading form...</div>
+  </div>
+</div>
+<script>
+const AID = ${JSON.stringify(aid)};
+const API = ${JSON.stringify(automationApiUrl)};
+let schema = null;
+
+async function load() {
+  try {
+    const r = await fetch(API + '/api/automations/' + AID);
+    if (!r.ok) throw new Error('Form not found');
+    const auto = await r.json();
+    document.getElementById('title').textContent = auto.name || 'Submit Form';
+    document.getElementById('desc').textContent = auto.description || 'Fill the form below';
+    if (!auto.form_schema) {
+      document.getElementById('body').innerHTML = '<div class="msg err" style="display:block">This automation has no form configured.</div>';
+      return;
+    }
+    schema = JSON.parse(auto.form_schema);
+    render();
+  } catch (e) {
+    document.getElementById('body').innerHTML = '<div class="msg err" style="display:block">Error: ' + e.message + '</div>';
+  }
+}
+
+function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function render() {
+  const fields = schema.fields || [];
+  let html = '';
+  fields.forEach((f, i) => {
+    const fid = f.id || 'field_' + i;
+    const req = f.required ? '<span class="req"> *</span>' : '';
+    html += '<div class="field"><label>' + esc(f.label) + req + '</label>';
+    if (f.type === 'textarea') {
+      html += '<textarea id="f_' + fid + '" placeholder="' + esc(f.placeholder) + '"' + (f.required ? ' required' : '') + '></textarea>';
+    } else if (f.type === 'dropdown') {
+      html += '<select id="f_' + fid + '"' + (f.required ? ' required' : '') + '><option value="">-- Select --</option>';
+      (f.options || []).forEach(o => { html += '<option value="' + esc(o) + '">' + esc(o) + '</option>'; });
+      html += '</select>';
+    } else {
+      const t = f.type === 'email' ? 'email' : 'text';
+      html += '<input type="' + t + '" id="f_' + fid + '" placeholder="' + esc(f.placeholder) + '"' + (f.required ? ' required' : '') + '>';
+    }
+    html += '</div>';
+  });
+  html += '<button onclick="submit()">Submit</button><div id="msg" class="msg"></div>';
+  document.getElementById('body').innerHTML = html;
+}
+
+async function submit() {
+  const btn = document.querySelector('button');
+  const msg = document.getElementById('msg');
+  const fields = schema.fields || [];
+  const data = {};
+  for (const f of fields) {
+    const fid = f.id || 'field_' + fields.indexOf(f);
+    const el = document.getElementById('f_' + fid);
+    if (f.required && !el.value.trim()) {
+      msg.className = 'msg err'; msg.textContent = 'Please fill: ' + f.label;
+      return;
+    }
+    data[fid] = el.value;
+  }
+  btn.disabled = true; btn.textContent = 'Submitting...';
+  msg.className = 'msg'; msg.textContent = '';
+  try {
+    const r = await fetch(API + '/api/automations/' + AID + '/submit-form', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data)
+    });
+    const res = await r.json();
+    if (res.ok) {
+      msg.className = 'msg ok'; msg.textContent = '✓ Submitted successfully!';
+      fields.forEach((f, i) => {
+        const el = document.getElementById('f_' + (f.id || 'field_' + i));
+        if (el) el.value = '';
+      });
+    } else {
+      throw new Error(res.detail || 'Submit failed');
+    }
+  } catch (e) {
+    msg.className = 'msg err'; msg.textContent = 'Error: ' + e.message;
+  }
+  btn.disabled = false; btn.textContent = 'Submit';
+}
+
+load();
+</script>
+</body></html>`);
+    return;
+  }
+
   if (parsed.pathname === '/api/calls' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(store.listCalls()));

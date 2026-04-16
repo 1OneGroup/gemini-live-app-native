@@ -18,5 +18,12 @@ module.exports = {
     autorestart: true,
     max_restarts: 10,
     restart_delay: 2000,
+  }, {
+    name: 'automation-engine',
+    script: 'uvicorn',
+    args: 'main:app --host 0.0.0.0 --port 5001',
+    cwd: './automation-engine',
+    interpreter: 'python',
+    env: { PYTHONUNBUFFERED: '1' }
   }]
 };

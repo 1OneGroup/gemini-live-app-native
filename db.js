@@ -36,6 +36,7 @@ function scheduleSave() {
         websiteLeadsArr: [...websiteLeads.entries()],
         websiteSettingsObj: websiteSettings,
         waIncomingMessagesArr: waIncomingMessages,
+        birthdayEmployeesArr: [...birthdayEmployees.entries()],
       };
       fs.writeFileSync(DB_FILE, JSON.stringify(data), 'utf8');
     } catch (e) { console.error('[DB] Failed to save db.json:', e.message); }
@@ -291,6 +292,50 @@ try {
   console.error('[DB] Failed to seed default prompt:', err.message);
 }
 
+// --- Birthday Employees ---
+const birthdayEmployees = new Map();
+
+function createBirthdayEmployee({ name, phone, birthday, whatsapp_instance, enabled, message_template, variables }) {
+  const id = uid();
+  const e = {
+    id,
+    name: name || '',
+    phone: phone || '',
+    birthday: birthday || '',           // MM-DD format
+    whatsapp_instance: whatsapp_instance || '',
+    enabled: enabled !== undefined ? !!enabled : true,
+    message_template: message_template || 'Happy Birthday {name}! Wishing you a wonderful day! 🎂',
+    variables: variables && typeof variables === 'object' ? variables : {},
+    created_at: now(),
+  };
+  birthdayEmployees.set(id, e);
+  scheduleSave();
+  return { ...e };
+}
+
+function listBirthdayEmployees() {
+  return [...birthdayEmployees.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function updateBirthdayEmployee(id, updates) {
+  const e = birthdayEmployees.get(id);
+  if (!e) return null;
+  if (updates.name != null) e.name = updates.name;
+  if (updates.phone != null) e.phone = updates.phone;
+  if (updates.birthday != null) e.birthday = updates.birthday;
+  if (updates.whatsapp_instance != null) e.whatsapp_instance = updates.whatsapp_instance;
+  if (updates.enabled != null) e.enabled = !!updates.enabled;
+  if (updates.message_template != null) e.message_template = updates.message_template;
+  if (updates.variables != null && typeof updates.variables === 'object') e.variables = updates.variables;
+  scheduleSave();
+  return { ...e };
+}
+
+function deleteBirthdayEmployee(id) {
+  birthdayEmployees.delete(id);
+  scheduleSave();
+}
+
 // --- Website Leads ---
 const websiteLeads = new Map();
 const websiteSettings = { autoWaEnabled: false, autoWaTemplate: '{{greeting}} Sir/Madam!\n\nThank you for contacting us. Our team will reach out to you shortly.\n\n- ONE Group', autoEmailEnabled: false, autoEmailSubject: 'Thank you for your interest', autoEmailBody: 'Dear {{name}},\n\nThank you for contacting us. We will get back to you soon.', customWebhookUrl: '', b2bForwardEnabled: false, b2bForwardUrl: '', waWebhookOutUrl: '', tunnelUrl: 'https://870f5ea76b53c024-157-49-26-8.serveousercontent.com', autoWaInstance: '' };
@@ -307,6 +352,7 @@ const waIncomingMessages = [];
   if (saved.websiteLeadsArr) for (const [k, v] of saved.websiteLeadsArr) websiteLeads.set(k, v);
   if (saved.websiteSettingsObj) Object.assign(websiteSettings, saved.websiteSettingsObj);
   if (saved.waIncomingMessagesArr) waIncomingMessages.push(...saved.waIncomingMessagesArr);
+  if (saved.birthdayEmployeesArr) for (const [k, v] of saved.birthdayEmployeesArr) birthdayEmployees.set(k, v);
   if (saved.campaigns || saved.websiteLeadsArr) console.log('[DB] Loaded persisted data from db.json');
 })();
 
@@ -348,5 +394,6 @@ module.exports = {
   createAnalysis, getAnalysis, listAnalyses, approveAnalysis, rejectAnalysis, deleteAnalysis,
   createPrompt, listPrompts, getPrompt, updatePrompt, deletePrompt, setActivePrompt, getActivePrompt,
   createEmployeeInstance, listEmployeeInstances, getEmployeeInstance, getEmployeeByName, updateEmployeeInstance, deleteEmployeeInstance, getUniqueEmployeeNames,
+  createBirthdayEmployee, listBirthdayEmployees, updateBirthdayEmployee, deleteBirthdayEmployee,
   db,
 };
