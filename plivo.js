@@ -29,7 +29,7 @@ async function fetchNewCalls() {
     });
 
     // Guard: .objects may not exist if no calls found
-    const calls = (callsResponse && callsResponse.objects) ? callsResponse.objects : [];
+    const calls = Array.isArray(callsResponse) ? [...callsResponse] : [];
 
     if (calls.length === 0) {
       console.log(`[${timestamp}] No calls with recordings found in Plivo.`);
@@ -44,24 +44,24 @@ async function fetchNewCalls() {
     for (const call of calls) {
       try {
         // Fetch the recording URL for this specific call
-        const recordingUrl = await getRecordingUrl(call.call_uuid);
+        const recordingUrl = await getRecordingUrl(call.callUuid);
 
         if (!recordingUrl) {
-          console.warn(`[${timestamp}] No recording URL found for call ${call.call_uuid}, skipping.`);
+          console.warn(`[${timestamp}] No recording URL found for call ${call.callUuid}, skipping.`);
           continue;
         }
 
         normalized.push({
-          plivoCallUuid: call.call_uuid,
+          plivoCallUuid: call.callUuid,
           // Use the caller's number for inbound calls, or the callee for outbound
-          phone: call.direction === 'inbound' ? call.from_number : call.to_number,
-          callDate: call.initiation_time || new Date().toISOString(),
-          callDuration: parseInt(call.duration, 10) || 0,
+          phone: call.callDirection === 'inbound' ? call.fromNumber : call.toNumber,
+          callDate: call.initiationTime || new Date().toISOString(),
+          callDuration: parseInt(call.callDuration, 10) || 0,
           recordingUrl: recordingUrl,
-          direction: call.direction || 'unknown'
+          direction: call.callDirection || 'unknown'
         });
       } catch (err) {
-        console.error(`[${timestamp}] Error processing call ${call.call_uuid}:`, err.message);
+        console.error(`[${timestamp}] Error processing call ${call.callUuid}:`, err.message);
         // Continue processing remaining calls even if one fails
       }
     }
@@ -87,14 +87,12 @@ async function getRecordingUrl(callUuid) {
       limit: 1
     });
 
-    const recordings = (recordingsResponse && recordingsResponse.objects)
-      ? recordingsResponse.objects
-      : [];
+    const recordings = Array.isArray(recordingsResponse) ? [...recordingsResponse] : [];
 
     if (recordings.length === 0) return null;
 
     // Return the first recording URL (most recent)
-    return recordings[0].recording_url || null;
+    return recordings[0].recordingUrl || null;
   } catch (err) {
     console.error(`Error fetching recording for call ${callUuid}:`, err.message);
     return null;
