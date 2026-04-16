@@ -1,7 +1,8 @@
 FROM node:22-alpine
 
 # Install Python + pip + build tools
-RUN apk add --no-cache python3 py3-pip make g++ curl
+RUN apk add --no-cache python3 py3-pip make g++ curl \
+    freetype-dev jpeg-dev zlib-dev libpng-dev
 
 WORKDIR /app
 

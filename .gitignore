@@ -2,3 +2,7 @@ node_modules/
 .env
 server.log
 test-script.js
+.claude/
+automation-engine/automation.db
+automation-engine/tmp_media/
+data/db.json

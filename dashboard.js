@@ -407,6 +407,10 @@ function getDashboardHtml() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="6" height="6" rx="1"/><rect x="16" y="3" width="6" height="6" rx="1"/><rect x="9" y="15" width="6" height="6" rx="1"/><path d="M5 9v3a2 2 0 002 2h10a2 2 0 002-2V9"/><line x1="12" y1="12" x2="12" y2="15"/></svg>
             Automation
           </div>
+          <div class="nav-item" onclick="navigate('api-configs', this)" id="nav-api-configs">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>
+            API Configs
+          </div>
         </div>
       </nav>
       <div class="sidebar-footer">
@@ -417,6 +421,29 @@ function getDashboardHtml() {
       </div>
     </aside>
     <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+    <!-- Logs Panel -->
+    <div id="logs-panel" style="position:fixed;top:0;right:-420px;width:420px;max-width:100vw;height:100vh;background:var(--surface);border-left:1px solid var(--border);z-index:200;display:flex;flex-direction:column;transition:right .25s ease;box-shadow:-4px 0 24px rgba(0,0,0,.12)">
+      <div style="padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg-secondary)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span style="font-size:14px;font-weight:700;color:var(--text)">Activity Logs</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button onclick="logsRefresh()" style="padding:4px 10px;font-size:12px;background:var(--accent-bg);color:var(--accent-hover);border:1px solid var(--accent-border);border-radius:6px;cursor:pointer">&#8635; Refresh</button>
+          <button onclick="closeLogsPanel()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;line-height:1;padding:2px 6px">&#10005;</button>
+        </div>
+      </div>
+      <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap" id="logs-filter-bar">
+        <button onclick="logsSetFilter('all')" id="lf-all" style="padding:3px 10px;font-size:11px;font-weight:600;border-radius:99px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer">All</button>
+        <button onclick="logsSetFilter('sent')" id="lf-sent" style="padding:3px 10px;font-size:11px;font-weight:600;border-radius:99px;border:1px solid var(--border);background:none;color:var(--text-muted);cursor:pointer">Sent</button>
+        <button onclick="logsSetFilter('failed')" id="lf-failed" style="padding:3px 10px;font-size:11px;font-weight:600;border-radius:99px;border:1px solid var(--border);background:none;color:var(--text-muted);cursor:pointer">Failed</button>
+        <button onclick="logsSetFilter('error')" id="lf-error" style="padding:3px 10px;font-size:11px;font-weight:600;border-radius:99px;border:1px solid var(--border);background:none;color:var(--text-muted);cursor:pointer">Errors</button>
+        <button onclick="logsSetFilter('info')" id="lf-info" style="padding:3px 10px;font-size:11px;font-weight:600;border-radius:99px;border:1px solid var(--border);background:none;color:var(--text-muted);cursor:pointer">Info</button>
+      </div>
+      <div id="logs-list" style="flex:1;overflow-y:auto;padding:10px 14px;font-size:12px"></div>
+    </div>
+    <div id="logs-overlay" onclick="closeLogsPanel()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:199"></div>
 
     <!-- Mobile FAB -->
     <button class="fab" id="mobile-fab" onclick="openCreateCampaignModal()">
@@ -431,8 +458,14 @@ function getDashboardHtml() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
           <h1 class="topbar-title" id="page-title">Campaigns</h1>
+          <span id="page-subtitle" style="display:none;align-items:center;gap:8px"></span>
         </div>
         <div class="topbar-actions">
+          <button class="btn btn-secondary" onclick="openLogsPanel()" id="logs-btn" style="display:flex;align-items:center;gap:6px;position:relative">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Logs
+            <span id="logs-badge" style="display:none;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:99px;min-width:16px;text-align:center"></span>
+          </button>
           <button class="btn btn-secondary" onclick="openCallModal()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
             Quick Call
@@ -527,6 +560,11 @@ function getDashboardHtml() {
         <!-- Automation Page -->
         <div id="page-automation" class="hidden">
           <div id="automation-content"></div>
+        </div>
+
+        <!-- API Configs Page -->
+        <div id="page-api-configs" class="hidden">
+          <div id="api-configs-content"></div>
         </div>
 
         <!-- Vendor Follow-up Page -->
@@ -716,9 +754,9 @@ function getDashboardHtml() {
       var navEl = document.getElementById('nav-' + page);
       if (navEl) navEl.classList.add('active');
       else if (el && el.classList && el.classList.contains('nav-item')) el.classList.add('active');
-      const pages = ['campaigns','calls','analytics','prompts','whatsapp','brochures','settings','wa-settings','devices','website','automation','vendor'];
+      const pages = ['campaigns','calls','analytics','prompts','whatsapp','brochures','settings','wa-settings','devices','website','automation','vendor','api-configs'];
       pages.forEach(p => document.getElementById('page-' + p)?.classList.toggle('hidden', p !== page));
-      const titles = { campaigns: 'Campaigns', calls: 'Call History', analytics: 'Analytics', prompts: 'Prompt Library', brochures: 'WhatsApp Messages', settings: 'Settings', whatsapp: 'Send Message', 'wa-settings': 'WhatsApp Settings', devices: 'Devices', website: 'Website', automation: 'Automation', vendor: 'Vendor Follow-up' };
+      const titles = { campaigns: 'Campaigns', calls: 'Call History', analytics: 'Analytics', prompts: 'Prompt Library', brochures: 'WhatsApp Messages', settings: 'Settings', whatsapp: 'Send Message', 'wa-settings': 'WhatsApp Settings', devices: 'Devices', website: 'Website', automation: 'Automation', vendor: 'Vendor Follow-up', 'api-configs': 'API Configs' };
       document.getElementById('page-title').textContent = titles[page] || page;
       if (page === 'campaigns') loadCampaigns();
       if (page === 'calls') loadCalls();
@@ -732,10 +770,102 @@ function getDashboardHtml() {
       if (page === 'settings') loadSettings();
       if (page === 'automation') loadAutomation();
       if (page === 'vendor') loadVendorFollowups();
+      if (page === 'api-configs') loadApiConfigs();
       closeSidebar();
     }
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('open'); }
+
+    // ── Logs Panel ────────────────────────────────────────────────────────────
+    var _logsFilter = 'all';
+    var _logsData = [];
+
+    function openLogsPanel() {
+      document.getElementById('logs-panel').style.right = '0';
+      document.getElementById('logs-overlay').style.display = 'block';
+      document.getElementById('logs-badge').style.display = 'none';
+      logsRefresh();
+    }
+    function closeLogsPanel() {
+      document.getElementById('logs-panel').style.right = '-420px';
+      document.getElementById('logs-overlay').style.display = 'none';
+    }
+    function logsSetFilter(f) {
+      _logsFilter = f;
+      ['all','sent','failed','error','info'].forEach(function(k) {
+        var b = document.getElementById('lf-' + k);
+        if (!b) return;
+        if (k === f) { b.style.background = 'var(--accent)'; b.style.color = '#fff'; b.style.borderColor = 'var(--accent)'; }
+        else { b.style.background = 'none'; b.style.color = 'var(--text-muted)'; b.style.borderColor = 'var(--border)'; }
+      });
+      logsRender();
+    }
+    function logsRefresh() {
+      var list = document.getElementById('logs-list');
+      if (list) list.innerHTML = '<div style="color:var(--text-muted);padding:16px">Loading...</div>';
+      fetch(AUTOMATION_API + '/api/activity-log').then(function(r){return r.json();}).then(function(data) {
+        _logsData = data || [];
+        logsRender();
+      }).catch(function() {
+        if (list) list.innerHTML = '<div style="color:var(--red);padding:16px">Failed to load logs</div>';
+      });
+    }
+    function logsRender() {
+      var list = document.getElementById('logs-list');
+      if (!list) return;
+      var rows = _logsData.filter(function(r) {
+        if (_logsFilter === 'all') return true;
+        return r.status === _logsFilter;
+      });
+      if (!rows.length) {
+        var msg = _logsFilter === 'all'
+          ? 'Koi log nahi mila. Pehle koi automation run karo.'
+          : '"' + _logsFilter + '" filter ke liye koi log nahi.';
+        list.innerHTML = '<div style="color:var(--text-muted);padding:24px 16px;text-align:center;font-size:12px">'
+          + '<div style="font-size:24px;margin-bottom:8px">&#128203;</div>'
+          + msg + '</div>';
+        return;
+      }
+      var statusColor = {sent:'#16a34a', failed:'#dc2626', error:'#dc2626', info:'#2563eb'};
+      var statusBg = {sent:'#dcfce7', failed:'#fee2e2', error:'#fee2e2', info:'#dbeafe'};
+      list.innerHTML = rows.map(function(r) {
+        var sc = statusColor[r.status] || '#6b7280';
+        var sb = statusBg[r.status] || '#f3f4f6';
+        var time = r.sent_at ? r.sent_at.replace('T',' ').substring(0,16) : '';
+        var hasStdout = r.stdout && r.stdout.trim();
+        var hasError = r.error && r.error.trim();
+        return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--bg)">'
+          + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
+          + '<span style="font-weight:600;color:var(--text);font-size:12px">' + esc(r.automation_name || '') + '</span>'
+          + '<span style="font-size:10px;font-weight:700;color:' + sc + ';background:' + sb + ';padding:1px 8px;border-radius:99px">' + (r.status||'').toUpperCase() + '</span>'
+          + '</div>'
+          + (r.recipient_name || r.recipient_phone ? '<div style="font-size:11px;color:var(--text-muted);margin-bottom:3px">'
+            + (r.recipient_name ? esc(r.recipient_name) + ' ' : '')
+            + (r.recipient_phone ? '<span style="font-family:monospace">' + esc(r.recipient_phone) + '</span>' : '')
+            + '</div>' : '')
+          + (r.message_sent && r.message_sent !== '[stdout]' && r.message_sent !== '[error]'
+            ? '<div style="font-size:11px;color:var(--text);background:var(--bg-secondary);border-radius:4px;padding:4px 7px;margin-bottom:4px;white-space:pre-wrap;word-break:break-word;max-height:60px;overflow:hidden">' + esc(r.message_sent) + '</div>' : '')
+          + (hasStdout ? '<details style="margin-bottom:3px"><summary style="font-size:11px;color:var(--accent-hover);cursor:pointer">stdout</summary><pre style="font-size:10px;background:#0f172a;color:#e2e8f0;padding:6px 8px;border-radius:4px;overflow-x:auto;margin-top:4px;max-height:120px;overflow-y:auto">' + esc(r.stdout) + '</pre></details>' : '')
+          + (hasError ? '<details><summary style="font-size:11px;color:#dc2626;cursor:pointer">error</summary><pre style="font-size:10px;background:#fef2f2;color:#7f1d1d;padding:6px 8px;border-radius:4px;overflow-x:auto;margin-top:4px;max-height:120px;overflow-y:auto">' + esc(r.error) + '</pre></details>' : '')
+          + '<div style="font-size:10px;color:var(--text-muted);margin-top:4px">' + time + '</div>'
+          + '</div>';
+      }).join('');
+    }
+
+    // Poll for new logs every 30s and show badge if panel is closed
+    setInterval(function() {
+      var panel = document.getElementById('logs-panel');
+      if (!panel || panel.style.right === '0px') return;
+      fetch(AUTOMATION_API + '/api/activity-log').then(function(r){return r.json();}).then(function(data) {
+        if (!data || !data.length) return;
+        var latest = data[0];
+        var prev = _logsData[0];
+        if (prev && latest && latest.id !== prev.id) {
+          var badge = document.getElementById('logs-badge');
+          if (badge) { badge.style.display = 'inline-block'; badge.textContent = '!'; }
+        }
+      }).catch(function(){});
+    }, 30000);
     function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebar-overlay').classList.remove('open'); }
 
     // ─── Campaigns ──────────────────────────
@@ -2375,6 +2505,8 @@ function getDashboardHtml() {
     var _currentAutoObj = null;
 
     function _renderAutomationOverview(items) {
+      var subtitle = document.getElementById('page-subtitle');
+      if (subtitle) { subtitle.style.display = 'none'; subtitle.innerHTML = ''; }
       var main = document.getElementById('automation-main');
       if (!main) return;
 
@@ -2389,8 +2521,25 @@ function getDashboardHtml() {
         + '<button onclick="loadAutomation(\\'__settings__\\')" style="padding:7px 14px;background:var(--surface);color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-size:13px">&#9881; Settings</button>'
         + '</div></div>';
 
+      // Quick Setup banner — show if birthday/vendor not yet created
+      var hasB = items.some(function(i){ return i.raw.name === 'Birthday Wish'; });
+      var hasV = items.some(function(i){ return i.raw.name === 'Vendor Follow-up'; });
+      var quickSetupBanner = '';
+      if (!hasB || !hasV) {
+        var chips = '';
+        if (!hasB) chips += '<span style="padding:3px 10px;background:#fef9c3;border:1px solid #fde68a;border-radius:10px;font-size:12px;color:#92400e">🎂 Birthday Wish</span> ';
+        if (!hasV) chips += '<span style="padding:3px 10px;background:#ede9fe;border:1px solid #ddd6fe;border-radius:10px;font-size:12px;color:#5b21b6">🤝 Vendor Follow-up</span>';
+        quickSetupBanner = '<div style="background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:1px solid #bbf7d0;border-radius:var(--radius);padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">'
+          + '<div>'
+          + '<div style="font-size:13px;font-weight:700;color:#166534;margin-bottom:4px">⚡ Quick Setup Available</div>'
+          + '<div style="font-size:12px;color:#16a34a;display:flex;gap:6px;flex-wrap:wrap;align-items:center">Ready-made automations: ' + chips + '</div>'
+          + '</div>'
+          + '<button onclick="automationQuickSetup()" style="padding:7px 18px;background:#16a34a;color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap">Create Now</button>'
+          + '</div>';
+      }
+
       if (!items || items.length === 0) {
-        main.innerHTML = '<div style="padding:28px">' + topbar
+        main.innerHTML = '<div style="padding:28px">' + topbar + quickSetupBanner
           + '<div style="text-align:center;padding:60px 20px;border:2px dashed var(--border);border-radius:var(--radius);color:var(--text-muted)">'
           + '<div style="font-size:32px;margin-bottom:12px">🤖</div>'
           + '<div style="font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text)">No automations yet</div>'
@@ -2417,32 +2566,16 @@ function getDashboardHtml() {
             + '</div>'
             + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
             + '<span style="font-size:11px;padding:3px 8px;background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:12px;color:var(--text-muted)">📋 ' + esc((a.data_source||{}).type||'manual') + '</span>'
-            + '<span style="font-size:11px;padding:3px 8px;background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:12px;color:var(--text-muted)">⏰ ' + esc(((a.schedule||{}).time)||'09:00') + '</span>'
+            + '<span style="font-size:11px;padding:3px 8px;background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:12px;color:var(--text-muted)">⏰ ' + esc(a.schedule_cron||((a.schedule||{}).time)||'09:00') + '</span>'
             + '<span style="font-size:11px;padding:3px 8px;background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:12px;color:var(--text-muted)">📱 ' + esc(a.whatsapp_instance||'—') + '</span>'
+            + (a.code ? '<span style="font-size:11px;padding:3px 8px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;color:#2563eb">⚡ Code</span>' : '')
             + '</div>'
             + '<div style="display:flex;gap:6px;border-top:1px solid var(--border-subtle);padding-top:10px;flex-wrap:wrap">'
             + '<button onclick="automationSubPage=\\'' + aid + '\\';loadAutomation(\\'' + aid + '\\')" style="flex:1;padding:6px 10px;font-size:12px;font-weight:600;background:var(--accent-bg);color:var(--accent-hover);border:1px solid var(--accent-border);border-radius:var(--radius-sm);cursor:pointer">Open →</button>'
-            + '<button onclick="automationRunNow(\\'' + aid + '\\')" style="padding:6px 10px;font-size:12px;background:var(--surface);color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer">▶ Run</button>'
-            + '<button onclick="automationToggleEnabled(\\'' + aid + '\\',' + (!isOn) + ')" style="padding:6px 10px;font-size:12px;background:var(--surface);color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer">' + (isOn ? 'Disable' : 'Enable') + '</button>'
+            + '<button onclick="automationToggleEnabled(\\'' + aid + '\\',' + (!isOn) + ')" style="padding:6px 10px;font-size:12px;font-weight:600;border-radius:var(--radius-sm);cursor:pointer;border:1px solid ' + (isOn ? '#fecaca' : '#bbf7d0') + ';background:' + (isOn ? '#fef2f2' : '#f0fdf4') + ';color:' + (isOn ? '#dc2626' : '#16a34a') + '">' + (isOn ? 'Disable' : 'Enable') + '</button>'
+            + '<button onclick="automationRunNow(\\'' + aid + '\\')" style="padding:6px 10px;font-size:12px;font-weight:700;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">&#9654; Run</button>'
             + '</div></div>';
         }
-        // Vendor Follow-up special card (card view)
-        content += '<div style="background:var(--surface);border:2px solid #e0d4f7;border-radius:var(--radius);padding:18px 20px;display:flex;flex-direction:column;gap:10px">'
-          + '<div style="display:flex;align-items:flex-start;gap:8px">'
-          + '<div style="flex:1;min-width:0">'
-          + '<div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px">Vendor Follow-up</div>'
-          + '<div style="font-size:11px;color:var(--text-muted)">Track &amp; send follow-ups to vendors for bills, quotations &amp; more</div>'
-          + '</div>'
-          + '<span style="flex-shrink:0;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;background:#f3e8ff;color:#7c3aed">MODULE</span>'
-          + '</div>'
-          + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
-          + '<span style="font-size:11px;padding:3px 8px;background:#f3e8ff;border:1px solid #e0d4f7;border-radius:12px;color:#7c3aed">🤝 Bill / Quotation</span>'
-          + '<span style="font-size:11px;padding:3px 8px;background:#f3e8ff;border:1px solid #e0d4f7;border-radius:12px;color:#7c3aed">🤖 AI Messages</span>'
-          + '<span style="font-size:11px;padding:3px 8px;background:#f3e8ff;border:1px solid #e0d4f7;border-radius:12px;color:#7c3aed">📱 WhatsApp</span>'
-          + '</div>'
-          + '<div style="display:flex;gap:6px;border-top:1px solid var(--border-subtle);padding-top:10px">'
-          + '<button onclick="navigate(\\'vendor\\',this)" style="flex:1;padding:6px 10px;font-size:12px;font-weight:600;background:#f3e8ff;color:#7c3aed;border:1px solid #e0d4f7;border-radius:var(--radius-sm);cursor:pointer">Open →</button>'
-          + '</div></div>';
         content += '</div>';
       } else {
         // List view
@@ -2466,14 +2599,14 @@ function getDashboardHtml() {
             + '<div style="font-size:11px;color:var(--text-muted);margin-top:2px">' + esc(b.description||'') + '</div>'
             + '</td>'
             + '<td style="padding:12px 14px"><span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700;background:' + (bon?'#dcfce7':'var(--bg-secondary)') + ';color:' + (bon?'#16a34a':'var(--text-muted)') + '">' + (bon?'ON':'OFF') + '</span></td>'
-            + '<td style="padding:12px 14px;font-size:12px;color:var(--text-muted)">' + esc((b.data_source||{}).type||'manual') + '</td>'
-            + '<td style="padding:12px 14px;font-size:12px;color:var(--text-muted)">' + esc(((b.schedule||{}).time)||'09:00') + '</td>'
+            + '<td style="padding:12px 14px;font-size:12px;color:var(--text-muted)">' + esc((b.data_source||{}).type||'manual') + (b.code ? ' <span style="font-size:10px;padding:1px 6px;background:#eff6ff;color:#2563eb;border-radius:8px">code</span>' : '') + '</td>'
+            + '<td style="padding:12px 14px;font-size:12px;color:var(--text-muted)">' + esc(b.schedule_cron||((b.schedule||{}).time)||'09:00') + '</td>'
             + '<td style="padding:12px 14px;font-size:12px;color:var(--text-muted)">' + esc(b.whatsapp_instance||'—') + '</td>'
             + '<td style="padding:12px 14px;text-align:right">'
             + '<div style="display:flex;gap:6px;justify-content:flex-end">'
             + '<button onclick="automationSubPage=\\'' + bid + '\\';loadAutomation(\\'' + bid + '\\')" style="padding:5px 10px;font-size:11px;font-weight:600;background:var(--accent-bg);color:var(--accent-hover);border:1px solid var(--accent-border);border-radius:var(--radius-sm);cursor:pointer">Open</button>'
-            + '<button onclick="automationRunNow(\\'' + bid + '\\')" style="padding:5px 10px;font-size:11px;background:var(--surface);color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer">Run</button>'
-            + '<button onclick="automationToggleEnabled(\\'' + bid + '\\',' + (!bon) + ')" style="padding:5px 10px;font-size:11px;background:var(--surface);color:var(--text-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer">' + (bon?'Disable':'Enable') + '</button>'
+            + '<button onclick="automationToggleEnabled(\\'' + bid + '\\',' + (!bon) + ')" style="padding:5px 10px;font-size:11px;font-weight:600;border-radius:var(--radius-sm);cursor:pointer;border:1px solid ' + (bon ? '#fecaca' : '#bbf7d0') + ';background:' + (bon ? '#fef2f2' : '#f0fdf4') + ';color:' + (bon ? '#dc2626' : '#16a34a') + '">' + (bon?'Disable':'Enable') + '</button>'
+            + '<button onclick="automationRunNow(\\'' + bid + '\\')" style="padding:5px 10px;font-size:11px;font-weight:700;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer">&#9654; Run</button>'
             + '</div></td></tr>';
         }
         // Vendor Follow-up special row (list view)
@@ -2492,7 +2625,7 @@ function getDashboardHtml() {
         content += '</tbody></table></div>';
       }
 
-      main.innerHTML = '<div style="padding:0;max-width:100%;box-sizing:border-box">' + topbar + content + '</div>';
+      main.innerHTML = '<div style="padding:0;max-width:100%;box-sizing:border-box">' + topbar + quickSetupBanner + content + '</div>';
     }
 
     function _autoSetView(mode) {
@@ -2510,43 +2643,65 @@ function getDashboardHtml() {
       }
       if (!auto) return;
       _currentAutoObj = auto;
-      var enabledBadge = auto.enabled
-        ? '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:#dcfce7;color:#16a34a;font-weight:600">ON</span>'
-        : '<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:var(--bg-secondary);color:var(--text-muted);font-weight:600">OFF</span>';
+      var isOn = auto.enabled;
+
+      /* Update topbar subtitle */
+      var subtitle = document.getElementById('page-subtitle');
+      if (subtitle) {
+        subtitle.style.display = 'inline-flex';
+        subtitle.innerHTML = '<span style="color:var(--text-muted);font-size:14px">/</span>'
+          + '<span style="font-size:15px;font-weight:600;color:var(--text)">' + esc(auto.name) + '</span>'
+          + '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:' + (isOn ? '#dcfce7' : 'var(--bg-secondary)') + ';color:' + (isOn ? '#16a34a' : '#64748b') + '">' + (isOn ? 'Active' : 'Inactive') + '</span>';
+      }
+
       var html = '<div style="padding:0;max-width:100%;box-sizing:border-box">'
-        + '<div style="margin-bottom:14px">'
-        + '<button onclick="automationSubPage=null;loadAutomation(null)" style="padding:5px 12px;font-size:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;color:var(--text-secondary)">← Back to Automations</button>'
-        + '</div>'
-        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">'
-        + '<h2 style="font-size:16px;font-weight:700;color:var(--text);margin:0">' + esc(auto.name) + '</h2>'
-        + enabledBadge
+
+        /* ── Action buttons row ── */
+        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">'
+        + '<button onclick="autoLogClose();automationSubPage=null;loadAutomation(null)" style="display:inline-flex;align-items:center;gap:4px;padding:6px 14px;font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--text-secondary);font-weight:500">&#8592; Back</button>'
         + '<div style="flex:1"></div>'
-        + '<button onclick="automationBuilderOpen(_currentAutoObj)" style="padding:5px 10px;font-size:11px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);cursor:pointer">Edit</button>'
-        + '<button onclick="automationToggleEnabled(\\'' + aid + '\\',' + (!auto.enabled) + ')" style="padding:5px 10px;font-size:11px;border:1px solid var(--accent-border);border-radius:var(--radius-sm);background:var(--accent-bg);color:var(--accent-hover);cursor:pointer">' + (auto.enabled ? 'Disable' : 'Enable') + '</button>'
-        + '<button onclick="automationRunNow(\\'' + aid + '\\')" style="padding:5px 10px;font-size:11px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-weight:600">Run Now</button>'
-        + '<button onclick="automationDelete(\\'' + aid + '\\')" style="padding:5px 10px;font-size:11px;border:1px solid #fecaca;border-radius:var(--radius-sm);background:#fef2f2;color:#dc2626;cursor:pointer">Delete</button>'
+        + ''
+        + '<button onclick="autoViewOpen(\\'' + aid + '\\')" style="padding:6px 14px;font-size:13px;font-weight:600;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);cursor:pointer">&#128065; View</button>'
+        + '<button onclick="automationBuilderOpen(_currentAutoObj)" style="padding:6px 14px;font-size:13px;font-weight:600;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);cursor:pointer">&#9998; Edit</button>'
         + '</div>'
-        + '<p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">' + esc(auto.description || '') + '</p>'
-        + '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">'
-        + _infoPill('Match', (auto.match_rule || {}).type || '—')
-        + _infoPill('Source', (auto.data_source || {}).type || 'manual')
-        + _infoPill('Schedule', ((auto.schedule || {}).time) || '09:00')
-        + _infoPill('Instance', auto.whatsapp_instance || '—')
+
+        /* ── Tabs ── */
+        + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">'
+
+        /* Tab bar */
+        + '<div style="display:flex;border-bottom:1px solid var(--border)">'
+        + '<button id="atab-data" onclick="autoSwitchTab(\\'data\\')" style="flex:1;padding:12px 8px;font-size:13px;font-weight:600;border:none;border-bottom:2px solid var(--accent);background:var(--surface);color:var(--accent);cursor:pointer">Data Rows</button>'
+        + '<button id="atab-activity" onclick="autoSwitchTab(\\'activity\\')" style="flex:1;padding:12px 8px;font-size:13px;font-weight:600;border:none;border-bottom:2px solid transparent;background:var(--surface);color:var(--text-muted);cursor:pointer">Recent Activity</button>'
+        + '<button id="atab-log" onclick="autoSwitchTab(\\'log\\')" style="flex:1;padding:12px 8px;font-size:13px;font-weight:600;border:none;border-bottom:2px solid transparent;background:var(--surface);color:var(--text-muted);cursor:pointer">Execution Log</button>'
         + '</div>'
-        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">'
-        + '<div style="font-size:13px;font-weight:600;color:var(--text)">Data Rows</div>'
-        + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
-        + '<button onclick="automationAddRowOpen(\\'' + aid + '\\')" style="padding:4px 12px;font-size:11px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-weight:600">+ Add Row</button>'
-        + '<label style="padding:4px 12px;font-size:11px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer"><input type="file" accept=".csv,.xlsx,.xls" style="display:none" onchange="automationUploadCsv(\\'' + aid + '\\',this)">Upload CSV</label>'
+
+        /* Tab: Data Rows */
+        + '<div id="atab-panel-data" style="padding:16px 20px">'
+        + '<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px">'
+        + (auto.form_schema ? '<button onclick="openAutomationForm(\\'' + aid + '\\')" style="padding:6px 14px;font-size:12px;font-weight:600;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer">&#128203; Open Form</button>' : '')
+        + '<label style="padding:6px 14px;font-size:12px;font-weight:600;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;cursor:pointer"><input type="file" accept=".csv,.xlsx,.xls" style="display:none" onchange="automationUploadCsv(\\'' + aid + '\\',this)">&#8593; Upload CSV</label>'
         + '</div>'
+        + '<div id="auto-data-table" style="width:100%;overflow-x:auto">Loading...</div>'
         + '</div>'
-        + '<div id="auto-data-table" style="width:100%;overflow-x:auto;margin-bottom:4px">Loading rows...</div>'
-        + '<div style="font-size:13px;font-weight:600;color:var(--text);margin:16px 0 8px">Recent Activity</div>'
+
+        /* Tab: Recent Activity */
+        + '<div id="atab-panel-activity" style="display:none;padding:16px 20px">'
         + '<div id="auto-activity-log" style="width:100%;overflow-x:auto">Loading...</div>'
+        + '</div>'
+
+        /* Tab: Execution Log */
+        + '<div id="atab-panel-log" style="display:none;padding:16px 20px">'
+        + '<div id="auto-log-body"><div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px">Loading...</div></div>'
+        + '</div>'
+
+        + '</div>'
+
         + '</div>';
       main.innerHTML = html;
       _loadDataTable(aid);
       _loadActivityLog(aid);
+      /* pre-load log tab too */
+      autoLogLoad(aid);
     }
 
     function _infoPill(label, val) {
@@ -2564,35 +2719,135 @@ function getDashboardHtml() {
             wrap.innerHTML = '<div style="padding:20px;border:1px solid var(--border);border-radius:8px;text-align:center;color:var(--text-muted);font-size:13px">No data rows yet. Click "+ Add Row" or upload a CSV.</div>';
             return;
           }
-          // Collect all unique keys from ALL rows (CSV may have different columns)
-          var keySet = {};
-          for (var ri = 0; ri < rows.length; ri++) {
-            var rd = rows[ri].data || rows[ri];
-            Object.keys(rd).forEach(function(k) { if (k !== '_id' && k !== '_last_processed') keySet[k] = 1; });
+
+          // Status badge config
+          var statusCfg = {
+            pending:              { label: 'Pending',         bg: '#f1f5f9', color: '#64748b', icon: '⏳' },
+            sent:                 { label: 'Sent',            bg: '#eff6ff', color: '#2563eb', icon: '📤' },
+            awaiting_reply:       { label: 'Awaiting Reply',  bg: '#fff7ed', color: '#ea580c', icon: '⏰' },
+            replied_ok:           { label: 'Done ✓',         bg: '#f0fdf4', color: '#16a34a', icon: '✅' },
+            replied_deferred:     { label: 'Promised Time',   bg: '#fefce8', color: '#ca8a04', icon: '🕐' },
+            replied_insufficient: { label: 'Needs Follow-up', bg: '#fef3c7', color: '#d97706', icon: '⚠️' },
+            gave_up:              { label: 'Gave Up',         bg: '#fef2f2', color: '#dc2626', icon: '❌' },
+            opted_out:            { label: 'Opted Out',       bg: '#f8fafc', color: '#94a3b8', icon: '🚫' },
+            processed:            { label: 'Processed',       bg: '#f0fdf4', color: '#16a34a', icon: '✓'  },
+          };
+
+          function fmtTime(iso) {
+            if (!iso) return '—';
+            return iso.replace('T', ' ').slice(0, 16);
           }
-          var keys = Object.keys(keySet);
-          var html = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:auto">'
-            + '<table style="width:100%;border-collapse:collapse;min-width:400px">'
-            + '<thead><tr style="border-bottom:1px solid var(--border)">';
-          for (var k = 0; k < keys.length; k++) {
-            html += '<th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;white-space:nowrap">' + esc(keys[k]) + '</th>';
+
+          // Detect if this is a Vendor Follow-up row (has vendor_name / follow-up_reason)
+          var isVendorTool = rows.length > 0 && !!(rows[0].data && (rows[0].data.vendor_name || rows[0].data['follow-up_reason']));
+
+          // Generic name detector for non-vendor tools
+          function detectName(d) {
+            var priority = ['name','employee_name','customer_name','contact_name','full_name','person_name'];
+            for (var p = 0; p < priority.length; p++) {
+              if (d[priority[p]]) return String(d[priority[p]]);
+            }
+            var keys = Object.keys(d);
+            for (var k = 0; k < keys.length; k++) {
+              if (keys[k].toLowerCase().includes('name') && d[keys[k]]) return String(d[keys[k]]);
+            }
+            for (var k2 = 0; k2 < keys.length; k2++) {
+              if (typeof d[keys[k2]] === 'string' && d[keys[k2]]) return String(d[keys[k2]]);
+            }
+            return 'Unknown';
           }
-          html += '<th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase">Actions</th></tr></thead><tbody>';
+
+          var urgencyCfg = {
+            high:   { dot: '🔴', color: '#dc2626', bg: '#fef2f2' },
+            medium: { dot: '🟡', color: '#d97706', bg: '#fffbeb' },
+            low:    { dot: '🟢', color: '#16a34a', bg: '#f0fdf4' },
+          };
+
+          var html = '';
           for (var i = 0; i < rows.length; i++) {
             var row = rows[i];
-            var data = row.data || row;
+            var d = row.data || {};
             var rowId = row.id || '';
-            html += '<tr style="border-bottom:1px solid var(--border-subtle)">';
-            for (var k2 = 0; k2 < keys.length; k2++) {
-              var cellVal = data[keys[k2]];
-              html += '<td style="padding:8px 12px;font-size:13px;color:var(--text);white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="' + esc(cellVal != null ? String(cellVal) : '') + '">' + esc(cellVal != null ? String(cellVal) : '') + '</td>';
+            var status = row.status || 'pending';
+            var sc = statusCfg[status] || { label: status, bg: '#f1f5f9', color: '#64748b', icon: '•' };
+            var reminderCount = row.reminder_count || 0;
+            var lastSentAt = fmtTime(row.last_sent_at);
+            var nextReminder = fmtTime(row.next_reminder_at);
+            var replyText = row.reply_text || '';
+            var replyAt = fmtTime(row.reply_received_at);
+            var promisedText = row.promised_text || '';
+            var promisedDeadline = fmtTime(row.promised_deadline);
+
+            html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px">';
+
+            if (isVendorTool) {
+              // ── VENDOR FOLLOW-UP: original layout ──
+              var vendorName = d.vendor_name || d['Vendor Name'] || 'Unknown';
+              var phone      = d.phone_number || d['Phone Number'] || row.phone_snapshot || '';
+              var reason     = d['follow-up_reason'] || d['Follow-up Reason'] || d.reason || '';
+              var urgency    = (d.urgency || row.urgency_snapshot || 'medium').toLowerCase();
+              var urg        = urgencyCfg[urgency] || urgencyCfg.medium;
+
+              html += '<div style="display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;margin-bottom:10px;gap:6px">'
+                +   '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+                +     '<span style="font-size:14px;font-weight:700;color:var(--text)">' + esc(vendorName) + '</span>'
+                +     '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:' + sc.bg + ';color:' + sc.color + '">' + sc.icon + ' ' + sc.label + '</span>'
+                +     '<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:' + urg.bg + ';color:' + urg.color + ';font-weight:600">' + urg.dot + ' ' + urgency.charAt(0).toUpperCase() + urgency.slice(1) + '</span>'
+                +   '</div>'
+                +   '<button onclick="automationDeleteRow(\\'' + rowId + '\\',\\'' + aid + '\\')" style="padding:3px 10px;font-size:11px;border:1px solid #fecaca;border-radius:6px;background:#fef2f2;color:#dc2626;cursor:pointer;flex-shrink:0">Delete</button>'
+                + '</div>'
+                + '<div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:10px">'
+                +   (phone  ? '<div style="font-size:12px;color:var(--text-muted)">📞 <span style="font-family:monospace;color:var(--text)">' + esc(phone) + '</span></div>' : '')
+                +   (reason ? '<div style="font-size:12px;color:var(--text-muted);flex:1;min-width:0">📋 <span style="color:var(--text)">' + esc(reason) + '</span></div>' : '')
+                + '</div>'
+                + (reminderCount > 0 || lastSentAt !== '—'
+                    ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:' + (replyText || promisedText ? '10px' : '0') + '">'
+                    +   '<div style="font-size:11px;padding:3px 10px;border-radius:20px;background:var(--bg-secondary);color:var(--text-muted)">📤 Attempts: <b style="color:var(--text)">' + reminderCount + '/3</b></div>'
+                    +   (lastSentAt !== '—' ? '<div style="font-size:11px;padding:3px 10px;border-radius:20px;background:var(--bg-secondary);color:var(--text-muted)">Last sent: <b style="color:var(--text)">' + esc(lastSentAt) + '</b></div>' : '')
+                    +   (nextReminder !== '—' && status !== 'replied_ok' && status !== 'gave_up' && status !== 'opted_out'
+                          ? '<div style="font-size:11px;padding:3px 10px;border-radius:20px;background:#eff6ff;color:#2563eb">⏰ Next reminder: <b>' + esc(nextReminder) + '</b></div>'
+                          : '')
+                    + '</div>'
+                    : '')
+                + (replyText
+                    ? '<div style="margin-top:6px;padding:8px 10px;background:var(--bg-secondary);border-left:3px solid var(--border);border-radius:0 6px 6px 0;font-size:12px">'
+                    +   '<span style="color:var(--text-muted);font-weight:600">Their reply</span> <span style="color:var(--text-muted);font-size:11px">(' + esc(replyAt) + ')</span><br>'
+                    +   '<span style="color:var(--text)">"' + esc(replyText) + '"</span>'
+                    + '</div>'
+                    : '')
+                + (promisedText
+                    ? '<div style="margin-top:6px;padding:8px 10px;background:#fefce8;border-left:3px solid #fbbf24;border-radius:0 6px 6px 0;font-size:12px">'
+                    +   '<span style="color:#92400e;font-weight:600">🕐 They promised:</span> <span style="color:#78350f">"' + esc(promisedText) + '"</span>'
+                    +   (promisedDeadline !== '—' ? ' &nbsp;→&nbsp; <b style="color:#92400e">' + esc(promisedDeadline) + '</b>' : '')
+                    + '</div>'
+                    : '');
+
+            } else {
+              // ── GENERIC: works for Birthday Wish and all future tools ──
+              var displayName = detectName(d);
+              var dataKeys = Object.keys(d);
+              var fieldsHtml = '';
+              for (var fi = 0; fi < dataKeys.length; fi++) {
+                var fk = dataKeys[fi]; var fv = d[fk];
+                if (fv == null || fv === '') continue;
+                fieldsHtml += '<div style="font-size:12px;color:var(--text-muted);min-width:0">'
+                  + '<span style="font-weight:600;color:var(--text-dim)">' + esc(fk.replace(/_/g,' ')) + ':</span> '
+                  + '<span style="color:var(--text)">' + esc(String(fv)) + '</span></div>';
+              }
+              html += '<div style="display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;margin-bottom:8px;gap:6px">'
+                +   '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+                +     '<span style="font-size:14px;font-weight:700;color:var(--text)">' + esc(displayName) + '</span>'
+                +     '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:' + sc.bg + ';color:' + sc.color + '">' + sc.icon + ' ' + sc.label + '</span>'
+                +   '</div>'
+                +   '<button onclick="automationDeleteRow(\\'' + rowId + '\\',\\'' + aid + '\\')" style="padding:3px 10px;font-size:11px;border:1px solid #fecaca;border-radius:6px;background:#fef2f2;color:#dc2626;cursor:pointer;flex-shrink:0">Delete</button>'
+                + '</div>'
+                + (fieldsHtml ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px 16px;padding:8px 10px;background:var(--bg-secondary);border-radius:6px">' + fieldsHtml + '</div>' : '');
             }
-            html += '<td style="padding:8px 12px;text-align:right">'
-              + '<button onclick="automationDeleteRow(\\'' + rowId + '\\',\\'' + aid + '\\')" style="padding:3px 10px;font-size:11px;border:1px solid #fecaca;border-radius:var(--radius-sm);background:#fef2f2;color:#dc2626;cursor:pointer">Delete</button>'
-              + '</td></tr>';
+
+            html += '</div>';
           }
-          html += '</tbody></table></div>';
-          wrap.innerHTML = html;
+
+          wrap.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--text-muted)">No rows.</div>';
         });
     }
 
@@ -2637,7 +2892,7 @@ function getDashboardHtml() {
       var main = document.getElementById('automation-main');
       if (!main) return;
       main.innerHTML = '<div style="padding:0;max-width:100%;box-sizing:border-box">'
-        + '<div style="margin-bottom:14px"><button onclick="automationSubPage=null;loadAutomation(null)" style="padding:5px 12px;font-size:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;color:var(--text-secondary)">← Back to Automations</button></div>'
+        + '<div style="margin-bottom:14px"><button onclick="autoLogClose();automationSubPage=null;loadAutomation(null)" style="padding:5px 12px;font-size:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;color:var(--text-secondary)">← Back to Automations</button></div>'
         + '<h2 style="font-size:16px;font-weight:700;margin-bottom:4px;color:var(--text)">Platform Settings</h2>'
         + '<p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">Configure API keys used by all automations.</p>'
         + '<div id="plat-settings-form"><div style="color:var(--text-muted);font-size:13px">Loading...</div></div>'
@@ -2653,9 +2908,17 @@ function getDashboardHtml() {
             + '<input id="ps-evo-url" type="text" value="' + esc(s.evolution_api_url || '') + '" style="' + inputStyle + '">'
             + '<label style="' + labelStyle + '">Evolution API Key</label>'
             + '<input id="ps-evo-key" type="password" value="' + esc(s.evolution_api_key || '') + '" style="' + inputStyle + '">'
-            + '<div style="' + sectionHdr + '">AI</div>'
+            + '<div style="' + sectionHdr + '">AI — Google Gemini</div>'
             + '<label style="' + labelStyle + '">Gemini API Key</label>'
             + '<input id="ps-gemini-key" type="password" value="' + esc(s.gemini_api_key || '') + '" style="' + inputStyle + '">'
+            + '<div style="' + sectionHdr + '">AI — OpenAI / ChatGPT</div>'
+            + '<label style="' + labelStyle + '">OpenAI API Key</label>'
+            + '<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Required to use GPT models (gpt-4o, gpt-4o-mini, etc.) for code generation.</div>'
+            + '<input id="ps-openai-key" type="password" value="' + esc(s.openai_api_key || '') + '" style="' + inputStyle + '">'
+            + '<div style="' + sectionHdr + '">AI — OpenRouter / DeepSeek</div>'
+            + '<label style="' + labelStyle + '">OpenRouter API Key</label>'
+            + '<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Get key from openrouter.ai — gives access to DeepSeek, Llama, Claude, Gemini and 200+ models.</div>'
+            + '<input id="ps-openrouter-key" type="password" value="' + esc(s.openrouter_api_key || '') + '" style="' + inputStyle + '">'
             + '<div style="' + sectionHdr + '">N8N Workflow Integration</div>'
             + '<label style="' + labelStyle + '">N8N Vendor Follow-up Webhook URL</label>'
             + '<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Paste the n8n webhook URL here — vendor form submissions will be sent automatically to n8n which handles AI email + WhatsApp sending.</div>'
@@ -2675,7 +2938,9 @@ function getDashboardHtml() {
       var payload = {
         evolution_api_url: document.getElementById('ps-evo-url').value,
         evolution_api_key:  document.getElementById('ps-evo-key').value,
-        gemini_api_key:     document.getElementById('ps-gemini-key').value,
+        gemini_api_key:       document.getElementById('ps-gemini-key').value,
+        openai_api_key:       document.getElementById('ps-openai-key').value,
+        openrouter_api_key:   document.getElementById('ps-openrouter-key').value,
         n8n_webhook_url:    document.getElementById('ps-n8n-url').value,
         whatsapp_api_url:   document.getElementById('ps-wa-api-url').value,
       };
@@ -2774,83 +3039,219 @@ function getDashboardHtml() {
     }
 
     // ── Automation Builder Modal ──────────────────────────────────────────────
+    var _globalGeminiKey = '';
+    var _globalOpenAiKey = '';
+    var _globalOpenRouterKey = '';
+
     function automationBuilderOpen(rawJson) {
       var existing = document.getElementById('automation-builder-modal');
       if (existing) existing.remove();
-      var existing2 = automationItems;
-      // Fetch instances fresh each time the builder opens
-      fetch('/api/evolution/instances')
-        .then(function(r) { return r.json(); })
-        .then(function(insts) {
-          if (Array.isArray(insts)) _evoInstances = insts;
-          _automationBuilderRender(rawJson);
-        })
-        .catch(function() { _automationBuilderRender(rawJson); });
+      // Fetch instances + global settings in parallel
+      Promise.all([
+        fetch('/api/evolution/instances').then(function(r){return r.json();}).catch(function(){return[];}),
+        fetch(AUTOMATION_API + '/api/settings').then(function(r){return r.json();}).catch(function(){return{};})
+      ]).then(function(results) {
+        var insts = results[0]; var settings = results[1];
+        if (Array.isArray(insts)) _evoInstances = insts;
+        _globalGeminiKey = (settings && settings.gemini_api_key) || '';
+        _globalOpenAiKey = (settings && settings.openai_api_key) || '';
+        _globalOpenRouterKey = (settings && settings.openrouter_api_key) || '';
+        _automationBuilderRender(rawJson);
+      });
     }
 
     function _automationBuilderRender(rawJson) {
+      var main = document.getElementById('automation-main');
+      if (!main) return;
       var evoOpts = '<option value="">— select instance —</option>';
+      var _firstConnected = '';
       for (var k = 0; k < _evoInstances.length; k++) {
-        evoOpts += '<option value="' + esc(_evoInstances[k].name) + '">' + esc(_evoInstances[k].name) + ((_evoInstances[k].connected) ? ' ✓' : '') + '</option>';
+        var inst = _evoInstances[k];
+        var connLabel = inst.connected ? ' ✓ Connected' : ' ○ Disconnected';
+        var phoneLabel = inst.phone ? ' (+' + inst.phone + ')' : '';
+        evoOpts += '<option value="' + esc(inst.name) + '">' + esc(inst.name) + connLabel + phoneLabel + '</option>';
+        if (inst.connected && !_firstConnected) _firstConnected = inst.name;
       }
-      var modal = document.createElement('div');
-      modal.id = 'automation-builder-modal';
-      modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;z-index:9000;overflow-y:auto;padding:32px 24px';
-      var inputStyle = 'width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-size:13px';
-      var labelStyle = 'font-size:11px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:4px;margin-top:12px';
-      var sectionStyle = 'background:var(--bg-secondary);border-radius:8px;padding:14px 16px;margin-top:14px;border:1px solid var(--border-subtle)';
-      modal.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:28px;width:560px;max-width:96vw">'
-        + '<div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:18px" id="ab-title">New Automation</div>'
-        + '<input type="hidden" id="ab-edit-id" value="">'
-        + '<label style="' + labelStyle + '">Name *</label><input id="ab-name" type="text" placeholder="e.g. Employee Birthday Wish" style="' + inputStyle + '">'
-        + '<label style="' + labelStyle + '">Description</label><input id="ab-desc" type="text" placeholder="Optional description" style="' + inputStyle + '">'
-        + '<label style="' + labelStyle + '" for="ab-enabled">Enabled</label><input type="checkbox" id="ab-enabled" style="width:16px;height:16px">'
+      var inputStyle = 'width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px';
+      var labelStyle = 'font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:5px';
+      var fieldWrap = 'margin-bottom:12px';
 
-        + '<div style="' + sectionStyle + '"><div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Data Source</div>'
-        + '<label style="' + labelStyle + '">Type</label>'
+      main.innerHTML = '<div id="automation-builder-modal">'
+
+        /* top bar */
+        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">'
+        + '<div id="ab-title" style="font-size:15px;font-weight:700;color:var(--text);flex:1">New Automation</div>'
+        + '<button onclick="automationBuilderCancel()" style="padding:5px 14px;background:var(--surface);color:var(--text-muted);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">Cancel</button>'
+        + '<button onclick="automationBuilderSave()" style="padding:5px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700">Save</button>'
+        + '</div>'
+
+        + '<input type="hidden" id="ab-edit-id" value="">'
+
+        /* two-col layout: left settings | right code */
+        + '<div style="display:flex;gap:14px;align-items:flex-start">'
+
+        /* ── LEFT COLUMN ── */
+        + '<div style="width:300px;flex-shrink:0;display:flex;flex-direction:column;gap:10px">'
+
+        /* name + desc */
+        + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px">'
+        + '<div style="' + fieldWrap + '">'
+        + '<label style="' + labelStyle + '">Name *</label>'
+        + '<input id="ab-name" type="text" placeholder="e.g. Birthday Wish" style="' + inputStyle + '">'
+        + '</div>'
+        + '<div style="' + fieldWrap + '">'
+        + '<label style="' + labelStyle + '">Description</label>'
+        + '<input id="ab-desc" type="text" placeholder="What does this do?" style="' + inputStyle + '">'
+        + '</div>'
+        + '<div style="display:flex;align-items:center;gap:10px">'
+        + '<label style="' + labelStyle + ';margin:0">Enabled</label>'
+        + '<input type="checkbox" id="ab-enabled" style="width:16px;height:16px;cursor:pointer">'
+        + '</div>'
+        + '</div>'
+
+        /* data source + delivery */
+        + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px">'
+        + '<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em">Data &amp; Delivery</div>'
+        + '<div style="' + fieldWrap + '">'
+        + '<label style="' + labelStyle + '">Data Source</label>'
         + '<select id="ab-source-type" style="' + inputStyle + '">'
         + '<option value="manual">Manual Entry</option>'
         + '<option value="supabase_table">Supabase Table</option>'
         + '<option value="google_sheets">Google Sheets</option>'
-        + '</select></div>'
-
-        + '<div style="' + sectionStyle + '"><div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Match Rule</div>'
-        + '<label style="' + labelStyle + '">Type</label>'
-        + '<select id="ab-rule-type" style="' + inputStyle + '">'
-        + '<option value="today_field">Today\\'s Date Match (e.g. birthday)</option>'
-        + '<option value="days_before">Days Before Date (e.g. payment due)</option>'
-        + '<option value="interval">Interval Followup (e.g. vendor)</option>'
         + '</select>'
-        + '<label style="' + labelStyle + '">Field Name (in data row)</label><input id="ab-rule-field" type="text" placeholder="e.g. birthday" style="' + inputStyle + '">'
-        + '<label style="' + labelStyle + '">Format / Days</label><input id="ab-rule-format" type="text" placeholder="MM-DD  or  7,3,1  or  7" style="' + inputStyle + '">'
+        + '</div>'
+        + '<div style="margin-bottom:0">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">'
+        + '<label style="' + labelStyle + ';margin:0">WhatsApp Instance</label>'
+        + '<span id="ab-inst-badge" style="font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600"></span>'
+        + '</div>'
+        + (_evoInstances.length > 0
+          ? '<select id="ab-instance" onchange="abInstanceChange()" style="' + inputStyle + '">' + evoOpts + '</select>'
+          : '<div style="font-size:12px;color:var(--text-muted);padding:6px 0;border:1px dashed var(--border);border-radius:6px;text-align:center">No instances found — <a href="#" onclick="navigate(&apos;devices&apos;,this)" style="color:var(--accent)">go to Devices</a></div><input type="hidden" id="ab-instance" value="">'
+        )
+        + '</div>'
         + '</div>'
 
-        + '<div style="' + sectionStyle + '"><div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Message</div>'
-        + '<label style="' + labelStyle + '">Template (use {field} for variables)</label>'
-        + '<textarea id="ab-template" rows="3" placeholder="Happy Birthday {name}! 🎂" style="' + inputStyle + '"></textarea>'
-        + '<label style="' + labelStyle + '">Use Image Personalization</label><input type="checkbox" id="ab-use-image" style="width:16px;height:16px">'
-        + '<label style="' + labelStyle + '">Image Template URL</label><input id="ab-image-url" type="text" placeholder="https://..." style="' + inputStyle + '">'
-        + '<label style="' + labelStyle + '">Image Prompt (use {field} for variables)</label>'
-        + '<textarea id="ab-image-prompt" rows="2" placeholder="Replace name at bottom with: {name}" style="' + inputStyle + '"></textarea>'
+        /* schedule */
+        + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px">'
+        + '<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em">Schedule</div>'
+        + '<div style="' + fieldWrap + '">'
+        + '<label style="' + labelStyle + '">Frequency</label>'
+        + '<select id="ab-cron-freq" onchange="abCronFreqChange()" style="' + inputStyle + '">'
+        + '<option value="daily">Daily</option>'
+        + '<option value="hourly">Every Hour</option>'
+        + '<option value="weekly">Weekly</option>'
+        + '<option value="monthly">Monthly (1st)</option>'
+        + '<option value="custom">Custom Cron</option>'
+        + '</select>'
+        + '</div>'
+        + '<div id="ab-cron-time-row" style="' + fieldWrap + '"><label style="' + labelStyle + '">Time (24h)</label><input id="ab-cron-time" type="time" value="09:00" onchange="abCronUpdatePreview()" style="' + inputStyle + '"></div>'
+        + '<div id="ab-cron-dow-row" style="display:none;' + fieldWrap + '"><label style="' + labelStyle + '">Days of Week</label>'
+        + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">'
+        + ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(function(d,i){ return '<label style="font-size:11px;display:flex;align-items:center;gap:3px"><input type="checkbox" class="ab-dow-cb" value="'+i+'" onchange="abCronUpdatePreview()" style="width:12px;height:12px">'+d+'</label>'; }).join('')
+        + '</div></div>'
+        + '<div id="ab-cron-custom-row" style="display:none;' + fieldWrap + '"><label style="' + labelStyle + '">Cron Expression</label><input id="ab-cron-custom" type="text" placeholder="0 9 * * *" oninput="abCronUpdatePreview()" style="' + inputStyle + '"></div>'
+        + '<div style="font-size:11px;color:var(--text-muted)">Preview: <span id="ab-cron-preview" style="font-weight:600;color:var(--accent)">Daily at 09:00</span></div>'
+        + '<input type="hidden" id="ab-sched-type" value="daily"><input type="hidden" id="ab-sched-time" value="09:00">'
         + '</div>'
 
-        + '<div style="' + sectionStyle + '"><div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Delivery</div>'
-        + '<label style="' + labelStyle + '">WhatsApp Instance</label>'
-        + '<select id="ab-instance" style="' + inputStyle + '">' + evoOpts + '</select>'
+        /* gemini */
+        + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+        + '<span style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Gemini AI</span>'
+        + (_globalGeminiKey
+            ? '<span style="font-size:10px;font-weight:700;color:#16a34a;background:#dcfce7;padding:2px 8px;border-radius:99px">&#10003; Key Configured</span>'
+            : '<span style="font-size:10px;font-weight:700;color:#b45309;background:#fef3c7;padding:2px 8px;border-radius:99px">&#9888; No Key — Set in Settings</span>')
+        + '</div>'
+        + '<label style="' + labelStyle + '">Model (used by <b>gemini(prompt)</b> in Python)</label>'
+        + '<select id="ab-gemini-model" style="' + inputStyle + '">'
+        + '<option value="gemini-2.5-flash">gemini-2.5-flash (default)</option>'
+        + '<option value="gemini-2.5-pro">gemini-2.5-pro</option>'
+        + '<option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>'
+        + '<option value="gemini-2.0-flash-lite-001">gemini-2.0-flash-lite-001</option>'
+        + '</select>'
         + '</div>'
 
-        + '<div style="' + sectionStyle + '"><div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Schedule</div>'
-        + '<label style="' + labelStyle + '">Type</label>'
-        + '<select id="ab-sched-type" style="' + inputStyle + '"><option value="daily">Daily</option><option value="manual">Manual Only</option></select>'
-        + '<label style="' + labelStyle + '">Time (24h)</label><input id="ab-sched-time" type="time" value="09:00" style="' + inputStyle + '">'
+        /* openai / gpt */
+        + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-top:10px">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+        + '<span style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">ChatGPT / OpenAI</span>'
+        + (_globalOpenAiKey
+            ? '<span style="font-size:10px;font-weight:700;color:#16a34a;background:#dcfce7;padding:2px 8px;border-radius:99px">&#10003; Key Configured</span>'
+            : '<span style="font-size:10px;font-weight:700;color:#b45309;background:#fef3c7;padding:2px 8px;border-radius:99px">&#9888; No Key — Set in Settings</span>')
+        + '</div>'
+        + '<label style="' + labelStyle + '">Model</label>'
+        + '<select id="ab-openai-model" style="' + inputStyle + '">'
+        + '<option value="gpt-4o">gpt-4o</option>'
+        + '<option value="gpt-4o-mini">gpt-4o-mini (fast)</option>'
+        + '<option value="gpt-4-turbo">gpt-4-turbo</option>'
+        + '<option value="gpt-3.5-turbo">gpt-3.5-turbo</option>'
+        + '</select>'
         + '</div>'
 
-        + '<div id="ab-err" style="color:#dc2626;font-size:12px;margin-top:10px"></div>'
-        + '<div style="display:flex;gap:8px;margin-top:20px">'
-        + '<button onclick="automationBuilderSave()" style="padding:8px 22px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-weight:700">Save</button>'
-        + '<button onclick="document.getElementById(\\'automation-builder-modal\\').remove()" style="padding:8px 14px;background:var(--surface);color:var(--text-muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-size:13px">Cancel</button>'
-        + '</div></div>';
-      document.body.appendChild(modal);
+        /* openrouter / deepseek */
+        + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-top:10px">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+        + '<span style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">OpenRouter / DeepSeek</span>'
+        + (_globalOpenRouterKey
+            ? '<span style="font-size:10px;font-weight:700;color:#16a34a;background:#dcfce7;padding:2px 8px;border-radius:99px">&#10003; Key Configured</span>'
+            : '<span style="font-size:10px;font-weight:700;color:#b45309;background:#fef3c7;padding:2px 8px;border-radius:99px">&#9888; No Key — Set in Settings</span>')
+        + '</div>'
+        + '<label style="' + labelStyle + '">Model</label>'
+        + '<select id="ab-openrouter-model" style="' + inputStyle + '">'
+        + '<option value="deepseek/deepseek-chat">DeepSeek V3 (deepseek-chat)</option>'
+        + '<option value="deepseek/deepseek-r1">DeepSeek R1 (reasoning)</option>'
+        + '<option value="deepseek/deepseek-r1-distill-llama-70b">DeepSeek R1 Distill 70B</option>'
+        + '<option value="meta-llama/llama-4-maverick">Llama 4 Maverick</option>'
+        + '<option value="google/gemini-2.5-pro-exp-03-25">Gemini 2.5 Pro (via OR)</option>'
+        + '<option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (via OR)</option>'
+        + '</select>'
+        + '</div>'
+
+        + '</div>'
+        /* ── END LEFT COLUMN ── */
+
+        /* ── RIGHT COLUMN: Python code ── */
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;height:100%;box-sizing:border-box">'
+        + '<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em">Python Code</div>'
+
+        /* AI generate box */
+        + '<div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px">'
+        + '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">&#9889; AI &#8594; Python Code</div>'
+        + '<textarea id="ab-ai-desc" rows="3" placeholder="Describe what you want... OR paste an n8n workflow JSON — AI will convert it automatically to Python code" style="' + inputStyle + ';resize:none;margin-bottom:8px;font-size:12px"></textarea>'
+        + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">'
+        + '<span style="font-size:11px;color:var(--text-dim);font-weight:600">Provider:</span>'
+        + '<label style="font-size:11px;cursor:pointer"><input type="radio" name="ab-gen-provider" value="gpt" checked style="margin-right:3px"> ChatGPT</label>'
+        + '<label style="font-size:11px;cursor:pointer"><input type="radio" name="ab-gen-provider" value="openrouter" style="margin-right:3px"> OpenRouter / DeepSeek</label>'
+        + '</div>'
+        + '<div style="display:flex;align-items:center;gap:8px">'
+        + '<button onclick="abGenerateCode()" id="ab-ai-btn" style="padding:6px 16px;font-size:12px;font-weight:700;background:#10a37f;color:#fff;border:none;border-radius:8px;cursor:pointer">&#9889; Generate</button>'
+        + '<span id="ab-ai-status" style="font-size:11px;color:var(--text-muted)"></span>'
+        + '</div>'
+        + '</div>'
+
+        + '<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Available: <b>data</b>, <b>send_whatsapp(phone,msg)</b>, <b>log(msg)</b>, <b>gemini(prompt)</b></div>'
+        + '<textarea id="ab-code" placeholder="# Write Python code here&#10;for row in data:&#10;    phone = row.get(&quot;phone&quot;, &quot;&quot;)&#10;    name = row.get(&quot;name&quot;, &quot;there&quot;)&#10;    if not phone: continue&#10;    send_whatsapp(phone, &quot;Hi &quot; + name)" style="' + inputStyle + ';font-family:monospace;font-size:12px;resize:none;line-height:1.6;height:calc(100% - 130px);min-height:300px"></textarea>'
+        + '</div>'
+        + '</div>'
+        /* ── END RIGHT COLUMN ── */
+
+        + '</div>'
+
+        + '<input type="hidden" id="ab-rule-type" value="today_field">'
+        + '<input type="hidden" id="ab-rule-field" value="">'
+        + '<input type="hidden" id="ab-rule-format" value="">'
+        + '<input type="hidden" id="ab-template" value="">'
+        + '<input type="hidden" id="ab-use-image" value="false">'
+        + '<input type="hidden" id="ab-image-url" value="">'
+        + '<input type="hidden" id="ab-image-prompt" value="">'
+        + '<input type="hidden" id="ab-form-schema" value="">'
+
+        + '<div id="ab-err" style="color:#dc2626;font-size:12px;margin-bottom:8px"></div>'
+        + '</div>';
+
+      // no need to append to body — it's already in main
 
       // Populate if editing
       if (rawJson) {
@@ -2871,10 +3272,122 @@ function getDashboardHtml() {
         document.getElementById('ab-use-image').checked = !!a.use_image;
         document.getElementById('ab-image-url').value = a.image_template_url || '';
         document.getElementById('ab-image-prompt').value = a.image_prompt || '';
-        document.getElementById('ab-instance').value = a.whatsapp_instance || '';
+        document.getElementById('ab-instance').value = a.whatsapp_instance || _firstConnected || '';
+        abInstanceChange();
         var sched = a.schedule || {};
         document.getElementById('ab-sched-type').value = sched.type || 'daily';
         document.getElementById('ab-sched-time').value = sched.time || '09:00';
+        document.getElementById('ab-code').value = a.code || '';
+        var gmEl = document.getElementById('ab-gemini-model');
+        if (gmEl) gmEl.value = a.gemini_model || 'gemini-2.5-flash';
+        var fsEl2 = document.getElementById('ab-form-schema');
+        if (fsEl2) fsEl2.value = a.form_schema || '';
+        // Populate cron builder from schedule_cron
+        var cronExpr = a.schedule_cron || '0 9 * * *';
+        abCronPopulate(cronExpr);
+      } else {
+        // New automation - default to first connected instance
+        var instEl = document.getElementById('ab-instance');
+        if (instEl && _firstConnected) { instEl.value = _firstConnected; abInstanceChange(); }
+      }
+      abCronUpdatePreview();
+    }
+
+    function abInstanceChange() {
+      var instEl = document.getElementById('ab-instance');
+      var badge = document.getElementById('ab-inst-badge');
+      if (!instEl || !badge) return;
+      var val = instEl.value;
+      if (!val) { badge.textContent = ''; return; }
+      var found = null;
+      for (var i = 0; i < _evoInstances.length; i++) {
+        if (_evoInstances[i].name === val) { found = _evoInstances[i]; break; }
+      }
+      if (found && found.connected) {
+        badge.style.background = '#dcfce7'; badge.style.color = '#16a34a';
+        badge.textContent = 'Connected';
+      } else if (found) {
+        badge.style.background = '#fef9c3'; badge.style.color = '#ca8a04';
+        badge.textContent = 'Disconnected';
+      } else {
+        badge.style.background = '#fee2e2'; badge.style.color = '#dc2626';
+        badge.textContent = 'Not found';
+      }
+    }
+
+    function abGenerateCode() {
+      var desc = document.getElementById('ab-ai-desc');
+      var btn = document.getElementById('ab-ai-btn');
+      var status = document.getElementById('ab-ai-status');
+      var codeEl = document.getElementById('ab-code');
+      if (!desc || !desc.value.trim()) {
+        if (status) status.textContent = 'Please describe what you want first.';
+        return;
+      }
+      var providerRadio = document.querySelector('input[name="ab-gen-provider"]:checked');
+      var provider = providerRadio ? providerRadio.value : 'gpt';
+      var payload = { description: desc.value.trim() };
+      if (provider === 'openrouter') {
+        var orModelEl = document.getElementById('ab-openrouter-model');
+        var orKeyEl = document.getElementById('ab-openrouter-key');
+        payload.model = orModelEl ? orModelEl.value : 'deepseek/deepseek-chat';
+        payload.openrouter_key = orKeyEl ? orKeyEl.value.trim() : '';
+      } else {
+        var oaiModelEl = document.getElementById('ab-openai-model');
+        var oaiKeyEl = document.getElementById('ab-openai-key');
+        payload.model = oaiModelEl ? oaiModelEl.value : 'gpt-4o';
+        payload.openai_key = oaiKeyEl ? oaiKeyEl.value.trim() : '';
+      }
+      if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+      if (status) status.textContent = '';
+      fetch(AUTOMATION_API + '/api/automations/generate-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (btn) { btn.disabled = false; btn.innerHTML = '&#9889; Generate'; }
+        if (res.ok && res.code) {
+          if (codeEl) codeEl.value = res.code;
+          if (status) status.textContent = '✓ Code generated!';
+          if (res.form_schema) {
+            var fsEl = document.getElementById('ab-form-schema');
+            if (fsEl) fsEl.value = JSON.stringify(res.form_schema);
+            if (status) { status.style.color = '#16a34a'; status.textContent = ''; }
+            // Show form detected banner
+            var bannerEl = document.getElementById('ab-form-banner');
+            if (!bannerEl) {
+              bannerEl = document.createElement('div');
+              bannerEl.id = 'ab-form-banner';
+              var aiBox = document.getElementById('ab-ai-desc');
+              if (aiBox && aiBox.parentNode && aiBox.parentNode.parentNode) {
+                aiBox.parentNode.parentNode.parentNode.insertBefore(bannerEl, aiBox.parentNode.parentNode.nextSibling);
+              }
+            }
+            var fieldCount = (res.form_schema.fields || []).length;
+            bannerEl.style.cssText = 'background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:#14532d;display:flex;align-items:center;gap:8px';
+            bannerEl.innerHTML = '<span style="font-size:16px">&#128203;</span><span><b>Form trigger detected!</b> ' + fieldCount + ' fields extracted. <b>Click Save</b> to activate the form on the detail page.</span>';
+          } else {
+            var oldBanner = document.getElementById('ab-form-banner');
+            if (oldBanner) oldBanner.remove();
+          }
+        } else {
+          if (status) status.textContent = 'Error: ' + (res.detail || 'Failed');
+        }
+      })
+      .catch(function(e) {
+        if (btn) { btn.disabled = false; btn.textContent = '⚡ Generate Code'; }
+        if (status) status.textContent = 'Error: ' + e.message;
+      });
+    }
+
+    function automationBuilderCancel() {
+      if (automationSubPage && automationSubPage !== '__settings__') {
+        loadAutomation(automationSubPage);
+      } else {
+        automationSubPage = null;
+        loadAutomation(null);
       }
     }
 
@@ -2899,6 +3412,11 @@ function getDashboardHtml() {
         image_prompt: document.getElementById('ab-image-prompt').value,
         whatsapp_instance: document.getElementById('ab-instance').value,
         schedule: { type: document.getElementById('ab-sched-type').value, time: document.getElementById('ab-sched-time').value || '09:00' },
+        code: document.getElementById('ab-code').value,
+        schedule_cron: abCronBuild(),
+        gemini_key: '',
+        gemini_model: document.getElementById('ab-gemini-model') ? document.getElementById('ab-gemini-model').value : 'gemini-2.5-flash',
+        form_schema: document.getElementById('ab-form-schema') ? document.getElementById('ab-form-schema').value : '',
       };
       var editId = document.getElementById('ab-edit-id').value;
       var url = editId ? AUTOMATION_API + '/api/automations/' + editId : AUTOMATION_API + '/api/automations';
@@ -2906,10 +3424,342 @@ function getDashboardHtml() {
       fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         .then(function(r) { return r.json(); })
         .then(function(res) {
-          document.getElementById('automation-builder-modal').remove();
           loadAutomation(res.id || editId);
         })
-        .catch(function(e) { document.getElementById('ab-err').textContent = 'Error: ' + e.message; });
+        .catch(function(e) { var el = document.getElementById('ab-err'); if(el) el.textContent = 'Error: ' + e.message; });
+    }
+
+    // ─── Open Automation Form ───────────────────────────────────────────────────
+    function openAutomationForm(aid) {
+      fetch(AUTOMATION_API + '/api/automations/' + aid)
+        .then(function(r) { return r.json(); })
+        .then(function(auto) {
+          var schemaStr = auto.form_schema || '';
+          if (!schemaStr) { alert('No form schema found for this automation.'); return; }
+          var schema;
+          try { schema = JSON.parse(schemaStr); } catch(e) { alert('Invalid form schema.'); return; }
+          var fields = schema.fields || [];
+
+          var fieldsHtml = '';
+          for (var i = 0; i < fields.length; i++) {
+            var f = fields[i];
+            var label = f.label || '';
+            var fid = f.id || ('field_' + i);
+            var ftype = f.type || 'text';
+            var placeholder = f.placeholder || '';
+            var required = f.required ? ' required' : '';
+            var reqMark = f.required ? ' <span style="color:#dc2626">*</span>' : '';
+            fieldsHtml += '<div class="form-group">'
+              + '<label class="form-label" for="af-' + fid + '">' + label + reqMark + '</label>';
+            if (ftype === 'textarea') {
+              fieldsHtml += '<textarea id="af-' + fid + '" class="form-input form-textarea" placeholder="' + placeholder + '"' + required + '></textarea>';
+            } else if (ftype === 'dropdown') {
+              var opts = f.options || [];
+              fieldsHtml += '<select id="af-' + fid + '" class="form-select"' + required + '>';
+              fieldsHtml += '<option value="">-- Select --</option>';
+              for (var j = 0; j < opts.length; j++) {
+                fieldsHtml += '<option value="' + opts[j] + '">' + opts[j] + '</option>';
+              }
+              fieldsHtml += '</select>';
+            } else {
+              var inputType = (ftype === 'email') ? 'email' : 'text';
+              fieldsHtml += '<input id="af-' + fid + '" type="' + inputType + '" class="form-input" placeholder="' + placeholder + '"' + required + '>';
+            }
+            fieldsHtml += '</div>';
+          }
+
+          var modalHtml = '<div id="af-modal-backdrop" class="modal-backdrop open" onclick="afModalClose(event)">'
+            + '<div class="modal" onclick="event.stopPropagation()" style="max-width:520px">'
+            + '<div class="modal-header" style="padding:20px 24px 12px;border-bottom:1px solid var(--border)">'
+            + '<h2 style="font-size:16px;font-weight:600">' + (auto.name || 'Automation') + ' \u2014 Submit Form</h2>'
+            + '<p style="font-size:13px;color:var(--text-muted);margin-top:4px">Fill in the form fields below and submit.</p>'
+            + '</div>'
+            + '<div class="modal-body">' + fieldsHtml + '</div>'
+            + '<div id="af-msg" style="padding:0 24px;font-size:13px;color:var(--green);display:none"></div>'
+            + '<div class="modal-footer">'
+            + '<button onclick="afModalClose(null)" class="btn btn-secondary">Cancel</button>'
+            + '<button onclick="afSubmitForm(\\'' + aid + '\\')" class="btn btn-primary">Submit</button>'
+            + '</div>'
+            + '</div>'
+            + '</div>';
+
+          var existing = document.getElementById('af-modal-backdrop');
+          if (existing) existing.remove();
+          document.body.insertAdjacentHTML('beforeend', modalHtml);
+          window._afSchema = schema;
+        })
+        .catch(function(e) { alert('Error loading automation: ' + e.message); });
+    }
+
+    function afModalClose(evt) {
+      if (evt && evt.target && evt.target.id !== 'af-modal-backdrop') return;
+      var el = document.getElementById('af-modal-backdrop');
+      if (el) el.remove();
+    }
+
+    function afSubmitForm(aid) {
+      var schema = window._afSchema || { fields: [] };
+      var fields = schema.fields || [];
+      var formData = {};
+      for (var i = 0; i < fields.length; i++) {
+        var f = fields[i];
+        var fid = f.id || ('field_' + i);
+        var el = document.getElementById('af-' + fid);
+        if (el) formData[fid] = el.value;
+      }
+      var msgEl = document.getElementById('af-msg');
+      if (msgEl) { msgEl.style.display = 'block'; msgEl.textContent = 'Submitting...'; msgEl.style.color = 'var(--text-muted)'; }
+      fetch(AUTOMATION_API + '/api/automations/' + aid + '/submit-form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (msgEl) {
+          msgEl.style.color = 'var(--green)';
+          msgEl.textContent = res.run ? 'Submitted! Running automation...' : 'Submitted successfully!';
+        }
+        setTimeout(function() {
+          var el = document.getElementById('af-modal-backdrop');
+          if (el) el.remove();
+          loadAutomation(aid);
+        }, 1500);
+      })
+      .catch(function(e) {
+        if (msgEl) { msgEl.style.color = 'var(--red)'; msgEl.textContent = 'Error: ' + e.message; }
+      });
+    }
+
+    // ─── Quick Setup ────────────────────────────────────────────────────────────
+    function automationQuickSetup() {
+      var btn = event && event.target;
+      if (btn) { btn.textContent = 'Creating…'; btn.disabled = true; }
+      fetch(AUTOMATION_API + '/api/automations/seed', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+          loadAutomation(null);
+        })
+        .catch(function(e) {
+          alert('Setup failed: ' + e.message);
+          if (btn) { btn.textContent = 'Create Now'; btn.disabled = false; }
+        });
+    }
+
+    // ─── Cron Builder Helpers ───────────────────────────────────────────────────
+    function abCronBuild() {
+      var freq = document.getElementById('ab-cron-freq');
+      if (!freq) return '0 9 * * *';
+      var f = freq.value;
+      if (f === 'custom') {
+        return (document.getElementById('ab-cron-custom').value.trim() || '0 9 * * *');
+      }
+      var timeVal = (document.getElementById('ab-cron-time').value || '09:00').split(':');
+      var h = parseInt(timeVal[0], 10) || 9;
+      var m = parseInt(timeVal[1], 10) || 0;
+      if (f === 'hourly') return m + ' * * * *';
+      if (f === 'daily') return m + ' ' + h + ' * * *';
+      if (f === 'monthly') return m + ' ' + h + ' 1 * *';
+      if (f === 'weekly') {
+        var days = [];
+        document.querySelectorAll('.ab-dow-cb:checked').forEach(function(cb) { days.push(cb.value); });
+        return m + ' ' + h + ' * * ' + (days.length ? days.join(',') : '0');
+      }
+      return m + ' ' + h + ' * * *';
+    }
+
+    function abCronUpdatePreview() {
+      var el = document.getElementById('ab-cron-preview');
+      if (!el) return;
+      var cron = abCronBuild();
+      var parts = cron.trim().split(/\s+/);
+      if (parts.length !== 5) { el.textContent = cron; return; }
+      var m = parts[0], h = parts[1], dom = parts[2], mo = parts[3], dow = parts[4];
+      var timeStr = (h === '*' ? 'every hour' : h.padStart(2,'0') + ':' + m.padStart(2,'0'));
+      var freq = document.getElementById('ab-cron-freq');
+      var f = freq ? freq.value : 'daily';
+      var preview = cron;
+      if (f === 'custom') preview = 'Custom: ' + cron;
+      else if (f === 'hourly') preview = 'Every hour at minute ' + m;
+      else if (f === 'daily') preview = 'Daily at ' + timeStr;
+      else if (f === 'monthly') preview = 'Monthly (1st) at ' + timeStr;
+      else if (f === 'weekly') {
+        var days = [];
+        document.querySelectorAll('.ab-dow-cb:checked').forEach(function(cb) { days.push(['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][cb.value]||cb.value); });
+        preview = 'Weekly on ' + (days.join(', ') || 'Sun') + ' at ' + timeStr;
+      }
+      el.textContent = preview;
+    }
+
+    function abCronFreqChange() {
+      var f = (document.getElementById('ab-cron-freq')||{}).value;
+      var timeRow = document.getElementById('ab-cron-time-row');
+      var dowRow = document.getElementById('ab-cron-dow-row');
+      var customRow = document.getElementById('ab-cron-custom-row');
+      if (timeRow) timeRow.style.display = (f === 'custom') ? 'none' : '';
+      if (dowRow) dowRow.style.display = (f === 'weekly') ? '' : 'none';
+      if (customRow) customRow.style.display = (f === 'custom') ? '' : 'none';
+      abCronUpdatePreview();
+    }
+
+    function abCronPopulate(cronExpr) {
+      if (!cronExpr) return;
+      var parts = cronExpr.trim().split(/\s+/);
+      if (parts.length !== 5) {
+        var freqEl = document.getElementById('ab-cron-freq');
+        var custEl = document.getElementById('ab-cron-custom');
+        if (freqEl) freqEl.value = 'custom';
+        if (custEl) custEl.value = cronExpr;
+        abCronFreqChange();
+        return;
+      }
+      var m = parts[0], h = parts[1], dom = parts[2], mo = parts[3], dow = parts[4];
+      var timeEl = document.getElementById('ab-cron-time');
+      if (timeEl && h !== '*' && m !== '*') {
+        timeEl.value = h.padStart(2,'0') + ':' + m.padStart(2,'0');
+      }
+      var freqEl = document.getElementById('ab-cron-freq');
+      if (!freqEl) return;
+      if (h === '*') { freqEl.value = 'hourly'; }
+      else if (dom === '1' && mo === '*' && dow === '*') { freqEl.value = 'monthly'; }
+      else if (dom === '*' && mo === '*' && dow !== '*') {
+        freqEl.value = 'weekly';
+        var dowVals = dow.split(',');
+        document.querySelectorAll('.ab-dow-cb').forEach(function(cb) {
+          cb.checked = dowVals.indexOf(cb.value) !== -1;
+        });
+      } else { freqEl.value = 'daily'; }
+      abCronFreqChange();
+    }
+
+    // ─── Automation Log Panel ───────────────────────────────────────────────────
+    var _autoLogPollTimer = null;
+
+    function autoViewOpen(aid) {
+      var a = _currentAutoObj;
+      if (!a) return;
+      var main = document.getElementById('automation-main');
+      if (!main) return;
+      var isOn = a.enabled;
+      var inputStyle = 'width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px';
+      var labelStyle = 'font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:5px';
+
+      main.innerHTML = '<div>'
+        /* top bar */
+        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">'
+        + '<div style="font-size:15px;font-weight:700;color:var(--text);flex:1">' + esc(a.name) + '</div>'
+        + '<span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;background:' + (isOn ? '#dcfce7' : 'var(--bg-secondary)') + ';color:' + (isOn ? '#16a34a' : '#64748b') + '">' + (isOn ? 'Active' : 'Inactive') + '</span>'
+        + '<button onclick="loadAutomation(\\'' + aid + '\\')" style="padding:5px 14px;background:var(--surface);color:var(--text-muted);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">&#8592; Back</button>'
+        + '</div>'
+
+        /* two-col: details left, code right */
+        + '<div style="display:flex;gap:14px;align-items:flex-start">'
+
+        /* left */
+        + '<div style="width:300px;flex-shrink:0;display:flex;flex-direction:column;gap:10px">'
+
+        + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px">'
+        + '<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">Details</div>'
+        + '<div style="margin-bottom:10px"><label style="' + labelStyle + '">Description</label><div style="font-size:13px;color:var(--text)">' + esc(a.description || '—') + '</div></div>'
+        + '<div style="margin-bottom:10px"><label style="' + labelStyle + '">Data Source</label><div style="font-size:13px;color:var(--text)">' + esc((a.data_source||{}).type||'manual') + '</div></div>'
+        + '<div><label style="' + labelStyle + '">WhatsApp Instance</label><div style="font-size:13px;color:var(--text)">' + esc(a.whatsapp_instance||'—') + '</div></div>'
+        + '</div>'
+
+        + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px">'
+        + '<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">Schedule</div>'
+        + '<div style="font-size:13px;color:var(--text);font-family:monospace">' + esc(a.schedule_cron||'—') + '</div>'
+        + '</div>'
+
+        + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px">'
+        + '<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.06em">Gemini AI</div>'
+        + '<div style="font-size:13px;color:var(--text)">' + (a.gemini_key ? '••••••••' : 'Using global key') + '</div>'
+        + '</div>'
+
+        + '</div>'
+
+        /* right: code */
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px">'
+        + '<div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em">Python Code</div>'
+        + (a.code
+            ? '<pre style="margin:0;font-size:12px;font-family:monospace;color:var(--text);white-space:pre-wrap;word-break:break-word;line-height:1.6;min-height:380px">' + esc(a.code) + '</pre>'
+            : '<div style="color:var(--text-muted);font-size:13px;padding:20px 0">No code defined.</div>')
+        + '</div>'
+        + '</div>'
+
+        + '</div>'
+        + '</div>';
+    }
+
+    function autoViewClose() {
+      if (automationSubPage) loadAutomation(automationSubPage);
+    }
+
+    function autoSwitchTab(tab) {
+      var tabs = ['data', 'activity', 'log'];
+      for (var i = 0; i < tabs.length; i++) {
+        var t = tabs[i];
+        var btn = document.getElementById('atab-' + t);
+        var panel = document.getElementById('atab-panel-' + t);
+        var active = t === tab;
+        if (btn) {
+          btn.style.borderBottom = active ? '2px solid var(--accent)' : '2px solid transparent';
+          btn.style.color = active ? 'var(--accent)' : 'var(--text-muted)';
+          btn.style.fontWeight = active ? '700' : '600';
+        }
+        if (panel) panel.style.display = active ? '' : 'none';
+      }
+      if (tab === 'log' && _currentAutoObj) {
+        clearInterval(_autoLogPollTimer);
+        autoLogLoad(_currentAutoObj.id);
+        _autoLogPollTimer = setInterval(function() { autoLogLoad(_currentAutoObj.id); }, 5000);
+      } else {
+        clearInterval(_autoLogPollTimer);
+        _autoLogPollTimer = null;
+      }
+    }
+
+    function autoLogOpen(aid) { autoSwitchTab('log'); }
+
+    function autoLogClose() {
+      clearInterval(_autoLogPollTimer);
+      _autoLogPollTimer = null;
+    }
+
+    function autoLogLoad(aid) {
+      fetch(AUTOMATION_API + '/api/automations/' + aid + '/logs')
+        .then(function(r) { return r.json(); })
+        .then(function(logs) {
+          var el = document.getElementById('auto-log-body');
+          if (!el) return;
+          if (!logs || logs.length === 0) {
+            el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px">No logs yet.</div>';
+            return;
+          }
+          var html = '';
+          for (var i = 0; i < logs.length; i++) {
+            var l = logs[i];
+            var isErr = l.status === 'error' || (l.error && l.error.length > 0);
+            var icon = isErr ? '✗' : '✓';
+            var color = isErr ? '#dc2626' : '#16a34a';
+            var ts = (l.sent_at || '').replace('T', ' ').slice(0, 16);
+            var detail = l.error ? l.error : (l.message_sent || l.stdout || '');
+            if (detail && detail.length > 200) detail = detail.slice(0, 200) + '…';
+            html += '<div style="display:flex;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border-subtle);align-items:flex-start">'
+              + '<span style="font-size:13px;color:' + color + ';flex-shrink:0;margin-top:1px">' + icon + '</span>'
+              + '<div style="min-width:0;flex:1">'
+              + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+              + '<span style="font-size:11px;color:var(--text-dim);white-space:nowrap">' + esc(ts) + '</span>'
+              + (l.recipient_name ? '<span style="font-size:12px;font-weight:600;color:var(--text)">' + esc(l.recipient_name) + '</span>' : '')
+              + (l.recipient_phone ? '<span style="font-size:11px;color:var(--text-muted)">' + esc(l.recipient_phone) + '</span>' : '')
+              + '</div>'
+              + (detail ? '<div style="font-size:11px;color:' + (isErr?'#dc2626':'var(--text-muted)') + ';margin-top:3px;word-break:break-all;white-space:pre-wrap">' + esc(detail) + '</div>' : '')
+              + (l.stdout && !isErr ? '<div style="font-size:11px;color:var(--text-dim);margin-top:2px;font-family:monospace;white-space:pre-wrap">' + esc(l.stdout.slice(0,200)) + '</div>' : '')
+              + '</div></div>';
+          }
+          el.innerHTML = html;
+        })
+        .catch(function() {});
     }
 
     // ─── Birthday Automation Functions (legacy helpers kept, not called by new platform) ─
@@ -3701,6 +4551,93 @@ function getDashboardHtml() {
     }
 
     // ─── Vendor Follow-ups ──────────────────
+    // ── API Configs Page ──────────────────────────────────────────────────────
+    function loadApiConfigs() {
+      var el = document.getElementById('api-configs-content');
+      if (!el) return;
+      el.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-muted)">Loading...</div>';
+      fetch(AUTOMATION_API + '/api/settings').then(function(r){return r.json();}).catch(function(){return{};}).then(function(s) {
+        var iStyle = 'width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px';
+        var lStyle = 'display:block;font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:5px;margin-top:14px';
+        function badge(val) {
+          return val
+            ? '<span style="font-size:11px;font-weight:700;color:#16a34a;background:#dcfce7;padding:2px 10px;border-radius:99px">&#10003; Configured</span>'
+            : '<span style="font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;padding:2px 10px;border-radius:99px">&#9888; Not Set</span>';
+        }
+        function card(title, icon, fields) {
+          var rows = fields.map(function(f) {
+            return '<label style="' + lStyle + '">' + f.label + '</label>'
+              + (f.hint ? '<div style="font-size:11px;color:var(--text-muted);margin-bottom:5px">' + f.hint + '</div>' : '')
+              + '<input id="ac-' + f.id + '" type="' + (f.type||'text') + '" value="' + esc(f.val||'') + '" placeholder="' + esc(f.placeholder||'') + '" style="' + iStyle + '">';
+          }).join('');
+          var statusVal = fields.find(function(f){return f.isKey;});
+          return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:16px">'
+            + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
+            + '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:16px">' + icon + '</span><span style="font-size:14px;font-weight:700;color:var(--text)">' + title + '</span></div>'
+            + badge(statusVal ? statusVal.val : '')
+            + '</div>'
+            + rows
+            + '</div>';
+        }
+        var html = '<div style="max-width:640px;margin:0 auto;padding:28px 20px">'
+          + '<div style="font-size:22px;font-weight:700;color:var(--text);font-family:Playfair Display,Georgia,serif;margin-bottom:4px">API Configs</div>'
+          + '<div style="font-size:13px;color:var(--text-muted);margin-bottom:24px">All API keys are saved permanently in the database. Configure once, use everywhere.</div>'
+
+          + card('Google Gemini', '✦', [
+              {id:'gemini-key', label:'Gemini API Key', type:'password', val:s.gemini_api_key||'', placeholder:'AIza...', isKey:true, hint:'Used by gemini(prompt) in Python automation scripts at runtime.'}
+            ])
+
+          + card('OpenAI / ChatGPT', '◈', [
+              {id:'openai-key', label:'OpenAI API Key', type:'password', val:s.openai_api_key||'', placeholder:'sk-...', isKey:true, hint:'Used for GPT → Python code generation in the automation builder.'}
+            ])
+
+          + card('OpenRouter / DeepSeek', '⬡', [
+              {id:'openrouter-key', label:'OpenRouter API Key', type:'password', val:s.openrouter_api_key||'', placeholder:'sk-or-...', isKey:true, hint:'Gives access to DeepSeek V3, R1, Llama 4, Claude, Gemini and 200+ models via openrouter.ai.'}
+            ])
+
+          + card('WhatsApp — Evolution API', '✉', [
+              {id:'evo-url', label:'Evolution API URL', val:s.evolution_api_url||'', placeholder:'http://your-server:8080'},
+              {id:'evo-key', label:'Evolution API Key', type:'password', val:s.evolution_api_key||'', placeholder:'your-api-key', isKey:true}
+            ])
+
+          + card('N8N Webhook', '⚙', [
+              {id:'n8n-url', label:'N8N Vendor Follow-up Webhook URL', val:s.n8n_webhook_url||'', placeholder:'http://your-n8n:5678/webhook/...', hint:'Vendor form submissions are forwarded to this URL automatically.'},
+              {id:'wa-api-url', label:'WhatsApp Sending API URL (n8n)', val:s.whatsapp_api_url||'', placeholder:'http://72.61.170.222:3008/send'}
+            ])
+
+          + '<div style="display:flex;align-items:center;gap:12px;margin-top:8px">'
+          + '<button onclick="apiConfigsSave()" style="padding:10px 28px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700">Save All</button>'
+          + '<span id="ac-status" style="font-size:13px;color:var(--text-muted)"></span>'
+          + '</div>'
+          + '</div>';
+        el.innerHTML = html;
+      });
+    }
+
+    function apiConfigsSave() {
+      var payload = {
+        gemini_api_key:     (document.getElementById('ac-gemini-key')||{}).value || '',
+        openai_api_key:     (document.getElementById('ac-openai-key')||{}).value || '',
+        openrouter_api_key: (document.getElementById('ac-openrouter-key')||{}).value || '',
+        evolution_api_url:  (document.getElementById('ac-evo-url')||{}).value || '',
+        evolution_api_key:  (document.getElementById('ac-evo-key')||{}).value || '',
+        n8n_webhook_url:    (document.getElementById('ac-n8n-url')||{}).value || '',
+        whatsapp_api_url:   (document.getElementById('ac-wa-api-url')||{}).value || '',
+      };
+      var st = document.getElementById('ac-status');
+      if (st) st.textContent = 'Saving...';
+      fetch(AUTOMATION_API + '/api/settings', {
+        method: 'PUT',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      }).then(function(r){return r.json();}).then(function() {
+        if (st) { st.textContent = 'Saved!'; st.style.color = 'var(--green)'; }
+        setTimeout(function() { loadApiConfigs(); }, 800);
+      }).catch(function(e) {
+        if (st) { st.textContent = 'Error: ' + e.message; st.style.color = 'var(--red)'; }
+      });
+    }
+
     let _vendorList = [];
 
     async function loadVendorFollowups() {
