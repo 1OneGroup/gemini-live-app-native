@@ -27,7 +27,5 @@ services:
       - AUTOMATION_API_URL=${AUTOMATION_API_URL:-http://localhost:5001}
 volumes:
   call-data:
-    external: true
   prompt-data:
-    external: true
   automation-db:
