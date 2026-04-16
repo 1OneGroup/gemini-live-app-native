@@ -25,19 +25,9 @@ services:
       - CLASSIFIER_DASHBOARD_URL=${CLASSIFIER_DASHBOARD_URL:-}
       - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL:-}
       - AUTOMATION_API_URL=${AUTOMATION_API_URL:-http://localhost:5001}
-    networks:
-      - paperclip-services
-      - shared-proxy
-
 volumes:
   call-data:
     external: true
   prompt-data:
     external: true
   automation-db:
-
-networks:
-  paperclip-services:
-    external: true
-  shared-proxy:
-    external: true
