@@ -28,8 +28,8 @@ async function fetchNewCalls() {
       offset: 0
     });
 
-    // Guard: .objects may not exist if no calls found
-    const calls = Array.isArray(callsResponse) ? [...callsResponse] : [];
+    // Plivo SDK returns a resource object; actual records are in .objects
+    const calls = callsResponse?.objects || [];
 
     if (calls.length === 0) {
       console.log(`[${timestamp}] No calls with recordings found in Plivo.`);
@@ -87,7 +87,7 @@ async function getRecordingUrl(callUuid) {
       limit: 1
     });
 
-    const recordings = Array.isArray(recordingsResponse) ? [...recordingsResponse] : [];
+    const recordings = recordingsResponse?.objects || [];
 
     if (recordings.length === 0) return null;
 

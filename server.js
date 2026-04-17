@@ -18,6 +18,9 @@ const LEADS_FILE = path.join(__dirname, 'data', 'leads.json');
 
 // ─── Middleware ────────────────────────────────────────────────────────────────
 
+// Trust reverse proxy (Cloudflare/nginx) so req.protocol returns 'https' correctly
+app.set('trust proxy', 1);
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
