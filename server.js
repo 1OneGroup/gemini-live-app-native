@@ -756,7 +756,7 @@ app.patch('/api/leads/:leadId', (req, res) => {
     }
 
     // Only allow these fields to be updated via manual override
-    const allowedFields = ['classification', 'subClassification', 'reason', 'needsManualReview'];
+    const allowedFields = ['classification', 'subClassification', 'reason', 'needsManualReview', 'manuallyOverridden'];
     const validClassifications = ['INTERESTED', 'NOT_INTERESTED', 'FOLLOW_UP_LATER'];
     const validSubClassifications = ['VISITING', 'NOT_VISITING'];
 
@@ -782,8 +782,10 @@ app.patch('/api/leads/:leadId', (req, res) => {
       leads[idx].subClassification = null;
     }
 
-    // Mark as manually overridden so we can track it
-    leads[idx].manuallyOverridden = true;
+    // Auto-mark as manually overridden only if caller didn't explicitly set it
+    if (req.body.manuallyOverridden === undefined) {
+      leads[idx].manuallyOverridden = true;
+    }
     leads[idx].updatedAt = new Date().toISOString();
 
     writeLeads(leads);
