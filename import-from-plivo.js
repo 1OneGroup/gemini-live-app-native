@@ -10,7 +10,7 @@ const { transcribeAudio } = require('./transcriber');
 const { classifyTranscript } = require('./classifier');
 
 const client = new plivo.Client(process.env.PLIVO_AUTH_ID, process.env.PLIVO_AUTH_TOKEN);
-const LEADS_FILE = path.join(__dirname, 'leads.json');
+const LEADS_FILE = path.join(__dirname, 'data', 'leads.json');
 
 // Calls shorter than this (seconds) had no real conversation
 const MIN_CONVERSATION_DURATION = 20;

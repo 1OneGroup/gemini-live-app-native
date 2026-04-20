@@ -28,8 +28,8 @@ async function fetchNewCalls() {
       offset: 0
     });
 
-    // Plivo SDK returns a resource object; actual records are in .objects
-    const calls = callsResponse?.objects || [];
+    // Plivo SDK returns numeric-keyed object (not .objects array)
+    const calls = Object.values(callsResponse).filter(v => typeof v === 'object' && v && v.callUuid);
 
     if (calls.length === 0) {
       console.log(`[${timestamp}] No calls with recordings found in Plivo.`);
@@ -87,11 +87,10 @@ async function getRecordingUrl(callUuid) {
       limit: 1
     });
 
-    const recordings = recordingsResponse?.objects || [];
+    const recordings = Object.values(recordingsResponse).filter(v => typeof v === 'object' && v && v.recordingUrl);
 
     if (recordings.length === 0) return null;
 
-    // Return the first recording URL (most recent)
     return recordings[0].recordingUrl || null;
   } catch (err) {
     console.error(`Error fetching recording for call ${callUuid}:`, err.message);

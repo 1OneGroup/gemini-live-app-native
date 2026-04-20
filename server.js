@@ -1,12 +1,16 @@
 // server.js — Main Express backend for Gemini Live Lead Classifier
 // Serves the dashboard and provides all API endpoints
 
+console.log("hello from server");
 require('dotenv').config();
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
+
+const { execFile } = require('child_process');
+const os = require('os');
 
 const { fetchNewCalls } = require('./plivo');
 const { transcribeAudio } = require('./transcriber');
@@ -264,21 +268,53 @@ app.get('/api/leads/:leadId/recording', async (req, res) => {
       return res.status(404).json({ error: 'No recording' });
     }
 
-    const authId = process.env.PLIVO_AUTH_ID;
-    const authToken = process.env.PLIVO_AUTH_TOKEN;
-    const credentials = Buffer.from(`${authId}:${authToken}`).toString('base64');
+    const credentials = Buffer.from(`${process.env.PLIVO_AUTH_ID}:${process.env.PLIVO_AUTH_TOKEN}`).toString('base64');
 
+    // Download full buffer so we can serve range requests (required for browser audio)
     const upstream = await axios.get(lead.recordingUrl, {
       headers: { Authorization: `Basic ${credentials}` },
-      responseType: 'stream',
+      responseType: 'arraybuffer',
+      timeout: 30000
     });
 
-    res.setHeader('Content-Type', upstream.headers['content-type'] || 'audio/mpeg');
-    if (upstream.headers['content-length']) {
-      res.setHeader('Content-Length', upstream.headers['content-length']);
+    const inputBuffer = Buffer.from(upstream.data);
+
+    // Transcode to standard 44.1kHz MP3 so all browsers can play it
+    // Plivo records at 8kHz MPEG 2.5 which many browsers decode silently
+    const transcoded = await new Promise((resolve, reject) => {
+      const tmpIn = path.join(os.tmpdir(), `rec-in-${req.params.leadId}.mp3`);
+      const tmpOut = path.join(os.tmpdir(), `rec-out-${req.params.leadId}.mp3`);
+      fs.writeFileSync(tmpIn, inputBuffer);
+      execFile('ffmpeg', ['-y', '-i', tmpIn, '-ar', '44100', '-ab', '64k', '-f', 'mp3', tmpOut], (err) => {
+        try { fs.unlinkSync(tmpIn); } catch {}
+        if (err) {
+          // ffmpeg not available — serve raw
+          resolve(inputBuffer);
+        } else {
+          const out = fs.readFileSync(tmpOut);
+          try { fs.unlinkSync(tmpOut); } catch {}
+          resolve(out);
+        }
+      });
+    });
+
+    const total = transcoded.length;
+    const rangeHeader = req.headers['range'];
+    if (rangeHeader) {
+      const [startStr, endStr] = rangeHeader.replace('bytes=', '').split('-');
+      const start = parseInt(startStr, 10);
+      const end = endStr ? parseInt(endStr, 10) : total - 1;
+      res.writeHead(206, {
+        'Content-Range': `bytes ${start}-${end}/${total}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': end - start + 1,
+        'Content-Type': 'audio/mpeg'
+      });
+      res.end(transcoded.slice(start, end + 1));
+    } else {
+      res.writeHead(200, { 'Content-Length': total, 'Content-Type': 'audio/mpeg', 'Accept-Ranges': 'bytes' });
+      res.end(transcoded);
     }
-    res.setHeader('Accept-Ranges', 'bytes');
-    upstream.data.pipe(res);
   } catch (err) {
     log(`GET /api/leads/${req.params.leadId}/recording error: ${err.message}`);
     res.status(502).json({ error: 'Failed to fetch recording', detail: err.message });
@@ -409,14 +445,20 @@ app.post('/api/classify/:leadId', async (req, res) => {
 
     const result = await classifyTranscript(leads[idx].transcript);
 
-    // Merge classification result into lead record
-    leads[idx].classification = result.classification;
-    leads[idx].subClassification = result.subClassification;
-    leads[idx].confidence = result.confidence;
-    leads[idx].reason = result.reason;
-    leads[idx].keySignals = result.keySignals;
-    leads[idx].needsManualReview = result.needsManualReview;
-    leads[idx].status = 'classified';
+    // If manually overridden, preserve human classification — only store AI confidence + analysis
+    if (leads[idx].manuallyOverridden) {
+      leads[idx].confidence = result.confidence;
+      leads[idx].reason = leads[idx].reason || result.reason;
+      leads[idx].keySignals = leads[idx].keySignals?.length ? leads[idx].keySignals : result.keySignals;
+    } else {
+      leads[idx].classification = result.classification;
+      leads[idx].subClassification = result.subClassification;
+      leads[idx].confidence = result.confidence;
+      leads[idx].reason = result.reason;
+      leads[idx].keySignals = result.keySignals;
+      leads[idx].needsManualReview = result.needsManualReview;
+      leads[idx].status = 'classified';
+    }
     leads[idx].updatedAt = new Date().toISOString();
 
     writeLeads(leads);
@@ -629,9 +671,11 @@ app.post('/api/process-all', async (req, res) => {
       }
     }
 
-    // ── Step 3: Classify all leads that have transcripts but no classification ─
+    // ── Step 3: Classify all leads that have transcripts but no classification,
+    //           plus manually overridden leads that are missing AI confidence ────
     const leadsToClassify = readLeads().filter(
-      l => l.transcript && !l.classification && l.status !== 'classification_failed'
+      l => l.transcript && l.status !== 'classification_failed' &&
+        (!l.classification || (l.manuallyOverridden && l.confidence == null))
     );
 
     sendEvent({
@@ -658,13 +702,17 @@ app.post('/api/process-all', async (req, res) => {
         const leads = readLeads();
         const idx = leads.findIndex(l => l.id === lead.id);
         if (idx !== -1) {
-          leads[idx].classification = result.classification;
-          leads[idx].subClassification = result.subClassification;
-          leads[idx].confidence = result.confidence;
-          leads[idx].reason = result.reason;
-          leads[idx].keySignals = result.keySignals;
-          leads[idx].needsManualReview = result.needsManualReview;
-          leads[idx].status = 'classified';
+          if (leads[idx].manuallyOverridden) {
+            leads[idx].confidence = result.confidence;
+          } else {
+            leads[idx].classification = result.classification;
+            leads[idx].subClassification = result.subClassification;
+            leads[idx].confidence = result.confidence;
+            leads[idx].reason = result.reason;
+            leads[idx].keySignals = result.keySignals;
+            leads[idx].needsManualReview = result.needsManualReview;
+            leads[idx].status = 'classified';
+          }
           leads[idx].updatedAt = new Date().toISOString();
           writeLeads(leads);
         }
@@ -811,3 +859,114 @@ app.listen(PORT, () => {
   log(`Dashboard: http://localhost:${PORT}`);
   log(`API: http://localhost:${PORT}/api/leads`);
 });
+
+// ─── Auto-poll: fetch + transcribe + classify every 2 minutes ─────────────────
+
+const POLL_INTERVAL_MS = 2 * 60 * 1000;
+let isAutoPollRunning = false;
+
+async function autoPoll() {
+  if (isAutoPollRunning) return;
+
+  isAutoPollRunning = true;
+  try {
+    // Step 1: fetch new calls from Plivo
+    const newCalls = await fetchNewCalls();
+    const leads = readLeads();
+    const existingUrls = new Set(leads.map(l => l.recordingUrl).filter(Boolean));
+
+    const deduplicated = newCalls
+      .filter(call => !existingUrls.has(call.recordingUrl))
+      .map(call => ({
+        id: uuidv4(),
+        phone: call.phone,
+        callDate: call.callDate,
+        callDuration: call.callDuration,
+        recordingUrl: call.recordingUrl,
+        direction: call.direction,
+        plivoCallUuid: call.plivoCallUuid,
+        transcript: null,
+        classification: null,
+        subClassification: null,
+        confidence: null,
+        reason: null,
+        keySignals: [],
+        status: 'fetched',
+        needsManualReview: false,
+        manuallyOverridden: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }));
+
+    if (deduplicated.length > 0) {
+      writeLeads([...leads, ...deduplicated]);
+      log(`Auto-poll: added ${deduplicated.length} new call(s)`);
+    }
+
+    // Step 2: transcribe any leads that need it
+    const toTranscribe = readLeads().filter(
+      l => !l.transcript && l.recordingUrl && l.status !== 'transcription_failed'
+    );
+
+    for (const lead of toTranscribe) {
+      try {
+        const transcript = await transcribeAudio(lead);
+        const cur = readLeads();
+        const idx = cur.findIndex(l => l.id === lead.id);
+        if (idx !== -1) {
+          cur[idx].transcript = transcript || null;
+          cur[idx].status = transcript ? 'transcribed' : 'transcription_failed';
+          cur[idx].updatedAt = new Date().toISOString();
+          writeLeads(cur);
+        }
+        log(`Auto-poll: transcribed ${lead.phone} — ${transcript ? 'ok' : 'failed'}`);
+      } catch (err) {
+        log(`Auto-poll: transcription error for ${lead.id}: ${err.message}`);
+      }
+    }
+
+    // Step 3: classify any leads with transcripts but no classification
+    const toClassify = readLeads().filter(
+      l => l.transcript && l.status !== 'classification_failed' &&
+        (!l.classification || (l.manuallyOverridden && l.confidence == null))
+    );
+
+    for (const lead of toClassify) {
+      try {
+        const result = await classifyTranscript(lead.transcript);
+        const cur = readLeads();
+        const idx = cur.findIndex(l => l.id === lead.id);
+        if (idx !== -1) {
+          if (cur[idx].manuallyOverridden) {
+            cur[idx].confidence = result.confidence;
+          } else {
+            cur[idx].classification = result.classification;
+            cur[idx].subClassification = result.subClassification;
+            cur[idx].confidence = result.confidence;
+            cur[idx].reason = result.reason;
+            cur[idx].keySignals = result.keySignals;
+            cur[idx].needsManualReview = result.needsManualReview;
+            cur[idx].status = 'classified';
+          }
+          cur[idx].updatedAt = new Date().toISOString();
+          writeLeads(cur);
+        }
+        log(`Auto-poll: classified ${lead.phone} → ${result.classification} (${result.confidence}%)`);
+      } catch (err) {
+        log(`Auto-poll: classification error for ${lead.id}: ${err.message}`);
+      }
+    }
+
+    if (deduplicated.length === 0 && toTranscribe.length === 0 && toClassify.length === 0) {
+      log('Auto-poll: nothing new');
+    }
+
+  } catch (err) {
+    log(`Auto-poll error: ${err.message}`);
+  } finally {
+    isAutoPollRunning = false;
+  }
+}
+
+setInterval(autoPoll, POLL_INTERVAL_MS);
+log(`Auto-poll started — checking Plivo every ${POLL_INTERVAL_MS / 60000} minutes`);

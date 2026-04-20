@@ -1103,6 +1103,9 @@ button { font-family: inherit; }
   background: linear-gradient(90deg, var(--accent), var(--accent-bright));
   transition: width var(--t-base) var(--ease);
 }
+.confidence-fill.high { background: linear-gradient(90deg, #22c55e, #4ade80); }
+.confidence-fill.medium { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.confidence-fill.low { background: linear-gradient(90deg, #ef4444, #f87171); }
 
 .key-signals {
   display: flex;

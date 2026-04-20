@@ -316,7 +316,7 @@ function renderLeadCard(lead) {
     : '';
 
   const reviewBadge = lead.needsManualReview ? `<span class="badge review">REVIEW</span>` : '';
-  const overrideBadge = lead.manuallyOverridden ? `<span class="badge override">OVERRIDDEN</span>` : '';
+  const overrideBadge = '';
 
   const conf = (lead.confidence != null) ? `${lead.confidence}%` : '—';
   const dateStr = lead.callDate ? escapeHtml(formatDate(lead.callDate)) : '—';
@@ -367,7 +367,7 @@ function viewLeadDetail(leadId) {
     ? `<span class="badge ${lead.subClassification === 'VISITING' ? 'visiting' : 'not-visiting'}">${lead.subClassification.replace(/_/g, ' ')}</span>`
     : '';
   const reviewBadge = lead.needsManualReview ? `<span class="badge review">NEEDS REVIEW</span>` : '';
-  const overrideBadge = lead.manuallyOverridden ? `<span class="badge override">OVERRIDDEN</span>` : '';
+  const overrideBadge = '';
   const sourceBadge = lead.source === 'gemini-live-webhook' ? `<span class="badge source-gemini">Gemini Live</span>` : '';
   html += `<div class="badges detail-badges"><span class="badge ${badgeClass}">${badgeLabel}</span>${subBadge}${reviewBadge}${overrideBadge}${sourceBadge}</div>`;
 
@@ -379,7 +379,7 @@ function viewLeadDetail(leadId) {
       <div class="detail-section">
         <span class="detail-label">Confidence</span>
         <div class="confidence-wrap">
-          <div class="confidence-bar"><div class="fill ${fillClass}" style="width: ${c}%"></div></div>
+          <div class="confidence-bar"><div class="confidence-fill ${fillClass}" style="width: ${c}%"></div></div>
           <span class="confidence-text">${c}%</span>
         </div>
       </div>`;

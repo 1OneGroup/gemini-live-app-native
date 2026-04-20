@@ -1,32 +1,13 @@
-// classifier.js — AI classification logic using Google Gemini
-// Classifies lead transcripts into INTERESTED / NOT_INTERESTED / FOLLOW_UP_LATER
-
+// classifier.js — AI classification using Groq (llama-3.3-70b)
 require('dotenv').config();
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 
-// Initialize Google Gemini client
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY);
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-// Use gemini-2.0-flash — fast, cheap, and accurate for classification tasks
-const model = genAI.getGenerativeModel({
-  model: 'gemini-2.5-flash',
-  generationConfig: {
-    temperature: 0.1,       // Low temperature = consistent, deterministic classification
-    maxOutputTokens: 4096,
-    responseMimeType: 'application/json' // Enforces JSON output in Gemini
-  }
-});
-
-// Valid classification values
 const VALID_CLASSIFICATIONS = ['INTERESTED', 'NOT_INTERESTED', 'FOLLOW_UP_LATER'];
-
-// Valid sub-classification values (only for INTERESTED leads)
 const VALID_SUB_CLASSIFICATIONS = ['VISITING', 'NOT_VISITING'];
-
-// Confidence threshold below which a lead is flagged for manual review
 const MANUAL_REVIEW_THRESHOLD = 60;
 
-// System prompt for real estate sales call analysis
 const CLASSIFICATION_PROMPT = `You are an expert real estate sales call analyzer.
 Your job is to read a call transcript between a sales agent and a potential property buyer lead,
 and classify the lead's interest level based on what they said.
@@ -85,17 +66,11 @@ Do not write anything else. Only the JSON.
 Transcript to analyze:
 `;
 
-/**
- * Classifies a call transcript using Google Gemini.
- * @param {string} transcript - The call transcript text
- * @returns {Promise<Object>} Classification result: { classification, confidence, reason, keySignals, needsManualReview }
- */
 async function classifyTranscript(transcript) {
   const timestamp = new Date().toISOString();
 
-  // Guard: empty or extremely short transcripts cannot be meaningfully classified
   if (!transcript || transcript.trim().length < 20) {
-    console.warn(`[${timestamp}] Transcript too short or empty — returning default classification.`);
+    console.warn(`[${timestamp}] Transcript too short — returning default classification.`);
     return {
       classification: 'NOT_INTERESTED',
       subClassification: null,
@@ -106,42 +81,37 @@ async function classifyTranscript(transcript) {
     };
   }
 
-  console.log(`[${timestamp}] Classifying transcript (${transcript.length} chars) with Gemini 1.5 Flash...`);
+  console.log(`[${timestamp}] Classifying transcript (${transcript.length} chars) with Groq llama-3.3-70b...`);
 
   try {
-    // Send prompt + transcript to Gemini
-    const result = await model.generateContent(CLASSIFICATION_PROMPT + transcript);
-    const rawContent = result.response.text();
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      temperature: 0.1,
+      max_tokens: 512,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'user', content: CLASSIFICATION_PROMPT + transcript }
+      ]
+    });
 
-    // Parse the JSON response from Gemini
+    const rawContent = response.choices[0].message.content;
+
     let parsed;
     try {
-      // Gemini sometimes wraps JSON in markdown code fences — strip them if present
-      const cleaned = rawContent
-        .replace(/^```json\s*/i, '')
-        .replace(/^```\s*/i, '')
-        .replace(/\s*```$/i, '')
-        .trim();
-      parsed = JSON.parse(cleaned);
+      parsed = JSON.parse(rawContent);
     } catch (parseErr) {
-      console.error(`[${timestamp}] Failed to parse Gemini response as JSON:`, rawContent);
-      throw new Error('Gemini returned invalid JSON response');
+      console.error(`[${timestamp}] Failed to parse response as JSON:`, rawContent);
+      throw new Error('Groq returned invalid JSON response');
     }
 
-    // Validate classification is one of the expected values
     const classification = parsed.classification;
     if (!VALID_CLASSIFICATIONS.includes(classification)) {
-      console.error(`[${timestamp}] Invalid classification received: ${classification}`);
       throw new Error(`Invalid classification value: ${classification}`);
     }
 
-    // Safely parse confidence — model may return it as a string like "87"
     const confidence = Math.max(0, Math.min(100, parseInt(parsed.confidence, 10) || 0));
-
-    // Ensure key_signals is always an array
     const keySignals = Array.isArray(parsed.key_signals) ? parsed.key_signals : [];
 
-    // Extract and validate sub-classification (only for INTERESTED leads)
     let subClassification = null;
     if (classification === 'INTERESTED' && parsed.sub_classification) {
       subClassification = VALID_SUB_CLASSIFICATIONS.includes(parsed.sub_classification)
@@ -149,7 +119,7 @@ async function classifyTranscript(transcript) {
         : null;
     }
 
-    const classificationResult = {
+    const result = {
       classification,
       subClassification,
       confidence,
@@ -159,9 +129,9 @@ async function classifyTranscript(transcript) {
     };
 
     const subLabel = subClassification ? ` [${subClassification}]` : '';
-    console.log(`[${timestamp}] Gemini classification: ${classification}${subLabel} (${confidence}% confidence)${classificationResult.needsManualReview ? ' — FLAGGED FOR REVIEW' : ''}`);
+    console.log(`[${timestamp}] Classification: ${classification}${subLabel} (${confidence}%)${result.needsManualReview ? ' — FLAGGED FOR REVIEW' : ''}`);
 
-    return classificationResult;
+    return result;
 
   } catch (err) {
     console.error(`[${timestamp}] Classification failed:`, err.message);
