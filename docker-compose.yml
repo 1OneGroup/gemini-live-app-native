@@ -1,21 +1,34 @@
 services:
-  app:
-    image: ghcr.io/1onegroup/gemini-live-app-native:jatin
-    container_name: gemini-lead-classifier
+  gemini-live-bridge:
+    image: 1onegroup/gemini-live-app-native:latest
+    container_name: gemini-live-app-native
     restart: unless-stopped
     ports:
-      - "3000:3000"
-    env_file:
-      - .env
+      - "8100:8100"
     volumes:
-      - lead-data:/app/data
-      - ./plivo_cdr:/app/plivo_cdr
+      - call-data:/data/calls
+      - prompt-data:/data
+    environment:
+      - PORT=8100
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-models/gemini-3.1-flash-live-preview}
+      - PLIVO_AUTH_ID=${PLIVO_AUTH_ID}
+      - PLIVO_AUTH_TOKEN=${PLIVO_AUTH_TOKEN}
+      - PLIVO_FROM_NUMBER=${PLIVO_FROM_NUMBER}
+      - PUBLIC_URL=${PUBLIC_URL}
+      - EVOLUTION_API_URL=${EVOLUTION_API_URL:-http://evolution-api-fgxi-api-1:8080}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
+      - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-main-whatsapp}
+    networks:
+      - paperclip-services
+      - shared-proxy
 
 volumes:
-  lead-data:
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+  call-data:
+  prompt-data:
+
+networks:
+  paperclip-services:
+    external: true
+  shared-proxy:
+    external: true
