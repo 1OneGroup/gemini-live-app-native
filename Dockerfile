@@ -8,7 +8,7 @@ WORKDIR /app
 
 # Install Node dependencies
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Install Python dependencies
 COPY automation-engine/requirements.txt ./automation-engine/requirements.txt

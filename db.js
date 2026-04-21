@@ -338,7 +338,7 @@ function deleteBirthdayEmployee(id) {
 
 // --- Website Leads ---
 const websiteLeads = new Map();
-const websiteSettings = { autoWaEnabled: false, autoWaTemplate: '{{greeting}} Sir/Madam!\n\nThank you for contacting us. Our team will reach out to you shortly.\n\n- ONE Group', autoEmailEnabled: false, autoEmailSubject: 'Thank you for your interest', autoEmailBody: 'Dear {{name}},\n\nThank you for contacting us. We will get back to you soon.', customWebhookUrl: '', b2bForwardEnabled: false, b2bForwardUrl: '', waWebhookOutUrl: '', tunnelUrl: 'https://870f5ea76b53c024-157-49-26-8.serveousercontent.com', autoWaInstance: '' };
+const websiteSettings = { autoWaEnabled: false, autoWaTemplate: '{{greeting}} Sir/Madam!\n\nThank you for contacting us. Our team will reach out to you shortly.\n\n- ONE Group', autoEmailEnabled: false, autoEmailSubject: 'Thank you for your interest', autoEmailBody: 'Dear {{name}},\n\nThank you for contacting us. We will get back to you soon.', customWebhookUrl: '', b2bForwardEnabled: false, b2bForwardUrl: '', waWebhookOutUrl: '', tunnelUrl: 'https://870f5ea76b53c024-157-49-26-8.serveousercontent.com', autoWaInstance: '', smtpHost: '', smtpPort: '587', smtpUser: '', smtpPass: '', smtpFrom: '' };
 const waIncomingMessages = [];
 
 // --- Load persisted data ---

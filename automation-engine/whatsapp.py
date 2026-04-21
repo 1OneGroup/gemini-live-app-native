@@ -109,7 +109,7 @@ def send_media_b64(instance: str, phone: str, caption: str, image_b64: str, ext:
     with open(filepath, "wb") as f:
         f.write(base64.b64decode(image_b64))
     # Python server is at port 5001; Evolution GO (Docker) reaches host via host.docker.internal
-    server_url = f"http://host.docker.internal:5001/media/{filename}"
+    server_url = f"http://72.61.170.222:9001/media/{filename}"
     result = send_media(instance, phone, caption, server_url)
     # Clean up after send
     try:

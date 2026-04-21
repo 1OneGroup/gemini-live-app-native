@@ -1743,8 +1743,13 @@ function getDashboardHtml() {
       const el = document.getElementById('devices-content');
       el.innerHTML = '<div style="color:var(--text-muted);padding:24px">Loading...</div>';
       try {
-        const res = await fetch('/api/evolution/instances');
+        const [res, settRes] = await Promise.all([
+          fetch('/api/evolution/instances'),
+          fetch('/api/website-leads')
+        ]);
         const instances = res.ok ? await res.json() : [];
+        const settData = settRes.ok ? await settRes.json() : {};
+        const emailCfg = settData.settings || {};
 
         el.innerHTML = \`
           <div style="padding:20px;max-width:900px">
@@ -1812,6 +1817,50 @@ function getDashboardHtml() {
             }).join('')}
           </div>
 
+          <!-- Email Configuration -->
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-top:8px;max-width:900px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+              <div style="width:36px;height:36px;background:rgba(37,99,235,0.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" width="18" height="18"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              </div>
+              <div>
+                <div style="font-weight:700;font-size:15px">Mail Configuration</div>
+                <div style="font-size:12px;color:var(--text-muted)">SMTP settings for auto-sending emails on new leads</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+              <div>
+                <label style="font-size:11px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:5px">SMTP Host</label>
+                <input id="smtp-host" type="text" placeholder="smtp.gmail.com" value="\${esc(emailCfg.smtpHost||'')}" style="width:100%;padding:8px 10px;background:var(--surface-raised);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:11px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:5px">SMTP Port</label>
+                <input id="smtp-port" type="number" placeholder="587" value="\${esc(emailCfg.smtpPort||'587')}" style="width:100%;padding:8px 10px;background:var(--surface-raised);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:11px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:5px">Email (Username)</label>
+                <input id="smtp-user" type="email" placeholder="yourmail@gmail.com" value="\${esc(emailCfg.smtpUser||'')}" style="width:100%;padding:8px 10px;background:var(--surface-raised);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:11px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:5px">Password / App Password</label>
+                <input id="smtp-pass" type="password" placeholder="••••••••••••" value="\${esc(emailCfg.smtpPass||'')}" style="width:100%;padding:8px 10px;background:var(--surface-raised);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+              </div>
+              <div style="grid-column:1/-1">
+                <label style="font-size:11px;font-weight:600;color:var(--text-dim);display:block;margin-bottom:5px">From Name / Email</label>
+                <input id="smtp-from" type="text" placeholder="ONE Group &lt;yourmail@gmail.com&gt;" value="\${esc(emailCfg.smtpFrom||'')}" style="width:100%;padding:8px 10px;background:var(--surface-raised);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center">
+              <button onclick="saveSmtpSettings(this)" style="padding:8px 20px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">Save</button>
+              <button onclick="sendTestEmail(this)" style="padding:8px 20px;background:var(--surface-raised);color:var(--text);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">Send Test Email</button>
+              <span id="smtp-status" style="font-size:12px;color:var(--text-muted)"></span>
+            </div>
+            <div style="margin-top:12px;padding:10px 14px;background:rgba(37,99,235,0.06);border-radius:8px;border:1px solid rgba(37,99,235,0.15)">
+              <div style="font-size:11px;font-weight:600;color:#2563eb;margin-bottom:4px">Gmail Setup</div>
+              <div style="font-size:11px;color:var(--text-muted)">Host: <b>smtp.gmail.com</b> &nbsp;|&nbsp; Port: <b>587</b> &nbsp;|&nbsp; Use App Password (not regular password) → Google Account → Security → 2-Step Verification → App passwords</div>
+            </div>
+          </div>
+
           <!-- Add Device Modal -->
           <div id="add-device-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
             <div style="background:var(--surface);border-radius:14px;padding:28px;width:380px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
@@ -1833,6 +1882,36 @@ function getDashboardHtml() {
         \`;
       } catch (e) {
         el.innerHTML = '<div style="color:var(--red);padding:24px">Error loading devices: ' + e.message + '</div>';
+      }
+    }
+
+    async function saveSmtpSettings(btn) {
+      const payload = {
+        smtpHost: document.getElementById('smtp-host')?.value?.trim() || '',
+        smtpPort: document.getElementById('smtp-port')?.value?.trim() || '587',
+        smtpUser: document.getElementById('smtp-user')?.value?.trim() || '',
+        smtpPass: document.getElementById('smtp-pass')?.value || '',
+        smtpFrom: document.getElementById('smtp-from')?.value?.trim() || '',
+      };
+      const r = await fetch('/api/website-settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      const status = document.getElementById('smtp-status');
+      if (r.ok) {
+        if (btn) { const o=btn.textContent; btn.textContent='Saved!'; btn.style.background='#16a34a'; setTimeout(()=>{btn.textContent=o;btn.style.background='#2563eb';},2000); }
+        if (status) status.textContent = '';
+      } else {
+        if (status) status.textContent = 'Save failed';
+      }
+    }
+
+    async function sendTestEmail(btn) {
+      const status = document.getElementById('smtp-status');
+      if (status) status.textContent = 'Sending...';
+      try {
+        const r = await fetch('/api/email/test', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({}) });
+        const d = await r.json();
+        if (status) { status.textContent = d.ok ? 'Test email sent!' : ('Error: ' + (d.error||'Failed')); status.style.color = d.ok ? '#16a34a' : '#dc2626'; }
+      } catch(e) {
+        if (status) { status.textContent = 'Error: ' + e.message; status.style.color='#dc2626'; }
       }
     }
 
@@ -2080,6 +2159,8 @@ function getDashboardHtml() {
         const evoInstances = instRes.ok ? await instRes.json() : [];
         const { leads = [], stats = {}, settings = {} } = data;
         _autoWaEnabled = settings.autoWaEnabled || false;
+        _autoEmailEnabled = settings.autoEmailEnabled || false;
+        _b2bForwardEnabled = settings.b2bForwardEnabled || false;
         el.innerHTML = \`
           <div style="padding:20px;max-width:1200px">
             <!-- Stats Cards -->
@@ -2107,9 +2188,11 @@ function getDashboardHtml() {
                 <span style="font-weight:600;font-size:15px">Auto-Send on New Lead</span>
                 <span id="auto-send-status" style="font-size:13px;color:\${settings.autoWaEnabled ? '#10b981' : '#ef4444'};font-weight:500">\${settings.autoWaEnabled ? 'Turn Off' : 'Turn On'}</span>
               </div>
+              <!-- Send Message + Send Mail — 2 columns -->
               <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0">
-                <!-- WA Auto-Send -->
-                <div style="padding:20px;border-right:1px solid var(--border);min-width:0;overflow:hidden">
+
+                <!-- Left: WhatsApp -->
+                <div style="padding:20px;border-right:1px solid var(--border)">
                   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
                     <div style="display:flex;align-items:center;gap:8px">
                       <svg viewBox="0 0 24 24" fill="none" stroke="#25d366" stroke-width="2" width="18" height="18"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
@@ -2128,38 +2211,61 @@ function getDashboardHtml() {
                       </select>
                     \` : \`<div style="font-size:12px;color:var(--text-muted);padding:6px 0">No instances — add from Devices page</div>\`}
                   </div>
-                  <textarea id="auto-wa-template" rows="5" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box">\${settings.autoWaTemplate||''}</textarea>
-                  <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Variables: {{name}} {{phone}} {{email}} {{source}} {{message}} {{greeting}}</div>
-                  <button onclick="saveWebsiteSettings()" style="margin-top:10px;padding:7px 16px;background:#25d366;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500">Save Message</button>
+                  <textarea id="auto-wa-template" rows="4" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box">\${settings.autoWaTemplate||''}</textarea>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;margin-bottom:10px">Variables: {{name}} {{phone}} {{email}} {{source}} {{message}} {{greeting}}</div>
+                  <button onclick="saveWebsiteSettings()" style="padding:7px 16px;background:#25d366;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500">Save Message</button>
                 </div>
-                <!-- Webhook URL -->
-                <div style="padding:20px;min-width:0;overflow:hidden">
-                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" width="18" height="18"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
-                    <span style="font-weight:600;font-size:14px">Webhook URL</span>
-                    <span style="font-size:11px;background:rgba(16,185,129,0.15);color:#34d399;border-radius:10px;padding:2px 8px">\${settings.tunnelUrl ? 'Live' : 'Local Only'}</span>
-                  </div>
 
-                  <!-- Public Webhook URL -->
-                  <div style="margin-bottom:4px;font-size:11px;font-weight:600;color:var(--text-dim)">Add this to your website .env (EVOGO_WEBHOOK_URL)</div>
-                  <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px">
-                    <div id="public-webhook-display" style="flex:1;background:var(--surface);border:1px solid \${settings.tunnelUrl ? 'rgba(16,185,129,0.4)' : 'var(--border)'};border-radius:8px;padding:8px 10px;font-size:11px;font-family:monospace;color:var(--text);word-break:break-all">
-                      \${settings.tunnelUrl ? settings.tunnelUrl + '/api/website-leads' : location.origin + '/api/website-leads'}
+                <!-- Right: Email -->
+                <div style="padding:20px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" width="18" height="18"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                      <span style="font-weight:600;font-size:14px">Send Mail</span>
                     </div>
-                    <button onclick="copyWebhookUrl()" style="padding:7px 12px;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:12px;white-space:nowrap" id="copy-webhook-btn">Copy</button>
-                  </div>
-
-                  <!-- Tunnel URL update -->
-                  <div style="margin-bottom:14px">
-                    <div style="font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:5px">Tunnel URL (ngrok/serveo — if running)</div>
-                    <div style="display:flex;gap:6px">
-                      <input id="tunnel-url-input" type="url" placeholder="https://xyz.serveousercontent.com" value="\${settings.tunnelUrl||''}" style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 10px;color:var(--text);font-size:12px" />
-                      <button onclick="saveTunnelUrl()" style="padding:7px 12px;background:var(--surface);border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:12px;color:var(--text)">Save</button>
+                    <div id="auto-email-toggle-ui" onclick="toggleAutoEmail()" style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer">
+                      <div id="auto-email-track" style="position:absolute;top:0;left:0;right:0;bottom:0;background:\${settings.autoEmailEnabled ? '#2563eb' : '#d1d5db'};border-radius:24px;transition:.3s"></div>
+                      <div id="auto-email-knob" style="position:absolute;height:18px;width:18px;left:\${settings.autoEmailEnabled ? '23px' : '3px'};bottom:3px;background:#fff;border-radius:50%;transition:.3s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></div>
                     </div>
                   </div>
-
-                  <button onclick="addTestLead()" style="padding:7px 14px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:13px;color:var(--text)">+ Test Lead</button>
+                  <div style="margin-bottom:10px">
+                    <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;font-weight:600">Subject</label>
+                    <input id="auto-email-subject" type="text" value="\${esc(settings.autoEmailSubject||'')}" placeholder="Thank you for your interest" style="width:100%;padding:7px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;box-sizing:border-box">
+                  </div>
+                  <textarea id="auto-email-body" rows="4" placeholder="Dear {{name}},\n\nThank you for contacting us..." style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box">\${esc(settings.autoEmailBody||'')}</textarea>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px;margin-bottom:10px">Variables: {{name}} {{phone}} {{email}} {{source}} {{message}}</div>
+                  <button onclick="saveEmailSettings(this)" style="padding:7px 16px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500">Save Mail</button>
                 </div>
+              </div>
+
+              <!-- Webhook URL — full-width row -->
+              <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" width="16" height="16"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+                  <span style="font-weight:600;font-size:13px">Webhook URL</span>
+                  <span style="font-size:11px;background:rgba(16,185,129,0.15);color:#34d399;border-radius:10px;padding:2px 8px">Live</span>
+                </div>
+                <div id="public-webhook-display" style="flex:1;min-width:200px;background:var(--surface);border:1px solid rgba(16,185,129,0.4);border-radius:8px;padding:7px 10px;font-size:11px;font-family:monospace;color:var(--text);word-break:break-all">
+                  \${location.origin}/api/website-leads
+                </div>
+                <button onclick="copyWebhookUrl()" style="padding:7px 12px;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:12px;white-space:nowrap;flex-shrink:0" id="copy-webhook-btn">Copy</button>
+              </div>
+
+              <!-- B2B Bricks Forward — full-width row -->
+              <div style="padding:16px 20px;border-top:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" width="16" height="16"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+                  <span style="font-weight:600;font-size:13px">B2B Bricks Forward</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;flex-shrink:0" onclick="toggleB2BForward()" style="cursor:pointer">
+                  <span style="font-size:11px;color:var(--text-muted)" id="b2b-toggle-label">\${settings.b2bForwardEnabled ? 'On' : 'Off'}</span>
+                  <div style="position:relative;width:38px;height:22px;cursor:pointer">
+                    <div id="b2b-toggle-track" style="width:38px;height:22px;border-radius:11px;background:\${settings.b2bForwardEnabled ? '#25d366' : '#d1d5db'};transition:background .2s"></div>
+                    <div id="b2b-toggle-knob" style="position:absolute;top:3px;left:\${settings.b2bForwardEnabled ? '19px' : '3px'};width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:left .2s"></div>
+                  </div>
+                </div>
+                <input id="b2b-forward-url" type="url" placeholder="https://connector.b2bbricks.com/api/Integration/hook/..." value="\${esc(settings.b2bForwardUrl||'')}" style="flex:1;min-width:240px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text);box-sizing:border-box">
+                <button onclick="saveWebhookSettings()" style="padding:7px 16px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;flex-shrink:0">Save</button>
               </div>
             </div>
 
@@ -2236,6 +2342,21 @@ function getDashboardHtml() {
     }
 
     let _autoWaEnabled = false;
+    let _autoEmailEnabled = false;
+    async function toggleAutoEmail() {
+      _autoEmailEnabled = !_autoEmailEnabled;
+      await fetch('/api/website-settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ autoEmailEnabled: _autoEmailEnabled }) });
+      const track = document.getElementById('auto-email-track');
+      const knob = document.getElementById('auto-email-knob');
+      if (track) track.style.background = _autoEmailEnabled ? '#2563eb' : '#d1d5db';
+      if (knob) knob.style.left = _autoEmailEnabled ? '23px' : '3px';
+    }
+    async function saveEmailSettings(btn) {
+      const subject = document.getElementById('auto-email-subject')?.value || '';
+      const emailBody = document.getElementById('auto-email-body')?.value || '';
+      const r = await fetch('/api/website-settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ autoEmailSubject: subject, autoEmailBody: emailBody }) });
+      if (r.ok && btn) { const o=btn.textContent; btn.textContent='Saved!'; btn.style.background='#16a34a'; setTimeout(()=>{btn.textContent=o;btn.style.background='#2563eb';},2000); }
+    }
     async function toggleAutoWa() {
       _autoWaEnabled = !_autoWaEnabled;
       await fetch('/api/website-settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ autoWaEnabled: _autoWaEnabled }) });
@@ -2255,12 +2376,23 @@ function getDashboardHtml() {
       alert('Saved!');
     }
 
+    let _b2bForwardEnabled = false;
+    function toggleB2BForward() {
+      _b2bForwardEnabled = !_b2bForwardEnabled;
+      const track = document.getElementById('b2b-toggle-track');
+      const knob = document.getElementById('b2b-toggle-knob');
+      const label = document.getElementById('b2b-toggle-label');
+      if (track) track.style.background = _b2bForwardEnabled ? '#25d366' : '#d1d5db';
+      if (knob) knob.style.left = _b2bForwardEnabled ? '19px' : '3px';
+      if (label) label.textContent = _b2bForwardEnabled ? 'On' : 'Off';
+    }
+
     async function saveWebhookSettings() {
       const customWebhookUrl = document.getElementById('custom-webhook-url')?.value?.trim() || '';
-      const b2bForwardEnabled = document.getElementById('b2b-forward-toggle')?.checked || false;
       const b2bForwardUrl = document.getElementById('b2b-forward-url')?.value?.trim() || '';
-      await fetch('/api/website-settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ customWebhookUrl, b2bForwardEnabled, b2bForwardUrl }) });
-      alert('Webhook settings saved!');
+      await fetch('/api/website-settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ customWebhookUrl, b2bForwardEnabled: _b2bForwardEnabled, b2bForwardUrl }) });
+      const btn = event?.target;
+      if (btn) { const orig = btn.textContent; btn.textContent = 'Saved!'; btn.style.background = '#16a34a'; setTimeout(() => { btn.textContent = orig; btn.style.background = 'var(--accent)'; }, 2000); }
     }
 
     async function saveTunnelUrl() {

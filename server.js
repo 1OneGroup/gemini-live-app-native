@@ -1,4 +1,5 @@
 const http = require('http');
+const nodemailer = require('nodemailer');
 const { WebSocket, WebSocketServer } = require('ws');
 const url = require('url');
 const { mulawToPcm16k, pcm24kToMulaw } = require('./audio-utils');
@@ -58,7 +59,7 @@ function setActiveModel(model) {
 const GEMINI_WS_URL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${GEMINI_API_KEY}`;
 
 if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY required');
-if (!PLIVO_AUTH_ID || !PLIVO_AUTH_TOKEN) throw new Error('PLIVO_AUTH_ID and PLIVO_AUTH_TOKEN required');
+// if (!PLIVO_AUTH_ID || !PLIVO_AUTH_TOKEN) throw new Error('PLIVO_AUTH_ID and PLIVO_AUTH_TOKEN required');
 
 // Pre-warmed Gemini sessions: callUuid -> { ws, ready, audioQueue, plivoWs, callUuid }
 const pendingSessions = new Map();
@@ -1821,6 +1822,16 @@ load();
       const updated = db.updateWebsiteSettings(body);
       json(res, updated);
     }).catch(err => json(res, { error: err.message }, 400));
+    return;
+  }
+  // Test email
+  if (parsed.pathname === '/api/email/test' && req.method === 'POST') {
+    const s = db.getWebsiteSettings();
+    if (!s.smtpHost || !s.smtpUser || !s.smtpPass) { json(res, { error: 'SMTP not configured — save settings first' }, 400); return; }
+    const transporter = nodemailer.createTransport({ host: s.smtpHost, port: parseInt(s.smtpPort)||587, secure: parseInt(s.smtpPort)===465, auth: { user: s.smtpUser, pass: s.smtpPass } });
+    transporter.sendMail({ from: s.smtpFrom || s.smtpUser, to: s.smtpUser, subject: 'Test Email — Gemini Live Platform', text: 'Email configuration is working correctly!' })
+      .then(() => json(res, { ok: true }))
+      .catch(err => json(res, { error: err.message }, 500));
     return;
   }
   // Send WhatsApp to a specific lead

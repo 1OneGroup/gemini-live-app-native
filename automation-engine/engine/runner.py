@@ -90,7 +90,7 @@ def _send_static_birthday_card(instance: str, phone: str, caption: str, name: st
         with open(filepath, "wb") as f:
             f.write(_b64.b64decode(img_b64))
 
-        image_url = f"http://host.docker.internal:5001/media/{filename}"
+        image_url = f"http://72.61.170.222:9001/media/{filename}"
         result = _send_media(instance, phone, caption, image_url)
         try:
             _os.remove(filepath)
@@ -147,7 +147,7 @@ def _send_gemini_image(auto: dict, instance: str, phone: str, caption: str, row:
             f.write(_b64.b64decode(img_b64))
 
         # Evolution GO (Docker) reaches host Python server via host.docker.internal
-        image_url = f"http://host.docker.internal:5001/media/{filename}"
+        image_url = f"http://72.61.170.222:9001/media/{filename}"
         result = _send_media(instance, phone, caption, image_url)
 
         try:

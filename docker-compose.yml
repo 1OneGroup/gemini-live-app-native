@@ -1,31 +1,17 @@
 services:
   gemini-live-bridge:
     build: .
-    container_name: gemini-live-bridge
+    container_name: gemini-live-bridge-avinash
     restart: unless-stopped
     ports:
-      - "8100:8100"
-      - "5001:5001"
+      - "9000:8100"
+      - "9001:5001"
     volumes:
       - call-data:/data/calls
       - prompt-data:/data
-      - automation-db:/app/automation-engine
-    environment:
-      - PORT=8100
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - GEMINI_MODEL=${GEMINI_MODEL:-models/gemini-2.0-flash-live-001}
-      - PLIVO_AUTH_ID=${PLIVO_AUTH_ID}
-      - PLIVO_AUTH_TOKEN=${PLIVO_AUTH_TOKEN}
-      - PLIVO_FROM_NUMBER=${PLIVO_FROM_NUMBER}
-      - PUBLIC_URL=${PUBLIC_URL}
-      - EVOLUTION_API_URL=${EVOLUTION_API_URL:-http://localhost:5000}
-      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
-      - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-enjoy}
-      - WEBHOOK_URL=${WEBHOOK_URL:-}
-      - CLASSIFIER_DASHBOARD_URL=${CLASSIFIER_DASHBOARD_URL:-}
-      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL:-}
-      - AUTOMATION_API_URL=${AUTOMATION_API_URL:-http://localhost:5001}
+    env_file:
+      - .env
+
 volumes:
   call-data:
   prompt-data:
-  automation-db:

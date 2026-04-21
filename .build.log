@@ -1,0 +1,25 @@
+2026-04-16T07:33:59.851577 Project directory: /root/avinash
+2026-04-16T07:33:59.851986 Pulling project images
+2026-04-16T07:33:59.853207 ------------------------------
+2026-04-16T07:33:59.965318  gemini-live-bridge Skipped No image to be pulled
+2026-04-16T07:33:59.970048 ------------------------------
+2026-04-16T07:33:59.970524 Deploying project
+2026-04-16T07:33:59.971161 ------------------------------
+2026-04-16T07:34:00.146967  Container avinash-evolution-go Stopping 
+2026-04-16T07:34:00.148432  Container avinash-redis Stopping 
+2026-04-16T07:34:00.148806  Container avinash-postgres Stopping 
+2026-04-16T07:34:00.469501  Container avinash-redis Stopped 
+2026-04-16T07:34:00.469568  Container avinash-redis Removing 
+2026-04-16T07:34:00.504403  Container avinash-redis Removed 
+2026-04-16T07:34:00.590086  Container avinash-postgres Stopped 
+2026-04-16T07:34:00.590158  Container avinash-postgres Removing 
+2026-04-16T07:34:00.621758  Container avinash-postgres Removed 
+2026-04-16T07:34:00.988242  Container avinash-evolution-go Stopped 
+2026-04-16T07:34:00.988548  Container avinash-evolution-go Removing 
+2026-04-16T07:34:01.058672  Container avinash-evolution-go Removed 
+2026-04-16T07:34:01.059429  Container gemini-live-bridge-avinash Recreate 
+2026-04-16T07:34:11.710368  Container gemini-live-bridge-avinash Recreated 
+2026-04-16T07:34:11.725764  Container gemini-live-bridge-avinash Starting 
+2026-04-16T07:34:11.994296  Container gemini-live-bridge-avinash Started 
+2026-04-16T07:34:12.020579 ------------------------------
+2026-04-16T07:34:12.020660 Project deployed successfully
