@@ -1,3 +1,4 @@
+require('dotenv').config();
 const http = require('http');
 const { WebSocket, WebSocketServer } = require('ws');
 const url = require('url');
@@ -12,6 +13,7 @@ const whatsapp = require('./whatsapp');
 // --- Config ---
 const PORT = process.env.PORT || 8100;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const PLIVO_AUTH_ID = process.env.PLIVO_AUTH_ID;
 const PLIVO_AUTH_TOKEN = process.env.PLIVO_AUTH_TOKEN;
 const PLIVO_FROM_NUMBER = process.env.PLIVO_FROM_NUMBER;
@@ -702,9 +704,14 @@ const server = http.createServer(async (req, res) => {
       plivo: plivoCost, gemini: geminiCost, total: Math.round((plivoCost + geminiCost) * 100) / 100,
       model: call.model || getActiveModel(), modelName: GEMINI_MODELS[call.model]?.name || GEMINI_MODELS[getActiveModel()]?.name || 'Unknown',
     };
-    // Auto-classify outcome if missing
-    if (!call.outcome && (call.status === 'completed' || call.hangupCause)) {
-      call.outcome = store.classifyCallOutcome(callUuid);
+    // Auto-classify if missing, not AI-classified, or confidence not yet recorded
+    const aiOutcomes = ['interested', 'not_interested', 'needs_review', 'follow_up'];
+    if ((call.status === 'completed' || call.hangupCause) && (!aiOutcomes.includes(call.outcome) || call.confidence == null)) {
+      await store.classifyWithGemini(callUuid, OPENROUTER_API_KEY);
+      const updated = store.getCall(callUuid);
+      call.outcome = updated?.outcome || null;
+      call.confidence = updated?.confidence || null;
+      call.classificationReason = updated?.classificationReason || null;
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(call));
@@ -818,9 +825,10 @@ const server = http.createServer(async (req, res) => {
           answeredAt: answerTime || null,
         });
         // Classify outcome after a short delay to let final transcripts flush
-        setTimeout(() => {
-          const outcome = store.classifyCallOutcome(callUuid);
-          console.log(`[Outcome] ${callUuid}: ${outcome}`);
+        setTimeout(async () => {
+          await store.classifyWithGemini(callUuid, OPENROUTER_API_KEY);
+          const call = store.getCall(callUuid);
+          console.log(`[Outcome] ${callUuid}: ${call?.outcome}`);
         }, 5000);
         pendingSessions.delete(callUuid);
       }

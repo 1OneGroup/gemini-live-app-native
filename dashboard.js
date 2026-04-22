@@ -15,22 +15,24 @@ function getDashboardHtml() {
   <script src="https://cdn.datatables.net/responsive/3.0.2/js/dataTables.responsive.min.js"><\/script>
   <style>
     :root {
-      --bg: #09090b; --bg-secondary: #0c0c0f;
-      --surface: #18181b; --surface-hover: #1f1f23; --surface-raised: #27272a;
-      --border: #27272a; --border-subtle: #1f1f23;
-      --text: #fafafa; --text-secondary: #a1a1aa; --text-muted: #71717a; --text-dim: #52525b;
-      --accent: #6366f1; --accent-hover: #818cf8; --accent-bg: rgba(99,102,241,0.12); --accent-border: rgba(99,102,241,0.25);
-      --green: #22c55e; --green-bg: rgba(34,197,94,0.12); --green-border: rgba(34,197,94,0.25);
-      --amber: #f59e0b; --amber-bg: rgba(245,158,11,0.12); --amber-border: rgba(245,158,11,0.25);
-      --red: #ef4444; --red-bg: rgba(239,68,68,0.12); --red-border: rgba(239,68,68,0.25);
-      --blue: #3b82f6; --blue-bg: rgba(59,130,246,0.12); --blue-border: rgba(59,130,246,0.25);
-      --radius: 12px; --radius-sm: 8px; --radius-xs: 6px;
-      --shadow-sm: 0 1px 2px rgba(0,0,0,0.3); --shadow-md: 0 4px 12px rgba(0,0,0,0.4); --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+      /* One Group — light mode tokens */
+      --bg: #f5f3ed; --bg-secondary: #f0eee6;
+      --surface: #ffffff; --surface-hover: #f5f3ed; --surface-raised: #e8e6dc;
+      --border: #e8e6dc; --border-subtle: #f0eee6;
+      --text: #141413; --text-secondary: #4d4c48; --text-muted: #5e5d59; --text-dim: #87867f;
+      --accent: #762224; --accent-hover: #c45a5c; --accent-bg: rgba(118,34,36,0.08); --accent-border: rgba(118,34,36,0.25);
+      --green: #16a34a; --green-bg: rgba(22,163,74,0.10); --green-border: rgba(22,163,74,0.25);
+      --amber: #b45309; --amber-bg: rgba(180,83,9,0.10); --amber-border: rgba(180,83,9,0.25);
+      --red: #d4453a; --red-bg: rgba(212,69,58,0.10); --red-border: rgba(212,69,58,0.25);
+      --blue: #1d4ed8; --blue-bg: rgba(29,78,216,0.10); --blue-border: rgba(29,78,216,0.25);
+      --chart-1: #762224; --chart-2: #c45a5c; --chart-3: #5e5d59; --chart-4: #87867f; --chart-5: #b0aea5;
+      --radius: 8px; --radius-sm: 6px; --radius-xs: 4px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.10); --shadow-md: 0 4px 12px rgba(0,0,0,0.12); --shadow-lg: 0 8px 24px rgba(0,0,0,0.16);
       --sidebar-width: 240px;
       --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+    body { font-family: 'Inter', Georgia, -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
 
     /* === LAYOUT === */
     .app { display: flex; min-height: 100vh; }
@@ -63,7 +65,7 @@ function getDashboardHtml() {
     .main { flex: 1; margin-left: var(--sidebar-width); min-height: 100vh; }
 
     /* Top bar */
-    .topbar { padding: 16px 28px; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 30; background: rgba(9,9,11,0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    .topbar { padding: 16px 28px; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 30; background: rgba(245,243,237,0.90); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
     .topbar-title { font-size: 18px; font-weight: 600; }
     .topbar-actions { display: flex; gap: 8px; align-items: center; }
     .mobile-menu-btn { display: none; background: none; border: none; color: var(--text); cursor: pointer; padding: 8px; border-radius: var(--radius-xs); }
@@ -71,7 +73,20 @@ function getDashboardHtml() {
     .mobile-menu-btn svg { width: 22px; height: 22px; }
 
     /* Content area */
-    .content { padding: 24px 28px; max-width: 1200px; }
+    .content-wrapper { padding: 24px 28px; }
+    .content { padding: 0; max-width: unset; }
+    .top-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .overview-chart-row { display: flex; gap: 16px; margin-bottom: 24px; }
+    .quick-stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; transition: all var(--transition); }
+    .quick-stat:hover { border-color: var(--accent-border); }
+    .quick-stat-label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .quick-stat-value { font-size: 26px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+    .quick-stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+    .quick-stat.accent { border-color: var(--accent-border); background: linear-gradient(135deg, var(--accent-bg), var(--surface)); }
+    .quick-stat.green { border-color: var(--green-border); }
+    .quick-stat.amber { border-color: var(--amber-border); }
+    .quick-stat.red { border-color: var(--red-border); }
+    @media (max-width: 768px) { .content-wrapper { padding: 16px; } .overview-chart-row { flex-direction: column; } }
 
     /* === COMPONENTS === */
 
@@ -137,6 +152,22 @@ function getDashboardHtml() {
     .badge-completed .badge-dot { background: var(--green); }
     .badge-cancelled { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
     .badge-cancelled .badge-dot { background: var(--red); }
+    .badge-needs_review { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border); }
+    .badge-needs_review .badge-dot { background: var(--blue); animation: pulse 2s infinite; }
+    .badge-interested { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+    .badge-interested .badge-dot { background: var(--green); }
+    .badge-not_interested { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+    .badge-not_interested .badge-dot { background: var(--red); }
+    .badge-follow_up { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+    .badge-follow_up .badge-dot { background: var(--amber); animation: pulse 2s infinite; }
+    .confidence-bar { height: 3px; border-radius: 2px; background: var(--surface-raised); margin-top: 6px; overflow: hidden; }
+    .confidence-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
+    .confidence-fill.high { background: var(--green); }
+    .confidence-fill.medium { background: var(--amber); }
+    .confidence-fill.low { background: var(--red); }
+    .call-audio { margin-top: 10px; }
+    .call-audio audio { width: 100%; height: 32px; border-radius: var(--radius-xs); accent-color: var(--accent); filter: invert(0.85) hue-rotate(180deg) brightness(0.9); }
+    .no-recording { font-size: 11px; color: var(--text-dim); margin-top: 8px; }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
     /* Call card */
@@ -427,7 +458,9 @@ function getDashboardHtml() {
         </div>
       </div>
 
-      <div class="content">
+      <div class="content-wrapper">
+        <div class="content">
+
         <!-- Campaigns Page -->
         <div id="page-campaigns">
           <div id="campaign-list-view">
@@ -452,9 +485,71 @@ function getDashboardHtml() {
 
         <!-- Calls Page -->
         <div id="page-calls" class="hidden">
-          <div class="stats-grid" id="call-stats"></div>
+          <!-- Calls Overview -->
+          <div style="margin-bottom:20px">
+            <div class="top-stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:16px">
+              <div class="quick-stat accent">
+                <div class="quick-stat-label">Total Calls</div>
+                <div class="quick-stat-value" id="qs-total-calls">—</div>
+                <div class="quick-stat-sub">All time</div>
+              </div>
+              <div class="quick-stat green">
+                <div class="quick-stat-label">Completed</div>
+                <div class="quick-stat-value" id="qs-completed">—</div>
+                <div class="quick-stat-sub" id="qs-completed-pct">—% success</div>
+              </div>
+              <div class="quick-stat" style="border-color:var(--green-border)">
+                <div class="quick-stat-label">Interested</div>
+                <div class="quick-stat-value" id="qs-interested" style="color:var(--green)">—</div>
+                <div class="quick-stat-sub">Hot leads</div>
+              </div>
+              <div class="quick-stat" style="border-color:var(--amber-border)">
+                <div class="quick-stat-label">Follow Up</div>
+                <div class="quick-stat-value" id="qs-follow-up" style="color:var(--amber)">—</div>
+                <div class="quick-stat-sub">Low confidence</div>
+              </div>
+              <div class="quick-stat" style="border-color:var(--blue-border)">
+                <div class="quick-stat-label">Needs Review</div>
+                <div class="quick-stat-value" id="qs-needs-review" style="color:var(--blue)">—</div>
+                <div class="quick-stat-sub">Ambiguous</div>
+              </div>
+            </div>
+            <div class="card" style="margin-bottom:16px">
+              <div class="card-body" style="display:flex;gap:24px;align-items:center">
+                <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap">Lead Classification</div>
+                <div style="position:relative;height:160px;flex:1;min-width:0">
+                  <canvas id="outcome-pie-chart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Search & filters -->
+          <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+            <div style="position:relative;flex:1;min-width:200px">
+              <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-dim)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input id="call-search" type="text" placeholder="Search by name or phone..." oninput="renderCalls()"
+                style="width:100%;padding:8px 10px 8px 32px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:inherit;outline:none"
+                onfocus="this.style.borderColor='var(--accent-border)'" onblur="this.style.borderColor='var(--border)'">
+            </div>
+            <input id="call-date-from" type="date" onchange="renderCalls()" title="From date"
+              style="padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:inherit;outline:none;color-scheme:dark">
+            <input id="call-date-to" type="date" onchange="renderCalls()" title="To date"
+              style="padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:inherit;outline:none;color-scheme:dark">
+            <select id="call-sort" onchange="renderCalls()"
+              style="padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-family:inherit;outline:none">
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="duration">Longest Duration</option>
+              <option value="confidence">Highest Confidence</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="clearCallFilters()">Clear</button>
+          </div>
           <div class="filter-bar" id="call-filters">
             <div class="filter-item active" onclick="filterCalls('all', this)">All Calls</div>
+            <div class="filter-item" onclick="filterCalls('interested', this)">Interested</div>
+            <div class="filter-item" onclick="filterCalls('not_interested', this)">Not Interested</div>
+            <div class="filter-item" onclick="filterCalls('needs_review', this)">Needs Review</div>
+            <div class="filter-item" onclick="filterCalls('follow_up', this)">Follow Up</div>
             <div class="filter-item" onclick="filterCalls('completed', this)">Completed</div>
             <div class="filter-item" onclick="filterCalls('busy', this)">Busy / Failed</div>
           </div>
@@ -490,6 +585,7 @@ function getDashboardHtml() {
         <div id="page-settings" class="hidden">
           <div id="settings-content"></div>
         </div>
+      </div>
       </div>
     </div>
   </div>
@@ -713,6 +809,7 @@ function getDashboardHtml() {
         <div class="stat-card"><div class="stat-label">Total Contacts</div><div class="stat-value">\${totalContacts.toLocaleString()}</div></div>
         <div class="stat-card \${awaiting > 0 ? 'amber' : ''}"><div class="stat-label">Awaiting Review</div><div class="stat-value">\${awaiting}</div></div>
       \`;
+      updateQuickStats();
 
       if (allCampaigns.length === 0) {
         list.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><h3>No campaigns yet</h3><p>Create your first bulk calling campaign to get started</p></div>';
@@ -1118,8 +1215,46 @@ function getDashboardHtml() {
     async function loadCalls() {
       const res = await fetch('/api/calls');
       allCalls = await res.json();
-      renderCallStats();
+      updateQuickStats();
       renderCalls();
+    }
+
+    let outcomePieChart = null;
+
+    function updateQuickStats() {
+      const total = allCalls.length;
+      const completed = allCalls.filter(c => c.status === 'completed').length;
+      const interested = allCalls.filter(c => c.outcome && c.outcome.includes('interested') && !c.outcome.includes('not_interested')).length;
+      const notInterested = allCalls.filter(c => c.outcome && c.outcome.includes('not_interested')).length;
+      const needsReview = allCalls.filter(c => c.outcome === 'needs_review').length;
+      const followUp = allCalls.filter(c => c.outcome === 'follow_up').length;
+      const busy = allCalls.filter(c => c.outcome === 'busy' || c.outcome === 'no_answer').length;
+
+      const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      setEl('qs-total-calls', total || '—');
+      setEl('qs-completed', completed || '—');
+      setEl('qs-completed-pct', total ? Math.round(completed / total * 100) + '% success' : '—% success');
+      setEl('qs-interested', interested || '0');
+      setEl('qs-needs-review', needsReview || '0');
+      setEl('qs-follow-up', followUp || '0');
+
+      // Doughnut chart — outcome distribution
+      const pieCtx = document.getElementById('outcome-pie-chart');
+      if (pieCtx && total > 0) {
+        const other = Math.max(0, total - interested - notInterested - followUp - needsReview - busy);
+        const pieData = {
+          labels: ['Interested', 'Not Interested', 'Follow Up', 'Needs Review', 'Busy/No Answer', 'Other'],
+          datasets: [{ data: [interested, notInterested, followUp, needsReview, busy, other],
+            backgroundColor: ['#22c55e','#d4453a','#c45a5c','#3b82f6','#87867f','#5e5d59'],
+            borderColor: '#18181b', borderWidth: 2 }]
+        };
+        if (outcomePieChart) { outcomePieChart.data = pieData; outcomePieChart.update(); }
+        else {
+          outcomePieChart = new Chart(pieCtx, { type: 'doughnut', data: pieData,
+            options: { responsive: true, maintainAspectRatio: false, cutout: '65%',
+              plugins: { legend: { position: 'right', labels: { color: '#a1a1aa', font: { size: 11 }, boxWidth: 12, padding: 10 } } } } });
+        }
+      }
     }
 
     function renderCallStats() {
@@ -1134,25 +1269,58 @@ function getDashboardHtml() {
         <div class="stat-card"><div class="stat-label">Avg Duration</div><div class="stat-value">\${avg}s</div></div>
         <div class="stat-card"><div class="stat-label">With Transcripts</div><div class="stat-value">\${withTx}</div></div>
       \`;
+      updateQuickStats();
     }
 
     function renderCalls() {
       const list = document.getElementById('call-list');
       let filtered = allCalls;
-      if(currentFilter==='completed') filtered = allCalls.filter(c=>c.status==='completed');
-      if(currentFilter==='busy') filtered = allCalls.filter(c=>c.status!=='completed'&&c.status!=='connected'&&c.status!=='initiated');
+
+      // Outcome filter tabs
+      if(currentFilter==='completed') filtered = filtered.filter(c=>c.status==='completed');
+      else if(currentFilter==='busy') filtered = filtered.filter(c=>c.status!=='completed'&&c.status!=='connected'&&c.status!=='initiated');
+      else if(currentFilter==='interested') filtered = filtered.filter(c=>c.outcome&&c.outcome.includes('interested')&&!c.outcome.includes('not_interested'));
+      else if(currentFilter==='not_interested') filtered = filtered.filter(c=>c.outcome&&c.outcome.includes('not_interested'));
+      else if(currentFilter==='needs_review') filtered = filtered.filter(c=>c.outcome==='needs_review');
+      else if(currentFilter==='follow_up') filtered = filtered.filter(c=>c.outcome==='follow_up');
+
+      // Search
+      const search = (document.getElementById('call-search')?.value || '').toLowerCase().trim();
+      if (search) filtered = filtered.filter(c =>
+        (c.customerName||'').toLowerCase().includes(search) || (c.to||'').includes(search)
+      );
+
+      // Date range
+      const from = document.getElementById('call-date-from')?.value;
+      const to = document.getElementById('call-date-to')?.value;
+      if (from) filtered = filtered.filter(c => new Date(c.startedAt) >= new Date(from));
+      if (to) filtered = filtered.filter(c => new Date(c.startedAt) <= new Date(to + 'T23:59:59'));
+
+      // Sort
+      const sort = document.getElementById('call-sort')?.value || 'newest';
+      if (sort === 'newest') filtered = [...filtered].sort((a,b) => new Date(b.startedAt) - new Date(a.startedAt));
+      else if (sort === 'oldest') filtered = [...filtered].sort((a,b) => new Date(a.startedAt) - new Date(b.startedAt));
+      else if (sort === 'duration') filtered = [...filtered].sort((a,b) => (b.duration||0) - (a.duration||0));
+      else if (sort === 'confidence') filtered = [...filtered].sort((a,b) => (b.confidence||0) - (a.confidence||0));
       if(filtered.length===0){list.innerHTML='<div class="empty-state"><p>No calls found</p></div>';return;}
       list.innerHTML = filtered.map(c => {
         const statusCls = c.status==='completed'?'completed':c.hangupCause==='Rejected'?'cancelled':'draft';
         return \`<div class="card call-card" onclick="openDetail('\${c.callUuid}')"><div class="card-body">
           <div class="card-top">
             <div><span class="card-name">\${esc(c.customerName||'Unknown')}</span><span class="card-phone">\${c.to}</span></div>
-            <span class="badge-status badge-\${statusCls}"><span class="badge-dot"></span>\${c.status}</span>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+              \${c.outcome ? \`<span class="badge-status badge-\${c.outcome.includes('not_interested')?'not_interested':c.outcome.includes('interested')?'interested':c.outcome==='needs_review'?'needs_review':c.outcome==='follow_up'?'follow_up':statusCls}"><span class="badge-dot"></span>\${c.outcome.replace(/_/g,' ')}</span>\` : \`<span class="badge-status badge-\${statusCls}"><span class="badge-dot"></span>\${c.status}</span>\`}
+              \${c.confidence != null ? \`<span style="font-size:11px;color:var(--text-muted)">\${c.confidence}% confidence</span>\` : ''}
+            </div>
+            \${c.confidence != null ? \`<div class="confidence-bar"><div class="confidence-fill \${c.confidence>=75?'high':c.confidence>=50?'medium':'low'}" style="width:\${c.confidence}%"></div></div>\` : ''}
           </div>
           <div class="card-bottom">
-            <span class="card-meta">\${new Date(c.startedAt).toLocaleString()}\${c.outcome ? ' &middot; <span class="badge-status badge-'+(c.outcome==='interested'?'completed':c.outcome==='not_interested'?'cancelled':'draft')+'\" style="font-size:10px;padding:1px 6px"><span class="badge-dot"></span>'+c.outcome.replace(/_/g,' ')+'</span>' : ''}</span>
+            <span class="card-meta">\${new Date(c.startedAt).toLocaleString()}</span>
             <span class="card-meta">\${c.duration?c.duration+'s':'—'} &middot; \${c.geminiTurns} turns</span>
           </div>
+          \${c.recordingUrl
+            ? \`<div class="call-audio" onclick="event.stopPropagation()"><audio controls preload="none" src="\${c.recordingUrl}"></audio></div>\`
+            : \`<div class="no-recording">No recording available</div>\`}
         </div></div>\`;
       }).join('');
     }
@@ -1161,6 +1329,21 @@ function getDashboardHtml() {
       currentFilter = f;
       el.closest('.filter-bar').querySelectorAll('.filter-item').forEach(t=>t.classList.remove('active'));
       el.classList.add('active');
+      renderCalls();
+    }
+
+    function clearCallFilters() {
+      const search = document.getElementById('call-search');
+      const from = document.getElementById('call-date-from');
+      const to = document.getElementById('call-date-to');
+      const sort = document.getElementById('call-sort');
+      if (search) search.value = '';
+      if (from) from.value = '';
+      if (to) to.value = '';
+      if (sort) sort.value = 'newest';
+      currentFilter = 'all';
+      document.querySelectorAll('#call-filters .filter-item').forEach(t => t.classList.remove('active'));
+      document.querySelector('#call-filters .filter-item')?.classList.add('active');
       renderCalls();
     }
 
@@ -1182,6 +1365,24 @@ function getDashboardHtml() {
       const ci = call.costINR || {};
       const tk = call.tokens || {};
 
+      const confPct = call.confidence != null ? Math.min(100, Math.max(0, parseInt(call.confidence))) : null;
+      const confClass = confPct == null ? '' : confPct >= 75 ? 'high' : confPct >= 50 ? 'medium' : 'low';
+      const confColor = confPct == null ? 'var(--text-dim)' : confPct >= 75 ? 'var(--green)' : confPct >= 50 ? 'var(--amber)' : 'var(--red)';
+      const confLabel = confPct == null ? '—' : confPct >= 75 ? 'High confidence' : confPct >= 50 ? 'Medium confidence' : 'Low confidence';
+      const outcomeBadge = call.outcome ? \`<span class="badge-status badge-\${call.outcome}"><span class="badge-dot"></span>\${call.outcome.replace(/_/g,' ')}</span>\` : '—';
+      const confidenceBlock = confPct != null ? \`
+        <div style="margin-top:14px;padding:14px 16px;background:var(--surface-raised);border-radius:var(--radius-sm);border:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em">AI Confidence</span>
+            <span style="font-size:18px;font-weight:700;color:\${confColor}">\${confPct}%</span>
+          </div>
+          <div style="height:6px;border-radius:3px;background:var(--border);overflow:hidden">
+            <div class="confidence-fill \${confClass}" style="width:\${confPct}%;height:100%;border-radius:3px;transition:width 0.5s ease"></div>
+          </div>
+          <div style="margin-top:6px;font-size:11px;color:\${confColor};font-weight:500">\${confLabel}</div>
+          \${call.classificationReason ? \`<div style="margin-top:8px;font-size:12px;color:var(--text-muted);line-height:1.5;border-top:1px solid var(--border-subtle);padding-top:8px">\${esc(call.classificationReason)}</div>\` : ''}
+        </div>\` : '';
+
       body.innerHTML = \`
         <div class="slide-over-section"><h3>Call Info</h3>
           <div class="detail-grid">
@@ -1189,9 +1390,10 @@ function getDashboardHtml() {
             <div class="detail-item"><div class="detail-label">Duration</div><div class="detail-value">\${call.duration||0}s</div></div>
             <div class="detail-item"><div class="detail-label">Started</div><div class="detail-value">\${call.startedAt?new Date(call.startedAt).toLocaleString():'—'}</div></div>
             <div class="detail-item"><div class="detail-label">Ended</div><div class="detail-value">\${call.endedAt?new Date(call.endedAt).toLocaleString():'—'}</div></div>
-            <div class="detail-item"><div class="detail-label">Outcome</div><div class="detail-value">\${call.outcome ? '<span class="badge-status badge-' + (call.outcome==='interested'?'completed':call.outcome==='not_interested'?'cancelled':'draft') + '"><span class="badge-dot"></span>' + call.outcome.replace(/_/g,' ') + '</span>' : '—'}</div></div>
+            <div class="detail-item"><div class="detail-label">Outcome</div><div class="detail-value">\${outcomeBadge}</div></div>
             <div class="detail-item"><div class="detail-label">Hangup</div><div class="detail-value">\${call.hangupCause||'—'}</div></div>
           </div>
+          \${confidenceBlock}
         </div>
         <div class="slide-over-section"><h3>Cost (₹)</h3>
           <div class="detail-grid">
