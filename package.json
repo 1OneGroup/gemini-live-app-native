@@ -2,9 +2,12 @@
   "name": "_default",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "echo 'lint not configured'"
   },
   "keywords": [],
   "author": "",
@@ -13,6 +16,8 @@
   "dependencies": {
     "pg": "^8.13.1",
     "plivo": "^4.75.8",
-    "ws": "^8.20.0"
+    "ws": "^8.20.0",
+    "express": "^4.19.2",
+    "dotenv": "^16.4.5"
   }
 }

@@ -80,7 +80,7 @@ Closing:
 async function getSystemInstruction() {
   // Priority 1: Active named prompt from DB
   try {
-    const db = require('./db');
+    const db = require('../db');
     const active = await db.getActivePrompt();
     if (active?.body) return active.body;
   } catch (err) {

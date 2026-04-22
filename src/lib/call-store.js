@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { classifyOutcome: _classifyOutcome } = require('./outcome-classifier');
 
 const DATA_DIR = process.env.DATA_DIR || '/data/calls';
 
@@ -124,27 +125,12 @@ function classifyCallOutcome(callUuid) {
     return 'no_answer';
   }
 
+  // Delegate transcript + duration classification to shared module (multi-outcome mode)
   const transcript = (call.transcript || []).map(t => (t.text || '').toLowerCase()).join(' ');
-  const outcomes = [];
+  const outcome = _classifyOutcome(call.transcript || [], call.duration || 0, { multiOutcome: true });
 
-  if (transcript.includes('brochure') && (transcript.includes('whatsapp') || transcript.includes('send'))) {
-    outcomes.push('brochure_sent');
-  }
-  if (transcript.includes('site visit') || transcript.includes('schedule') ||
-      transcript.includes('interested') || transcript.includes('tell me more') ||
-      transcript.includes('appointment') || transcript.includes('visit kar')) {
-    outcomes.push('interested');
-  }
-  if (transcript.includes('not interested') || transcript.includes('no thank') ||
-      transcript.includes('don\'t call') || transcript.includes('remove') || transcript.includes('no need')) {
-    outcomes.push('not_interested');
-  }
-  if (transcript.includes('call back') || transcript.includes('callback') || transcript.includes('later') ||
-      transcript.includes('busy right now') || transcript.includes('abhi nahi') ||
-      transcript.includes('call me') || transcript.includes('baad mein') ||
-      transcript.includes('din baad') || transcript.includes('baad call')) {
-    outcomes.push('callback');
-    // Extract when they want the callback
+  // Extract callback timing if this call has a callback outcome
+  if (outcome.includes('callback')) {
     const timing = extractCallbackTiming(transcript);
     if (timing) {
       const now = new Date();
@@ -165,16 +151,6 @@ function classifyCallOutcome(callUuid) {
     }
   }
 
-  if (outcomes.length === 0) {
-    // Fallback based on duration
-    let outcome = 'no_answer';
-    if (call.duration && call.duration > 30) outcome = 'interested';
-    else if (call.duration && call.duration > 10) outcome = 'callback';
-    updateCall(callUuid, { outcome });
-    return outcome;
-  }
-
-  const outcome = outcomes.join(',');
   updateCall(callUuid, { outcome });
   return outcome;
 }

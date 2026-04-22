@@ -1,10 +1,9 @@
 // WhatsApp brochure integration via Evo Go API
 const fs = require('fs');
 const path = require('path');
+const { normalizePhone } = require('../lib/phone');
+const { getEvoUrl, getDefaultInstance, getInstanceCredentials } = require('./evolution');
 
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'https://evo-go.tech.onegroup.co.in';
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
-const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || 'office_bot';
 const BROCHURES_PATH = path.join(process.env.DATA_DIR || '/data', 'brochures.json');
 
 // Default brochure mapping
@@ -44,51 +43,15 @@ function setBrochure(projectKey, { name, url, caption }) {
   return brochures;
 }
 
-// Cache for instance credentials to avoid fetching on every send
-let instanceCache = null;
-let instanceCacheTime = 0;
-const INSTANCE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-async function fetchInstances() {
-  if (instanceCache && Date.now() - instanceCacheTime < INSTANCE_CACHE_TTL) {
-    return instanceCache;
-  }
-  const res = await fetch(`${EVOLUTION_API_URL}/instance/all`, {
-    headers: { 'apikey': EVOLUTION_API_KEY },
-  });
-  const data = await res.json();
-  instanceCache = data.data || [];
-  instanceCacheTime = Date.now();
-  return instanceCache;
-}
-
-// Returns { id, token } for a given instance name
-async function getInstanceCredentials(instanceName) {
-  try {
-    const instances = await fetchInstances();
-    const match = instances.find(i => i.name === instanceName);
-    if (match) return { id: match.id, token: match.token };
-    // Fall back to first connected instance
-    const connected = instances.find(i => i.connected);
-    if (connected) {
-      console.warn(`[WhatsApp] Instance "${instanceName}" not found, using "${connected.name}"`);
-      return { id: connected.id, token: connected.token };
-    }
-  } catch (err) {
-    console.error('[WhatsApp] Failed to fetch instances:', err.message);
-  }
-  return null;
-}
-
 // Resolve which instance name to use for an employee
 async function resolveInstance(employeeName) {
-  if (!employeeName) return EVOLUTION_INSTANCE;
+  if (!employeeName) return getDefaultInstance();
   try {
-    const db = require('./db');
+    const db = require('../db');
     const emp = await db.getEmployeeByName(employeeName);
     if (emp?.instance_name) return emp.instance_name;
   } catch {}
-  return EVOLUTION_INSTANCE;
+  return getDefaultInstance();
 }
 
 // Resolve the message template to send. Order of precedence:
@@ -100,7 +63,7 @@ function wamToBrochure(m) {
 }
 
 async function resolveMessage(ref) {
-  const db = (() => { try { return require('./db'); } catch { return null; } })();
+  const db = (() => { try { return require('../db'); } catch { return null; } })();
 
   if (db && ref) {
     try {
@@ -135,10 +98,9 @@ async function sendBrochure(phoneNumber, projectName, employeeName) {
     return { success: false, error: 'No active WhatsApp message configured' };
   }
 
-  // Normalize phone number (remove + prefix, ensure country code)
-  let number = phoneNumber.replace(/[^0-9]/g, '');
-  if (number.startsWith('0')) number = '91' + number.substring(1);
-  if (!number.startsWith('91') && number.length === 10) number = '91' + number;
+  // Normalize phone number to digits-only format required by Evo Go API
+  // normalizePhone returns E.164 (+91...), then we strip the '+' for the API.
+  let number = normalizePhone(phoneNumber).replace(/^\+/, '');
 
   const instanceName = await resolveInstance(employeeName);
   console.log(`[WhatsApp] Using instance: ${instanceName} (employee: ${employeeName || 'default'})`);
@@ -153,6 +115,8 @@ async function sendBrochure(phoneNumber, projectName, employeeName) {
   // Unique per-message stanza ID (Evo Go echoes this as Info.ID; reused IDs get
   // dropped by WhatsApp as duplicates).
   const msgId = `glb-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+  const EVOLUTION_API_URL = getEvoUrl();
 
   try {
     const mediaUrl = brochure.url || '';

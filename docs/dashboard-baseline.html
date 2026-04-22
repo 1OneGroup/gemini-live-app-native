@@ -1,5 +1,4 @@
-function getDashboardHtml() {
-  return `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -7,12 +6,12 @@ function getDashboardHtml() {
   <title>Gemini Live — Telecalling Platform</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"><\/script>
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js"><\/script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/responsive/3.0.2/css/responsive.dataTables.min.css">
-  <script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"><\/script>
-  <script src="https://cdn.datatables.net/responsive/3.0.2/js/dataTables.responsive.min.js"><\/script>
+  <script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/responsive/3.0.2/js/dataTables.responsive.min.js"></script>
   <style>
     :root {
       --bg: #09090b; --bg-secondary: #0c0c0f;
@@ -707,12 +706,12 @@ function getDashboardHtml() {
       const totalContacts = allCampaigns.reduce((s, c) => s + (c.total_contacts || 0), 0);
       const awaiting = allCampaigns.filter(c => c.status === 'awaiting_approval').length;
 
-      stats.innerHTML = \`
-        <div class="stat-card accent"><div class="stat-label">Total Campaigns</div><div class="stat-value">\${total}</div></div>
-        <div class="stat-card \${running > 0 ? 'green' : ''}"><div class="stat-label">Active</div><div class="stat-value">\${running}</div></div>
-        <div class="stat-card"><div class="stat-label">Total Contacts</div><div class="stat-value">\${totalContacts.toLocaleString()}</div></div>
-        <div class="stat-card \${awaiting > 0 ? 'amber' : ''}"><div class="stat-label">Awaiting Review</div><div class="stat-value">\${awaiting}</div></div>
-      \`;
+      stats.innerHTML = `
+        <div class="stat-card accent"><div class="stat-label">Total Campaigns</div><div class="stat-value">${total}</div></div>
+        <div class="stat-card ${running > 0 ? 'green' : ''}"><div class="stat-label">Active</div><div class="stat-value">${running}</div></div>
+        <div class="stat-card"><div class="stat-label">Total Contacts</div><div class="stat-value">${totalContacts.toLocaleString()}</div></div>
+        <div class="stat-card ${awaiting > 0 ? 'amber' : ''}"><div class="stat-label">Awaiting Review</div><div class="stat-value">${awaiting}</div></div>
+      `;
 
       if (allCampaigns.length === 0) {
         list.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><h3>No campaigns yet</h3><p>Create your first bulk calling campaign to get started</p></div>';
@@ -724,18 +723,18 @@ function getDashboardHtml() {
         const processed = (s.completed||0) + (s.failed||0);
         const pct = c.total_contacts > 0 ? Math.round(processed / c.total_contacts * 100) : 0;
         const fillCls = c.status === 'running' ? 'accent' : c.status === 'completed' ? 'green' : 'amber';
-        return \`<div class="card campaign-card" onclick="openCampaignDetail('\${c.id}')">
+        return `<div class="card campaign-card" onclick="openCampaignDetail('${c.id}')">
           <div class="card-body">
             <div class="card-top">
               <div>
-                <div class="card-name">\${esc(c.name)}</div>
-                <div class="card-meta">\${c.total_contacts.toLocaleString()} contacts &middot; Batch \${c.current_batch || 0}/\${Math.ceil(c.total_contacts / c.batch_size) || 0} &middot; \${new Date(c.created_at).toLocaleDateString()}</div>
+                <div class="card-name">${esc(c.name)}</div>
+                <div class="card-meta">${c.total_contacts.toLocaleString()} contacts &middot; Batch ${c.current_batch || 0}/${Math.ceil(c.total_contacts / c.batch_size) || 0} &middot; ${new Date(c.created_at).toLocaleDateString()}</div>
               </div>
-              <span class="badge-status badge-\${c.status}"><span class="badge-dot"></span>\${c.status.replace('_', ' ')}</span>
+              <span class="badge-status badge-${c.status}"><span class="badge-dot"></span>${c.status.replace('_', ' ')}</span>
             </div>
-            <div class="progress-bar"><div class="progress-fill \${fillCls}" style="width:\${pct}%"></div></div>
+            <div class="progress-bar"><div class="progress-fill ${fillCls}" style="width:${pct}%"></div></div>
           </div>
-        </div>\`;
+        </div>`;
       }).join('');
     }
 
@@ -765,17 +764,17 @@ function getDashboardHtml() {
 
       let actions = '';
       if (c.status === 'draft') {
-        actions = \`<button class="btn btn-secondary" onclick="openCsvUpload('\${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload CSV</button>\`;
-        if (c.total_contacts > 0) actions += \` <button class="btn btn-success" onclick="startCampaign('\${c.id}')">Start Campaign</button>\`;
-        actions += \` <button class="btn btn-danger btn-sm" onclick="deleteCampaign('\${c.id}')">Delete</button>\`;
+        actions = `<button class="btn btn-secondary" onclick="openCsvUpload('${c.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload CSV</button>`;
+        if (c.total_contacts > 0) actions += ` <button class="btn btn-success" onclick="startCampaign('${c.id}')">Start Campaign</button>`;
+        actions += ` <button class="btn btn-danger btn-sm" onclick="deleteCampaign('${c.id}')">Delete</button>`;
       } else if (c.status === 'running') {
-        actions = \`<button class="btn btn-amber" onclick="pauseCampaign('\${c.id}')">Pause</button>\`;
+        actions = `<button class="btn btn-amber" onclick="pauseCampaign('${c.id}')">Pause</button>`;
       } else if (c.status === 'paused') {
-        actions = \`<button class="btn btn-success" onclick="startCampaign('\${c.id}')">Resume</button> <button class="btn btn-danger" onclick="cancelCampaign('\${c.id}')">Cancel</button> <button class="btn btn-danger btn-sm" onclick="deleteCampaign('\${c.id}')">Delete</button>\`;
+        actions = `<button class="btn btn-success" onclick="startCampaign('${c.id}')">Resume</button> <button class="btn btn-danger" onclick="cancelCampaign('${c.id}')">Cancel</button> <button class="btn btn-danger btn-sm" onclick="deleteCampaign('${c.id}')">Delete</button>`;
       } else if (c.status === 'awaiting_approval') {
         actions = '<span class="badge-status badge-awaiting_approval"><span class="badge-dot"></span>Review batch analysis below</span>';
       } else if (c.status === 'cancelled' || c.status === 'completed') {
-        actions = \`<button class="btn btn-danger btn-sm" onclick="deleteCampaign('\${c.id}')">Delete</button>\`;
+        actions = `<button class="btn btn-danger btn-sm" onclick="deleteCampaign('${c.id}')">Delete</button>`;
       }
 
       let batchHtml = '';
@@ -789,28 +788,28 @@ function getDashboardHtml() {
           else if (b.analysis && b.analysis.approved === 0 && done >= total) cls = 'awaiting';
           else if (done > 0 && done < total) cls = 'in-progress';
           else if (done >= total && total > 0) cls = b.analysis ? 'completed' : 'completed';
-          return \`<div class="batch-pill \${cls}" onclick="selectBatch('\${c.id}', \${b.batchNumber}, event)">Batch \${b.batchNumber}</div>\`;
+          return `<div class="batch-pill ${cls}" onclick="selectBatch('${c.id}', ${b.batchNumber}, event)">Batch ${b.batchNumber}</div>`;
         }).join('') + '</div>';
       }
 
-      el.innerHTML = \`
+      el.innerHTML = `
         <div class="campaign-header">
           <div>
-            <h2 class="campaign-title">\${esc(c.name)}</h2>
-            <div style="margin-top:6px"><span class="badge-status badge-\${c.status}"><span class="badge-dot"></span>\${c.status.replace('_',' ')}</span>\${c.whatsapp_message_key ? ' <span style="font-size:12px;color:var(--text-dim);margin-left:8px">WhatsApp: <strong>' + esc(c.whatsapp_message_key) + '</strong></span>' : ''}</div>
+            <h2 class="campaign-title">${esc(c.name)}</h2>
+            <div style="margin-top:6px"><span class="badge-status badge-${c.status}"><span class="badge-dot"></span>${c.status.replace('_',' ')}</span>${c.whatsapp_message_key ? ' <span style="font-size:12px;color:var(--text-dim);margin-left:8px">WhatsApp: <strong>' + esc(c.whatsapp_message_key) + '</strong></span>' : ''}</div>
           </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">\${actions}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">${actions}</div>
         </div>
 
         <div class="stats-grid">
-          <div class="stat-card"><div class="stat-label">Connection Rate</div><div class="stat-value">\${connRate}%</div><div class="stat-sub">\${s.completed||0} / \${totalProcessed} connected</div></div>
-          <div class="stat-card"><div class="stat-label">Interest Rate</div><div class="stat-value">\${intRate}%</div><div class="stat-sub">\${s.interested||0} interested</div></div>
-          <div class="stat-card"><div class="stat-label">Brochures Sent</div><div class="stat-value">\${s.brochure_sent||0}</div><div class="stat-sub">via WhatsApp</div></div>
-          <div class="stat-card"><div class="stat-label">Voicemail</div><div class="stat-value">\${s.voicemail||0}</div><div class="stat-sub">machine detected</div></div>
-          <div class="stat-card"><div class="stat-label">Progress</div><div class="stat-value">\${totalProcessed} / \${c.total_contacts}</div><div class="stat-sub">\${c.total_contacts > 0 ? Math.round(totalProcessed/c.total_contacts*100) : 0}% complete</div></div>
+          <div class="stat-card"><div class="stat-label">Connection Rate</div><div class="stat-value">${connRate}%</div><div class="stat-sub">${s.completed||0} / ${totalProcessed} connected</div></div>
+          <div class="stat-card"><div class="stat-label">Interest Rate</div><div class="stat-value">${intRate}%</div><div class="stat-sub">${s.interested||0} interested</div></div>
+          <div class="stat-card"><div class="stat-label">Brochures Sent</div><div class="stat-value">${s.brochure_sent||0}</div><div class="stat-sub">via WhatsApp</div></div>
+          <div class="stat-card"><div class="stat-label">Voicemail</div><div class="stat-value">${s.voicemail||0}</div><div class="stat-sub">machine detected</div></div>
+          <div class="stat-card"><div class="stat-label">Progress</div><div class="stat-value">${totalProcessed} / ${c.total_contacts}</div><div class="stat-sub">${c.total_contacts > 0 ? Math.round(totalProcessed/c.total_contacts*100) : 0}% complete</div></div>
         </div>
 
-        \${batchHtml}
+        ${batchHtml}
 
         <div class="charts-grid">
           <div class="chart-card"><h4>Outcome Distribution</h4><canvas id="outcome-chart"></canvas></div>
@@ -824,12 +823,12 @@ function getDashboardHtml() {
             <h3>Contacts</h3>
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
               <div class="filter-bar" style="margin:0;background:transparent;border:none;padding:0">
-                <div class="filter-item active" onclick="loadContacts('\${c.id}',null,this)">All</div>
-                <div class="filter-item" onclick="loadContacts('\${c.id}','completed',this)">Done</div>
-                <div class="filter-item" onclick="loadContacts('\${c.id}','pending',this)">Pending</div>
-                <div class="filter-item" onclick="loadContacts('\${c.id}','failed',this)">Failed</div>
+                <div class="filter-item active" onclick="loadContacts('${c.id}',null,this)">All</div>
+                <div class="filter-item" onclick="loadContacts('${c.id}','completed',this)">Done</div>
+                <div class="filter-item" onclick="loadContacts('${c.id}','pending',this)">Pending</div>
+                <div class="filter-item" onclick="loadContacts('${c.id}','failed',this)">Failed</div>
               </div>
-              <select id="outcome-filter" onchange="filterByOutcome('\${c.id}', this.value)" style="padding:6px 10px;border-radius:var(--radius-xs);border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:13px;cursor:pointer">
+              <select id="outcome-filter" onchange="filterByOutcome('${c.id}', this.value)" style="padding:6px 10px;border-radius:var(--radius-xs);border:1px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:13px;cursor:pointer">
                 <option value="">All Outcomes</option>
                 <option value="interested">Interested</option>
                 <option value="not_interested">Not Interested</option>
@@ -852,15 +851,15 @@ function getDashboardHtml() {
             </div>
             <div style="display:flex;align-items:center;gap:12px">
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--text-muted)" title="Auto-call due callbacks daily at 11:00 AM">
-                <input type="checkbox" id="auto-callback-toggle" \${c.auto_callback ? 'checked' : ''} onchange="toggleAutoCallback('\${c.id}', this.checked)" style="width:16px;height:16px;accent-color:var(--accent)">
+                <input type="checkbox" id="auto-callback-toggle" ${c.auto_callback ? 'checked' : ''} onchange="toggleAutoCallback('${c.id}', this.checked)" style="width:16px;height:16px;accent-color:var(--accent)">
                 Auto (11 AM daily)
               </label>
-              <button class="btn btn-primary btn-sm" onclick="triggerDueCallbacks('\${c.id}')">Call Due Callbacks</button>
+              <button class="btn btn-primary btn-sm" onclick="triggerDueCallbacks('${c.id}')">Call Due Callbacks</button>
             </div>
           </div>
           <div id="callbacks-table-wrap"></div>
         </div>
-      \`;
+      `;
 
       renderOutcomeChart(s);
       renderBatchChart(batches);
@@ -923,29 +922,29 @@ function getDashboardHtml() {
       const statusHtml = a.approved === 1 ? '<span class="badge-status badge-completed"><span class="badge-dot"></span>Approved</span>' : isPending ? '<span class="badge-status badge-awaiting_approval"><span class="badge-dot"></span>Pending Approval</span>' : '<span class="badge-status badge-cancelled"><span class="badge-dot"></span>Rejected</span>';
 
       const promptTag = a.prompt_name ? '<span style="margin-left:12px;font-size:12px;color:var(--text-muted);font-weight:400">Prompt: <span style="color:var(--accent-hover)">' + esc(a.prompt_name) + '</span></span>' : '';
-      el.innerHTML = \`
+      el.innerHTML = `
         <div class="analysis-card">
           <div class="analysis-header">
-            <h4>Batch \${batch.batchNumber} — AI Analysis\${promptTag}</h4>
+            <h4>Batch ${batch.batchNumber} — AI Analysis${promptTag}</h4>
             <div style="display:flex;align-items:center;gap:8px">
-              \${statusHtml}
-              <button class="btn" style="font-size:12px;padding:4px 10px" onclick="rerunAnalysis('\${campaignId}', \${batch.batchNumber})" title="Regenerate analysis">Re-run</button>
+              ${statusHtml}
+              <button class="btn" style="font-size:12px;padding:4px 10px" onclick="rerunAnalysis('${campaignId}', ${batch.batchNumber})" title="Regenerate analysis">Re-run</button>
             </div>
           </div>
           <div class="analysis-body">
-            <div class="analysis-section"><div class="analysis-section-title">Summary</div><p class="analysis-text">\${esc(a.summary || 'No summary')}</p></div>
-            <div class="analysis-section"><div class="analysis-section-title">Recommendations</div><p class="analysis-text">\${esc(a.recommendations || 'None')}</p></div>
-            \${a.prompt_adjustments ? '<div class="analysis-section"><div class="analysis-section-title">Suggested Prompt Changes</div><p class="analysis-text">' + esc(a.prompt_adjustments) + '</p></div>' : ''}
-            \${isPending ? '<div style="margin-top:16px;display:flex;gap:8px"><button class="btn btn-success btn-lg" onclick="approveBatch(\\'' + campaignId + '\\',' + batch.batchNumber + ')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg> Approve &amp; Continue</button><button class="btn btn-danger" onclick="rejectBatch(\\'' + campaignId + '\\',' + batch.batchNumber + ')">Pause Campaign</button></div>' : ''}
+            <div class="analysis-section"><div class="analysis-section-title">Summary</div><p class="analysis-text">${esc(a.summary || 'No summary')}</p></div>
+            <div class="analysis-section"><div class="analysis-section-title">Recommendations</div><p class="analysis-text">${esc(a.recommendations || 'None')}</p></div>
+            ${a.prompt_adjustments ? '<div class="analysis-section"><div class="analysis-section-title">Suggested Prompt Changes</div><p class="analysis-text">' + esc(a.prompt_adjustments) + '</p></div>' : ''}
+            ${isPending ? '<div style="margin-top:16px;display:flex;gap:8px"><button class="btn btn-success btn-lg" onclick="approveBatch(\'' + campaignId + '\',' + batch.batchNumber + ')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg> Approve &amp; Continue</button><button class="btn btn-danger" onclick="rejectBatch(\'' + campaignId + '\',' + batch.batchNumber + ')">Pause Campaign</button></div>' : ''}
           </div>
         </div>
-      \`;
+      `;
     }
 
     async function selectBatch(campaignId, batchNumber, event) {
       document.querySelectorAll('.batch-pill').forEach(p => p.classList.remove('selected'));
       event.target.classList.add('selected');
-      const res = await fetch(\`/api/campaigns/\${campaignId}/batches/\${batchNumber}/analysis\`);
+      const res = await fetch(`/api/campaigns/${campaignId}/batches/${batchNumber}/analysis`);
       if (res.ok) {
         const analysis = await res.json();
         renderBatchAnalysis(campaignId, { batchNumber, analysis });
@@ -957,7 +956,7 @@ function getDashboardHtml() {
       if (!confirm('Re-run AI analysis for batch ' + batchNumber + '? This will replace the current analysis.')) return;
       const el = document.getElementById('batch-analysis-section');
       el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-muted)">Re-running AI analysis...</div>';
-      const res = await fetch(\`/api/campaigns/\${campaignId}/batches/\${batchNumber}/rerun-analysis\`, { method: 'POST' });
+      const res = await fetch(`/api/campaigns/${campaignId}/batches/${batchNumber}/rerun-analysis`, { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
         if (data.analysis) renderBatchAnalysis(campaignId, { batchNumber, analysis: data.analysis });
@@ -981,21 +980,21 @@ function getDashboardHtml() {
         if (sel) sel.value = '';
       }
       if (outcome === undefined) outcome = currentOutcomeFilter;
-      let u = \`/api/campaigns/\${campaignId}/contacts?limit=200\`;
-      if (status) u += \`&status=\${status}\`;
-      if (batch) u += \`&batch=\${batch}\`;
-      if (outcome) u += \`&outcome=\${outcome}\`;
+      let u = `/api/campaigns/${campaignId}/contacts?limit=200`;
+      if (status) u += `&status=${status}`;
+      if (batch) u += `&batch=${batch}`;
+      if (outcome) u += `&outcome=${outcome}`;
       const res = await fetch(u);
       const contacts = await res.json();
       const wrap = document.getElementById('contacts-table-wrap');
       if (contacts.length === 0) { wrap.innerHTML = '<div class="empty-state" style="padding:24px"><p>No contacts found</p></div>'; return; }
-      wrap.innerHTML = \`<table class="data-table" id="contacts-dt">
+      wrap.innerHTML = `<table class="data-table" id="contacts-dt">
         <thead><tr><th>Name</th><th>Phone</th><th>Batch</th><th>Status</th><th>Outcome</th></tr></thead>
-        <tbody>\${contacts.map(c => \`<tr class="\${c.call_uuid ? 'clickable' : ''}" \${c.call_uuid ? 'onclick="openDetail(\\'' + c.call_uuid + '\\')"' : ''}>
-          <td>\${esc(c.name||'—')}</td><td style="font-family:monospace">\${esc(c.phone)}</td><td>\${c.batch_number}</td>
-          <td><span class="badge-status badge-\${c.status==='completed'?'completed':c.status==='failed'?'cancelled':c.status==='calling'?'running':'draft'}"><span class="badge-dot"></span>\${c.status}</span></td>
-          <td>\${c.outcome ? esc(c.outcome.replace(/_/g,' ')) : '—'}</td>
-        </tr>\`).join('')}</tbody></table>\`;
+        <tbody>${contacts.map(c => `<tr class="${c.call_uuid ? 'clickable' : ''}" ${c.call_uuid ? 'onclick="openDetail(\'' + c.call_uuid + '\')"' : ''}>
+          <td>${esc(c.name||'—')}</td><td style="font-family:monospace">${esc(c.phone)}</td><td>${c.batch_number}</td>
+          <td><span class="badge-status badge-${c.status==='completed'?'completed':c.status==='failed'?'cancelled':c.status==='calling'?'running':'draft'}"><span class="badge-dot"></span>${c.status}</span></td>
+          <td>${c.outcome ? esc(c.outcome.replace(/_/g,' ')) : '—'}</td>
+        </tr>`).join('')}</tbody></table>`;
       try { if (dtContacts) { dtContacts.destroy(); dtContacts = null; } } catch(e) { dtContacts = null; }
       dtContacts = new DataTable('#contacts-dt', { responsive: true, paging: false, searching: false, info: false, ordering: false });
     }
@@ -1010,20 +1009,20 @@ function getDashboardHtml() {
         return;
       }
       section.style.display = '';
-      wrap.innerHTML = \`<table class="data-table" id="callbacks-dt">
+      wrap.innerHTML = `<table class="data-table" id="callbacks-dt">
         <thead><tr><th>Name</th><th>Phone</th><th>Employee</th><th>Outcome</th><th>Callback Timing</th><th>Callback Date</th></tr></thead>
-        <tbody>\${callbacks.map(c => {
+        <tbody>${callbacks.map(c => {
           const cbDate = c.callback_date ? new Date(c.callback_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
           const isOverdue = c.callback_date && new Date(c.callback_date) < new Date();
-          return \`<tr \${c.call_uuid ? 'class="clickable" onclick="openDetail(\\'' + c.call_uuid + '\\')"' : ''}>
-            <td>\${esc(c.name||'—')}</td>
-            <td style="font-family:monospace">\${esc(c.phone)}</td>
-            <td>\${esc(c.employee_name||'—')}</td>
-            <td>\${c.outcome ? esc(c.outcome.replace(/_/g,' ')) : '—'}</td>
-            <td>\${esc(c.callback_note||'—')}</td>
-            <td style="\${isOverdue ? 'color:var(--danger);font-weight:600' : ''}">\${cbDate}</td>
-          </tr>\`;
-        }).join('')}</tbody></table>\`;
+          return `<tr ${c.call_uuid ? 'class="clickable" onclick="openDetail(\'' + c.call_uuid + '\')"' : ''}>
+            <td>${esc(c.name||'—')}</td>
+            <td style="font-family:monospace">${esc(c.phone)}</td>
+            <td>${esc(c.employee_name||'—')}</td>
+            <td>${c.outcome ? esc(c.outcome.replace(/_/g,' ')) : '—'}</td>
+            <td>${esc(c.callback_note||'—')}</td>
+            <td style="${isOverdue ? 'color:var(--danger);font-weight:600' : ''}">${cbDate}</td>
+          </tr>`;
+        }).join('')}</tbody></table>`;
       try { if (dtCallbacks) { dtCallbacks.destroy(); dtCallbacks = null; } } catch(e) { dtCallbacks = null; }
       dtCallbacks = new DataTable('#callbacks-dt', { responsive: true, paging: false, searching: false, info: false, ordering: false });
     }
@@ -1079,7 +1078,7 @@ function getDashboardHtml() {
     async function pauseCampaign(id) { await fetch('/api/campaigns/'+id+'/pause',{method:'POST'}); openCampaignDetail(id); }
     async function cancelCampaign(id) { if(!confirm('Cancel this campaign?'))return; await fetch('/api/campaigns/'+id+'/cancel',{method:'POST'}); openCampaignDetail(id); }
     async function deleteCampaign(id) { if(!confirm('Delete this campaign and all contacts?'))return; await fetch('/api/campaigns/'+id,{method:'DELETE'}); showCampaignList(); }
-    async function approveBatch(cid,bn) { await fetch(\`/api/campaigns/\${cid}/batches/\${bn}/approve\`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}); openCampaignDetail(cid); }
+    async function approveBatch(cid,bn) { await fetch(`/api/campaigns/${cid}/batches/${bn}/approve`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}); openCampaignDetail(cid); }
     async function rejectBatch(cid,bn) { await fetch('/api/campaigns/'+cid+'/pause',{method:'POST'}); openCampaignDetail(cid); }
 
     // ─── CSV Upload ─────────────────────────
@@ -1096,10 +1095,10 @@ function getDashboardHtml() {
       const reader = new FileReader();
       reader.onload = e => {
         csvData = e.target.result;
-        const lines = csvData.trim().split('\\n');
+        const lines = csvData.trim().split('\n');
         const rows = lines.slice(0,6).map(l => l.split(',').map(c => c.trim().replace(/['"]/g,'')));
         const preview = document.getElementById('csv-preview');
-        preview.innerHTML = \`<table><thead><tr>\${rows[0].map(h=>'<th>'+esc(h)+'</th>').join('')}</tr></thead><tbody>\${rows.slice(1).map(r=>'<tr>'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>').join('')}</tbody></table><p class="count">\${lines.length-1} contacts found</p>\`;
+        preview.innerHTML = `<table><thead><tr>${rows[0].map(h=>'<th>'+esc(h)+'</th>').join('')}</tr></thead><tbody>${rows.slice(1).map(r=>'<tr>'+r.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>').join('')}</tbody></table><p class="count">${lines.length-1} contacts found</p>`;
         document.getElementById('csv-upload-btn').disabled = false;
       };
       reader.readAsText(file);
@@ -1108,7 +1107,7 @@ function getDashboardHtml() {
     async function uploadCsv() {
       if(!csvData||!activeCampaignForUpload)return;
       document.getElementById('csv-upload-btn').disabled = true;
-      const res = await fetch(\`/api/campaigns/\${activeCampaignForUpload}/upload\`,{method:'POST',headers:{'Content-Type':'text/csv'},body:csvData});
+      const res = await fetch(`/api/campaigns/${activeCampaignForUpload}/upload`,{method:'POST',headers:{'Content-Type':'text/csv'},body:csvData});
       const data = await res.json();
       closeCsvModal();
       if(data.ok) openCampaignDetail(activeCampaignForUpload);
@@ -1129,12 +1128,12 @@ function getDashboardHtml() {
       const dur = allCalls.reduce((s,c) => s+(c.duration||0), 0);
       const avg = completed > 0 ? Math.round(dur/completed) : 0;
       const withTx = allCalls.filter(c => c.transcriptLines > 0).length;
-      document.getElementById('call-stats').innerHTML = \`
-        <div class="stat-card"><div class="stat-label">Total Calls</div><div class="stat-value">\${total}</div></div>
-        <div class="stat-card green"><div class="stat-label">Completed</div><div class="stat-value">\${completed}</div></div>
-        <div class="stat-card"><div class="stat-label">Avg Duration</div><div class="stat-value">\${avg}s</div></div>
-        <div class="stat-card"><div class="stat-label">With Transcripts</div><div class="stat-value">\${withTx}</div></div>
-      \`;
+      document.getElementById('call-stats').innerHTML = `
+        <div class="stat-card"><div class="stat-label">Total Calls</div><div class="stat-value">${total}</div></div>
+        <div class="stat-card green"><div class="stat-label">Completed</div><div class="stat-value">${completed}</div></div>
+        <div class="stat-card"><div class="stat-label">Avg Duration</div><div class="stat-value">${avg}s</div></div>
+        <div class="stat-card"><div class="stat-label">With Transcripts</div><div class="stat-value">${withTx}</div></div>
+      `;
     }
 
     function renderCalls() {
@@ -1145,16 +1144,16 @@ function getDashboardHtml() {
       if(filtered.length===0){list.innerHTML='<div class="empty-state"><p>No calls found</p></div>';return;}
       list.innerHTML = filtered.map(c => {
         const statusCls = c.status==='completed'?'completed':c.hangupCause==='Rejected'?'cancelled':'draft';
-        return \`<div class="card call-card" onclick="openDetail('\${c.callUuid}')"><div class="card-body">
+        return `<div class="card call-card" onclick="openDetail('${c.callUuid}')"><div class="card-body">
           <div class="card-top">
-            <div><span class="card-name">\${esc(c.customerName||'Unknown')}</span><span class="card-phone">\${c.to}</span></div>
-            <span class="badge-status badge-\${statusCls}"><span class="badge-dot"></span>\${c.status}</span>
+            <div><span class="card-name">${esc(c.customerName||'Unknown')}</span><span class="card-phone">${c.to}</span></div>
+            <span class="badge-status badge-${statusCls}"><span class="badge-dot"></span>${c.status}</span>
           </div>
           <div class="card-bottom">
-            <span class="card-meta">\${new Date(c.startedAt).toLocaleString()}\${c.outcome ? ' &middot; <span class="badge-status badge-'+(c.outcome==='interested'?'completed':c.outcome==='not_interested'?'cancelled':'draft')+'\" style="font-size:10px;padding:1px 6px"><span class="badge-dot"></span>'+c.outcome.replace(/_/g,' ')+'</span>' : ''}</span>
-            <span class="card-meta">\${c.duration?c.duration+'s':'—'} &middot; \${c.geminiTurns} turns</span>
+            <span class="card-meta">${new Date(c.startedAt).toLocaleString()}${c.outcome ? ' &middot; <span class="badge-status badge-'+(c.outcome==='interested'?'completed':c.outcome==='not_interested'?'cancelled':'draft')+'" style="font-size:10px;padding:1px 6px"><span class="badge-dot"></span>'+c.outcome.replace(/_/g,' ')+'</span>' : ''}</span>
+            <span class="card-meta">${c.duration?c.duration+'s':'—'} &middot; ${c.geminiTurns} turns</span>
           </div>
-        </div></div>\`;
+        </div></div>`;
       }).join('');
     }
 
@@ -1174,47 +1173,47 @@ function getDashboardHtml() {
 
       let txHtml = '<div class="empty-state" style="padding:16px"><p>No transcript</p></div>';
       if(call.transcript?.length > 0) {
-        txHtml = call.transcript.map(t => \`<div class="transcript-turn"><div class="transcript-speaker \${t.role}">\${t.role==='agent'?'Ritu (Agent)':t.role==='system'?'System':'Customer'}</div><div class="transcript-text">\${esc(t.text)}</div><div class="transcript-time">\${new Date(t.timestamp).toLocaleTimeString()}</div></div>\`).join('');
+        txHtml = call.transcript.map(t => `<div class="transcript-turn"><div class="transcript-speaker ${t.role}">${t.role==='agent'?'Ritu (Agent)':t.role==='system'?'System':'Customer'}</div><div class="transcript-text">${esc(t.text)}</div><div class="transcript-time">${new Date(t.timestamp).toLocaleTimeString()}</div></div>`).join('');
       }
 
       let recHtml = '<span style="color:var(--text-dim)">No recording available</span>';
-      if(call.recordingUrl) recHtml = \`<a class="recording-btn" href="\${call.recordingUrl}" target="_blank"><svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play Recording</a>\`;
+      if(call.recordingUrl) recHtml = `<a class="recording-btn" href="${call.recordingUrl}" target="_blank"><svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play Recording</a>`;
 
       const ci = call.costINR || {};
       const tk = call.tokens || {};
 
-      body.innerHTML = \`
+      body.innerHTML = `
         <div class="slide-over-section"><h3>Call Info</h3>
           <div class="detail-grid">
-            <div class="detail-item"><div class="detail-label">Status</div><div class="detail-value">\${call.status}</div></div>
-            <div class="detail-item"><div class="detail-label">Duration</div><div class="detail-value">\${call.duration||0}s</div></div>
-            <div class="detail-item"><div class="detail-label">Started</div><div class="detail-value">\${call.startedAt?new Date(call.startedAt).toLocaleString():'—'}</div></div>
-            <div class="detail-item"><div class="detail-label">Ended</div><div class="detail-value">\${call.endedAt?new Date(call.endedAt).toLocaleString():'—'}</div></div>
-            <div class="detail-item"><div class="detail-label">Outcome</div><div class="detail-value">\${call.outcome ? '<span class="badge-status badge-' + (call.outcome==='interested'?'completed':call.outcome==='not_interested'?'cancelled':'draft') + '"><span class="badge-dot"></span>' + call.outcome.replace(/_/g,' ') + '</span>' : '—'}</div></div>
-            <div class="detail-item"><div class="detail-label">Hangup</div><div class="detail-value">\${call.hangupCause||'—'}</div></div>
+            <div class="detail-item"><div class="detail-label">Status</div><div class="detail-value">${call.status}</div></div>
+            <div class="detail-item"><div class="detail-label">Duration</div><div class="detail-value">${call.duration||0}s</div></div>
+            <div class="detail-item"><div class="detail-label">Started</div><div class="detail-value">${call.startedAt?new Date(call.startedAt).toLocaleString():'—'}</div></div>
+            <div class="detail-item"><div class="detail-label">Ended</div><div class="detail-value">${call.endedAt?new Date(call.endedAt).toLocaleString():'—'}</div></div>
+            <div class="detail-item"><div class="detail-label">Outcome</div><div class="detail-value">${call.outcome ? '<span class="badge-status badge-' + (call.outcome==='interested'?'completed':call.outcome==='not_interested'?'cancelled':'draft') + '"><span class="badge-dot"></span>' + call.outcome.replace(/_/g,' ') + '</span>' : '—'}</div></div>
+            <div class="detail-item"><div class="detail-label">Hangup</div><div class="detail-value">${call.hangupCause||'—'}</div></div>
           </div>
         </div>
         <div class="slide-over-section"><h3>Cost (₹)</h3>
           <div class="detail-grid">
-            <div class="detail-item"><div class="detail-label">Total</div><div class="detail-value" style="color:var(--amber);font-weight:600">\${rupee(ci.total)}</div></div>
-            <div class="detail-item"><div class="detail-label">Plivo</div><div class="detail-value">\${rupee(ci.plivo)}</div></div>
-            <div class="detail-item"><div class="detail-label">Gemini</div><div class="detail-value">\${rupee(ci.gemini)}</div></div>
-            <div class="detail-item"><div class="detail-label">Model</div><div class="detail-value" style="font-size:12px">\${esc(ci.modelName || '—')}</div></div>
-            <div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Tokens</div><div class="detail-value" style="font-size:12px">Input: \${(tk.inputTokens||0).toLocaleString()} &middot; Output: \${(tk.outputTokens||0).toLocaleString()} &middot; Total: \${(tk.totalTokens||0).toLocaleString()}</div></div>
+            <div class="detail-item"><div class="detail-label">Total</div><div class="detail-value" style="color:var(--amber);font-weight:600">${rupee(ci.total)}</div></div>
+            <div class="detail-item"><div class="detail-label">Plivo</div><div class="detail-value">${rupee(ci.plivo)}</div></div>
+            <div class="detail-item"><div class="detail-label">Gemini</div><div class="detail-value">${rupee(ci.gemini)}</div></div>
+            <div class="detail-item"><div class="detail-label">Model</div><div class="detail-value" style="font-size:12px">${esc(ci.modelName || '—')}</div></div>
+            <div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Tokens</div><div class="detail-value" style="font-size:12px">Input: ${(tk.inputTokens||0).toLocaleString()} &middot; Output: ${(tk.outputTokens||0).toLocaleString()} &middot; Total: ${(tk.totalTokens||0).toLocaleString()}</div></div>
           </div>
         </div>
-        \${call.analysis && (call.analysis.one_line_summary || call.analysis.intent || call.analysis.interest_score != null) ? \`
+        ${call.analysis && (call.analysis.one_line_summary || call.analysis.intent || call.analysis.interest_score != null) ? `
         <div class="slide-over-section"><h3>AI Analysis</h3>
           <div class="detail-grid">
-            \${call.analysis.one_line_summary ? \`<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Summary</div><div class="detail-value" style="white-space:pre-wrap">\${esc(call.analysis.one_line_summary)}</div></div>\` : ''}
-            \${call.analysis.intent ? \`<div class="detail-item"><div class="detail-label">Intent</div><div class="detail-value">\${esc(call.analysis.intent.replace(/_/g,' '))}</div></div>\` : ''}
-            \${call.analysis.interest_score != null ? \`<div class="detail-item"><div class="detail-label">Interest Score</div><div class="detail-value"><span class="badge-status \${call.analysis.interest_score>=7?'badge-completed':call.analysis.interest_score>=4?'badge-draft':'badge-cancelled'}"><span class="badge-dot"></span>\${call.analysis.interest_score}/10</span></div></div>\` : ''}
-            \${call.analysis.objections?.length ? \`<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Objections</div><div class="detail-value">\${call.analysis.objections.map(o=>\`<span style="display:inline-block;background:var(--surface-raised);border:1px solid var(--border);border-radius:4px;padding:1px 7px;font-size:12px;margin:2px 3px 2px 0">\${esc(o.replace(/_/g,' '))}</span>\`).join('')}</div></div>\` : ''}
+            ${call.analysis.one_line_summary ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Summary</div><div class="detail-value" style="white-space:pre-wrap">${esc(call.analysis.one_line_summary)}</div></div>` : ''}
+            ${call.analysis.intent ? `<div class="detail-item"><div class="detail-label">Intent</div><div class="detail-value">${esc(call.analysis.intent.replace(/_/g,' '))}</div></div>` : ''}
+            ${call.analysis.interest_score != null ? `<div class="detail-item"><div class="detail-label">Interest Score</div><div class="detail-value"><span class="badge-status ${call.analysis.interest_score>=7?'badge-completed':call.analysis.interest_score>=4?'badge-draft':'badge-cancelled'}"><span class="badge-dot"></span>${call.analysis.interest_score}/10</span></div></div>` : ''}
+            ${call.analysis.objections?.length ? `<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Objections</div><div class="detail-value">${call.analysis.objections.map(o=>`<span style="display:inline-block;background:var(--surface-raised);border:1px solid var(--border);border-radius:4px;padding:1px 7px;font-size:12px;margin:2px 3px 2px 0">${esc(o.replace(/_/g,' '))}</span>`).join('')}</div></div>` : ''}
           </div>
-        </div>\` : ''}
-        <div class="slide-over-section"><h3>Recording</h3>\${recHtml}</div>
-        <div class="slide-over-section"><h3>Transcript (\${call.transcript?call.transcript.length:0})</h3><div class="transcript">\${txHtml}</div></div>
-      \`;
+        </div>` : ''}
+        <div class="slide-over-section"><h3>Recording</h3>${recHtml}</div>
+        <div class="slide-over-section"><h3>Transcript (${call.transcript?call.transcript.length:0})</h3><div class="transcript">${txHtml}</div></div>
+      `;
       document.getElementById('slide-over-bg').classList.add('open');
       document.getElementById('slide-over').classList.add('open');
     }
@@ -1241,27 +1240,27 @@ function getDashboardHtml() {
         el.innerHTML = '<div class="empty-state" style="padding:60px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><h3>No prompts yet</h3><p>Create your first named prompt to get started</p></div>';
         return;
       }
-      el.innerHTML = '<div class="card-list">' + prompts.map(p => \`
+      el.innerHTML = '<div class="card-list">' + prompts.map(p => `
         <div class="card" style="cursor:default">
           <div class="card-body">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
               <div style="flex:1;min-width:200px">
                 <div style="display:flex;align-items:center;gap:8px">
-                  <span style="font-size:15px;font-weight:600;color:var(--text)">\${esc(p.name)}</span>
-                  \${p.is_active ? '<span class="badge-status badge-running"><span class="badge-dot"></span>Active</span>' : ''}
+                  <span style="font-size:15px;font-weight:600;color:var(--text)">${esc(p.name)}</span>
+                  ${p.is_active ? '<span class="badge-status badge-running"><span class="badge-dot"></span>Active</span>' : ''}
                 </div>
-                <div style="font-size:12px;color:var(--text-dim);margin-top:4px">\${p.body.length.toLocaleString()} chars &middot; Updated \${new Date(p.updated_at).toLocaleDateString()}</div>
-                <pre style="margin-top:10px;font-size:12px;color:var(--text-muted);line-height:1.5;white-space:pre-wrap;max-height:80px;overflow:hidden;font-family:'JetBrains Mono',monospace">\${esc(p.body.substring(0, 300))}\${p.body.length > 300 ? '...' : ''}</pre>
+                <div style="font-size:12px;color:var(--text-dim);margin-top:4px">${p.body.length.toLocaleString()} chars &middot; Updated ${new Date(p.updated_at).toLocaleDateString()}</div>
+                <pre style="margin-top:10px;font-size:12px;color:var(--text-muted);line-height:1.5;white-space:pre-wrap;max-height:80px;overflow:hidden;font-family:'JetBrains Mono',monospace">${esc(p.body.substring(0, 300))}${p.body.length > 300 ? '...' : ''}</pre>
               </div>
               <div style="display:flex;gap:6px;flex-shrink:0">
-                \${!p.is_active ? '<button class="btn btn-success btn-sm" onclick="activatePrompt(\\'' + p.id + '\\')">Set Active</button>' : '<button class="btn btn-amber btn-sm" onclick="deactivatePrompts()">Deactivate</button>'}
-                <button class="btn btn-secondary btn-sm" onclick="editPromptEntry(\\'\${p.id}\\')">Edit</button>
-                <button class="btn btn-danger btn-sm" onclick="deletePromptEntry(\\'\${p.id}\\')">Delete</button>
+                ${!p.is_active ? '<button class="btn btn-success btn-sm" onclick="activatePrompt(\'' + p.id + '\')">Set Active</button>' : '<button class="btn btn-amber btn-sm" onclick="deactivatePrompts()">Deactivate</button>'}
+                <button class="btn btn-secondary btn-sm" onclick="editPromptEntry(\'${p.id}\')">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="deletePromptEntry(\'${p.id}\')">Delete</button>
               </div>
             </div>
           </div>
         </div>
-      \`).join('') + '</div>';
+      `).join('') + '</div>';
     }
 
     function openPromptEditor(id) {
@@ -1324,51 +1323,51 @@ function getDashboardHtml() {
       const cost = data.cost || {};
       const rates = cost.rates || {};
 
-      el.innerHTML = \`
+      el.innerHTML = `
         <div class="stats-grid">
-          <div class="stat-card accent"><div class="stat-label">Total Campaigns</div><div class="stat-value">\${s.totalCampaigns}</div></div>
-          <div class="stat-card green"><div class="stat-label">Completed Calls</div><div class="stat-value">\${s.completedCalls}</div></div>
-          <div class="stat-card"><div class="stat-label">Total Minutes</div><div class="stat-value">\${s.totalMinutes || 0}</div><div class="stat-sub">across all calls</div></div>
-          <div class="stat-card"><div class="stat-label">Avg Duration</div><div class="stat-value">\${s.avgDuration}s</div></div>
-          <div class="stat-card"><div class="stat-label">Connection Rate</div><div class="stat-value">\${s.overallConnRate}%</div></div>
-          <div class="stat-card green"><div class="stat-label">Interest Rate</div><div class="stat-value">\${s.overallIntRate}%</div></div>
-          <div class="stat-card"><div class="stat-label">Interested</div><div class="stat-value">\${s.totalInterested}</div></div>
-          <div class="stat-card"><div class="stat-label">Brochures Sent</div><div class="stat-value">\${s.totalBrochures}</div></div>
+          <div class="stat-card accent"><div class="stat-label">Total Campaigns</div><div class="stat-value">${s.totalCampaigns}</div></div>
+          <div class="stat-card green"><div class="stat-label">Completed Calls</div><div class="stat-value">${s.completedCalls}</div></div>
+          <div class="stat-card"><div class="stat-label">Total Minutes</div><div class="stat-value">${s.totalMinutes || 0}</div><div class="stat-sub">across all calls</div></div>
+          <div class="stat-card"><div class="stat-label">Avg Duration</div><div class="stat-value">${s.avgDuration}s</div></div>
+          <div class="stat-card"><div class="stat-label">Connection Rate</div><div class="stat-value">${s.overallConnRate}%</div></div>
+          <div class="stat-card green"><div class="stat-label">Interest Rate</div><div class="stat-value">${s.overallIntRate}%</div></div>
+          <div class="stat-card"><div class="stat-label">Interested</div><div class="stat-value">${s.totalInterested}</div></div>
+          <div class="stat-card"><div class="stat-label">Brochures Sent</div><div class="stat-value">${s.totalBrochures}</div></div>
         </div>
 
         <!-- Cost Tracker -->
         <div style="margin-bottom:20px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
             <h3 style="font-size:14px;font-weight:600;color:var(--text-secondary)">Cost Tracker (₹)</h3>
-            <span class="badge-status badge-\${cost.geminiMethod === 'tokens' ? 'completed' : 'draft'}"><span class="badge-dot"></span>\${cost.geminiMethod === 'tokens' ? 'Token-based' : 'Time-based estimate'}</span>
+            <span class="badge-status badge-${cost.geminiMethod === 'tokens' ? 'completed' : 'draft'}"><span class="badge-dot"></span>${cost.geminiMethod === 'tokens' ? 'Token-based' : 'Time-based estimate'}</span>
           </div>
           <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
             <div class="stat-card" style="border-color:var(--amber-border);background:linear-gradient(135deg,var(--amber-bg),var(--surface))">
               <div class="stat-label">Total Spend</div>
-              <div class="stat-value" style="color:var(--amber)">\${rupee(cost.total)}</div>
-              <div class="stat-sub">Plivo \${rupee(cost.plivo)} + Gemini \${rupee(cost.gemini)}</div>
+              <div class="stat-value" style="color:var(--amber)">${rupee(cost.total)}</div>
+              <div class="stat-sub">Plivo ${rupee(cost.plivo)} + Gemini ${rupee(cost.gemini)}</div>
             </div>
             <div class="stat-card">
               <div class="stat-label">Cost per Call</div>
-              <div class="stat-value">\${rupee(cost.perCall)}</div>
-              <div class="stat-sub">avg across \${s.completedCalls} calls</div>
+              <div class="stat-value">${rupee(cost.perCall)}</div>
+              <div class="stat-sub">avg across ${s.completedCalls} calls</div>
             </div>
             <div class="stat-card">
               <div class="stat-label">Cost per Interested Lead</div>
-              <div class="stat-value">\${rupee(cost.perInterested)}</div>
-              <div class="stat-sub">\${s.totalInterested} leads acquired</div>
+              <div class="stat-value">${rupee(cost.perInterested)}</div>
+              <div class="stat-sub">${s.totalInterested} leads acquired</div>
             </div>
             <div class="stat-card">
               <div class="stat-label">Gemini Tokens Used</div>
-              <div class="stat-value" style="font-size:16px">\${(cost.tokens?.total || 0).toLocaleString()}</div>
-              <div class="stat-sub">In: \${(cost.tokens?.input || 0).toLocaleString()} &middot; Out: \${(cost.tokens?.output || 0).toLocaleString()}</div>
+              <div class="stat-value" style="font-size:16px">${(cost.tokens?.total || 0).toLocaleString()}</div>
+              <div class="stat-sub">In: ${(cost.tokens?.input || 0).toLocaleString()} &middot; Out: ${(cost.tokens?.output || 0).toLocaleString()}</div>
             </div>
           </div>
           <div style="margin-top:8px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text-muted)">
-            <strong style="color:var(--text-secondary)">Active model:</strong> \${esc(cost.activeModelName)} &middot;
-            Plivo \${rupee(rates.plivo)}/min &middot; Gemini \${rupee(rates.geminiPerMin)}/min &middot;
-            USD/INR: \${rates.usdToInr}
-            \${cost.geminiMethod === 'tokens' ? ' &middot; <span style="color:var(--green)">Using actual token counts</span>' : ' &middot; <span style="color:var(--amber)">Time-based estimate (tokens tracked on new calls)</span>'}
+            <strong style="color:var(--text-secondary)">Active model:</strong> ${esc(cost.activeModelName)} &middot;
+            Plivo ${rupee(rates.plivo)}/min &middot; Gemini ${rupee(rates.geminiPerMin)}/min &middot;
+            USD/INR: ${rates.usdToInr}
+            ${cost.geminiMethod === 'tokens' ? ' &middot; <span style="color:var(--green)">Using actual token counts</span>' : ' &middot; <span style="color:var(--amber)">Time-based estimate (tokens tracked on new calls)</span>'}
           </div>
         </div>
 
@@ -1379,21 +1378,21 @@ function getDashboardHtml() {
 
         <div class="chart-card" style="margin-top:12px"><h4>Campaign Comparison</h4><canvas id="analytics-campaign-chart" style="max-height:300px"></canvas></div>
 
-        \${data.campaignPerformance.length > 0 ? \`
+        ${data.campaignPerformance.length > 0 ? `
           <div class="table-wrap" style="margin-top:16px">
             <div class="table-header"><h3>Campaign Performance</h3></div>
             <table class="data-table">
               <thead><tr><th>Campaign</th><th>Status</th><th>Contacts</th><th>Completed</th><th>Interested</th><th>Conn %</th><th>Int %</th></tr></thead>
-              <tbody>\${data.campaignPerformance.map(c => \`<tr>
-                <td style="font-weight:600">\${esc(c.name)}</td>
-                <td><span class="badge-status badge-\${c.status}"><span class="badge-dot"></span>\${c.status.replace(/_/g,' ')}</span></td>
-                <td>\${c.total}</td><td>\${c.completed}</td><td>\${c.interested}</td>
-                <td>\${c.connRate}%</td><td>\${c.intRate}%</td>
-              </tr>\`).join('')}</tbody>
+              <tbody>${data.campaignPerformance.map(c => `<tr>
+                <td style="font-weight:600">${esc(c.name)}</td>
+                <td><span class="badge-status badge-${c.status}"><span class="badge-dot"></span>${c.status.replace(/_/g,' ')}</span></td>
+                <td>${c.total}</td><td>${c.completed}</td><td>${c.interested}</td>
+                <td>${c.connRate}%</td><td>${c.intRate}%</td>
+              </tr>`).join('')}</tbody>
             </table>
           </div>
-        \` : ''}
-      \`;
+        ` : ''}
+      `;
 
       // Outcome chart
       const oc = document.getElementById('analytics-outcome-chart');
@@ -1468,7 +1467,7 @@ function getDashboardHtml() {
       const msgs = await r.json();
       const el = document.getElementById('wam-content');
 
-      const header = \`
+      const header = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
           <div>
             <h2 style="font-size:16px;font-weight:600;color:var(--text)">WhatsApp Messages</h2>
@@ -1478,7 +1477,7 @@ function getDashboardHtml() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             New Message
           </button>
-        </div>\`;
+        </div>`;
 
       if (msgs.length === 0) {
         el.innerHTML = header + '<div class="empty-state" style="padding:60px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><h3>No WhatsApp messages yet</h3><p>Create your first template to enable post-call WhatsApp sending</p></div>';
@@ -1488,27 +1487,27 @@ function getDashboardHtml() {
       el.innerHTML = header + '<div class="card-list">' + msgs.map(m => {
         const preview = (m.body || '').substring(0, 300);
         const truncated = (m.body || '').length > 300;
-        return \`
+        return `
         <div class="card" style="cursor:default">
           <div class="card-body">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
               <div style="flex:1;min-width:200px">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                  <span style="font-size:15px;font-weight:600;color:var(--text)">\${esc(m.name)}</span>
-                  \${m.is_active ? '<span class="badge-status badge-running"><span class="badge-dot"></span>Active</span>' : ''}
+                  <span style="font-size:15px;font-weight:600;color:var(--text)">${esc(m.name)}</span>
+                  ${m.is_active ? '<span class="badge-status badge-running"><span class="badge-dot"></span>Active</span>' : ''}
                 </div>
-                <div style="font-size:12px;color:var(--text-dim);margin-top:4px">\${(m.body || '').length.toLocaleString()} chars &middot; Updated \${new Date(m.updated_at).toLocaleDateString()}</div>
-                <pre style="margin-top:10px;font-size:12px;color:var(--text-muted);line-height:1.5;white-space:pre-wrap;max-height:80px;overflow:hidden;font-family:inherit">\${esc(preview)}\${truncated ? '...' : ''}</pre>
-                \${m.attachment_url ? '<div style="margin-top:8px;font-size:12px;color:var(--text-muted)"><span style="color:var(--text-dim)">📎 Attachment:</span> <a href="' + esc(m.attachment_url) + '" target="_blank" style="color:var(--accent-hover);word-break:break-all">' + esc(m.attachment_url) + '</a></div>' : ''}
+                <div style="font-size:12px;color:var(--text-dim);margin-top:4px">${(m.body || '').length.toLocaleString()} chars &middot; Updated ${new Date(m.updated_at).toLocaleDateString()}</div>
+                <pre style="margin-top:10px;font-size:12px;color:var(--text-muted);line-height:1.5;white-space:pre-wrap;max-height:80px;overflow:hidden;font-family:inherit">${esc(preview)}${truncated ? '...' : ''}</pre>
+                ${m.attachment_url ? '<div style="margin-top:8px;font-size:12px;color:var(--text-muted)"><span style="color:var(--text-dim)">📎 Attachment:</span> <a href="' + esc(m.attachment_url) + '" target="_blank" style="color:var(--accent-hover);word-break:break-all">' + esc(m.attachment_url) + '</a></div>' : ''}
               </div>
               <div style="display:flex;gap:6px;flex-shrink:0">
-                \${!m.is_active ? '<button class="btn btn-success btn-sm" onclick="activateWhatsappMessage(\\'' + m.id + '\\')">Set Active</button>' : '<button class="btn btn-amber btn-sm" onclick="deactivateWhatsappMessages()">Deactivate</button>'}
-                <button class="btn btn-secondary btn-sm" onclick="openWhatsappMessageEditor(\\'\${m.id}\\')">Edit</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteWhatsappMessageEntry(\\'\${m.id}\\')">Delete</button>
+                ${!m.is_active ? '<button class="btn btn-success btn-sm" onclick="activateWhatsappMessage(\'' + m.id + '\')">Set Active</button>' : '<button class="btn btn-amber btn-sm" onclick="deactivateWhatsappMessages()">Deactivate</button>'}
+                <button class="btn btn-secondary btn-sm" onclick="openWhatsappMessageEditor(\'${m.id}\')">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteWhatsappMessageEntry(\'${m.id}\')">Delete</button>
               </div>
             </div>
           </div>
-        </div>\`;
+        </div>`;
       }).join('') + '</div>';
     }
 
@@ -1593,7 +1592,7 @@ function getDashboardHtml() {
       try {
         const r=await fetch('/health'); const d=await r.json();
         document.getElementById('status-dot').className = 'status-dot online';
-        document.getElementById('status-text').textContent = \`Online — \${d.sessions} active\`;
+        document.getElementById('status-text').textContent = `Online — ${d.sessions} active`;
       } catch {
         document.getElementById('status-dot').className = 'status-dot offline';
         document.getElementById('status-text').textContent = 'Offline';
@@ -1637,12 +1636,12 @@ function getDashboardHtml() {
         let opts = '<option value="">— Select instance —</option>';
         for (const inst of _evoInstances) {
           const sel = inst.name === current ? 'selected' : '';
-          const statusDot = inst.connectionStatus === 'open' ? '\\u25CF' : '\\u25CB';
+          const statusDot = inst.connectionStatus === 'open' ? '\u25CF' : '\u25CB';
           const label = inst.profileName ? inst.name + ' (' + esc(inst.profileName) + ')' : inst.name;
           opts += '<option value="' + esc(inst.name) + '" ' + sel + '>' + statusDot + ' ' + esc(label) + '</option>';
         }
         opts += '<option value="__create__">+ Create New Instance</option>';
-        return '<select style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);min-width:180px" onchange="handleInstanceSelect(this,\\'' + esc(emp.employee_name) + '\\',\\'' + esc(emp.id || '') + '\\')">' + opts + '</select>';
+        return '<select style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);min-width:180px" onchange="handleInstanceSelect(this,\'' + esc(emp.employee_name) + '\',\'' + esc(emp.id || '') + '\')">' + opts + '</select>';
       }
 
       function statusBadge(emp) {
@@ -1655,7 +1654,7 @@ function getDashboardHtml() {
         return '<span class="badge-status badge-' + cls + '"><span class="badge-dot"></span>' + label + '</span>';
       }
 
-      el.innerHTML = \`
+      el.innerHTML = `
         <div style="max-width:780px">
           <!-- WhatsApp Employee Routing -->
           <div class="card" style="cursor:default;margin-bottom:12px">
@@ -1667,21 +1666,21 @@ function getDashboardHtml() {
                 </div>
                 <button class="btn btn-primary btn-sm" onclick="addEmployeeInstance()">+ Add Manual</button>
               </div>
-              \${employees.length === 0 ? '<div style="padding:20px;text-align:center;color:var(--text-dim);font-size:13px">No salespersons found in campaigns. Upload contacts with an EmployeeName column.</div>' :
+              ${employees.length === 0 ? '<div style="padding:20px;text-align:center;color:var(--text-dim);font-size:13px">No salespersons found in campaigns. Upload contacts with an EmployeeName column.</div>' :
               '<div style="display:flex;flex-direction:column;gap:6px">' +
               '<div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px;padding:6px 14px;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px"><span>Salesperson</span><span>Evolution API Instance</span><span>Status</span><span></span></div>' +
-              employees.map(e => \`
+              employees.map(e => `
                 <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px;align-items:center;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm)">
                   <div>
-                    <div style="font-size:14px;font-weight:600;color:var(--text)">\${esc(e.employee_name)}</div>
+                    <div style="font-size:14px;font-weight:600;color:var(--text)">${esc(e.employee_name)}</div>
                   </div>
-                  <div>\${instanceDropdown(e)}</div>
-                  <div>\${statusBadge(e)}</div>
+                  <div>${instanceDropdown(e)}</div>
+                  <div>${statusBadge(e)}</div>
                   <div style="display:flex;gap:4px">
-                    \${e.mapped ? '<button class="btn btn-ghost btn-sm" onclick="checkInstanceStatus(\\'' + esc(e.id) + '\\',\\'' + esc(e.instance_name) + '\\')">Check</button><button class="btn btn-danger btn-sm" onclick="unlinkEmployee(\\'' + esc(e.id) + '\\')">Unlink</button>' : ''}
+                    ${e.mapped ? '<button class="btn btn-ghost btn-sm" onclick="checkInstanceStatus(\'' + esc(e.id) + '\',\'' + esc(e.instance_name) + '\')">Check</button><button class="btn btn-danger btn-sm" onclick="unlinkEmployee(\'' + esc(e.id) + '\')">Unlink</button>' : ''}
                   </div>
                 </div>
-              \`).join('') + '</div>'}
+              `).join('') + '</div>'}
             </div>
           </div>
 
@@ -1691,19 +1690,19 @@ function getDashboardHtml() {
               <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px">AI Model</h3>
               <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Select which Gemini model to use for new calls.</p>
               <div style="display:flex;flex-direction:column;gap:8px">
-                \${Object.entries(models).map(([id, m]) => \`
-                  <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:\${id===active?'var(--accent-bg)':'var(--surface)'};border:1px solid \${id===active?'var(--accent-border)':'var(--border)'};border-radius:var(--radius-sm);cursor:pointer;transition:all var(--transition)" onclick="switchModel('\${id}');setTimeout(loadSettings,300)">
-                    <input type="radio" name="model" value="\${id}" \${id===active?'checked':''} style="margin-top:2px;accent-color:var(--accent)">
+                ${Object.entries(models).map(([id, m]) => `
+                  <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:${id===active?'var(--accent-bg)':'var(--surface)'};border:1px solid ${id===active?'var(--accent-border)':'var(--border)'};border-radius:var(--radius-sm);cursor:pointer;transition:all var(--transition)" onclick="switchModel('${id}');setTimeout(loadSettings,300)">
+                    <input type="radio" name="model" value="${id}" ${id===active?'checked':''} style="margin-top:2px;accent-color:var(--accent)">
                     <div>
-                      <div style="font-size:14px;font-weight:600;color:var(--text)">\${esc(m.name)}</div>
-                      <div style="font-size:12px;color:var(--text-muted);margin-top:2px">\${id}</div>
+                      <div style="font-size:14px;font-weight:600;color:var(--text)">${esc(m.name)}</div>
+                      <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${id}</div>
                       <div style="margin-top:8px;display:grid;grid-template-columns:repeat(2,1fr);gap:4px 16px;font-size:12px;color:var(--text-dim)">
-                        <span>Text in: $\${m.pricing.textInput}/1M</span><span>Audio in: $\${m.pricing.audioInput}/1M</span>
-                        <span>Text out: $\${m.pricing.textOutput}/1M</span><span>Audio out: $\${m.pricing.audioOutput}/1M</span>
+                        <span>Text in: $${m.pricing.textInput}/1M</span><span>Audio in: $${m.pricing.audioInput}/1M</span>
+                        <span>Text out: $${m.pricing.textOutput}/1M</span><span>Audio out: $${m.pricing.audioOutput}/1M</span>
                       </div>
                     </div>
                   </label>
-                \`).join('')}
+                `).join('')}
               </div>
             </div>
           </div>
@@ -1724,7 +1723,7 @@ function getDashboardHtml() {
             </div>
           </div>
         </div>
-      \`;
+      `;
     }
 
     async function handleInstanceSelect(selectEl, employeeName, existingId) {
@@ -1803,9 +1802,6 @@ function getDashboardHtml() {
     loadModel();
     // Auto-refresh removed — was causing disruptive page reloads every 10s
     setInterval(checkHealth, 15000);
-  <\/script>
+  </script>
 </body>
-</html>`;
-}
-
-module.exports = { getDashboardHtml };
+</html>

@@ -4,6 +4,8 @@
 //   summarizeBatch(perCallJsons, stats) → batch {summary}
 // Falls back to keyword matching on API/parse failure so the batch engine stays functional.
 
+const { classifyOutcome: _classifyOutcome } = require('../lib/outcome-classifier');
+
 const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MODEL = 'deepseek/deepseek-v3.2';
 const API_KEY = process.env.OPENROUTER_API_KEY;
@@ -78,17 +80,15 @@ function serializeTranscript(transcript) {
   return transcript.map(t => `${t.role || '?'}: ${t.text || ''}`).join('\n').slice(0, 6000);
 }
 
-// Keyword fallback — ported from batch-engine.js classifyOutcome (transcript portion only).
+// Keyword fallback — delegates to the shared outcome-classifier module.
 function keywordFallback(transcript) {
-  const text = serializeTranscript(transcript).toLowerCase();
+  const text = serializeTranscript(transcript);
   if (!text) return 'no_answer';
-  if (text.includes('brochure') || text.includes('whatsapp') || text.includes('send me')) return 'brochure_sent';
-  if (text.includes('site visit') || text.includes('appointment') || text.includes('schedule')
-      || text.includes('interested') || text.includes('tell me more') || text.includes('details')) return 'interested';
-  if (text.includes('not interested') || text.includes('no thank') || text.includes("don't call")
-      || text.includes('remove my number') || text.includes('no need')) return 'not_interested';
-  if (text.includes('call back') || text.includes('later') || text.includes('busy right now')) return 'callback';
-  return 'interested'; // default for any transcript-bearing call
+  const result = _classifyOutcome(transcript);
+  // deepseek.js historically returned 'interested' as default for any transcript-bearing
+  // call (not 'no_answer'), so preserve that behaviour when the shared module returns no_answer.
+  if (result === 'no_answer') return 'interested';
+  return result;
 }
 
 function emptyResult(outcome) {
