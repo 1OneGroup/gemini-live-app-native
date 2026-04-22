@@ -200,11 +200,8 @@ function listCalls() {
       geminiTurns: call.geminiTurns,
       transcriptLines: call.transcript.length,
       hasRecording: !!call.recordingUrl,
-      recordingUrl: call.recordingUrl || null,
       tokens: call.tokens || { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
       outcome: call.outcome || null,
-      confidence: call.confidence || null,
-      classificationReason: call.classificationReason || null,
       callbackRequested: call.callbackRequested || null,
       callbackDate: call.callbackDate || null,
     };
@@ -213,92 +210,4 @@ function listCalls() {
   return calls;
 }
 
-async function classifyWithGemini(callUuid, apiKey) {
-  const call = getCall(callUuid);
-  if (!call) return;
-
-  // Fast-path: non-conversation outcomes don't need AI
-  if (call.voicemailDetected) { updateCall(callUuid, { outcome: 'voicemail' }); return; }
-  const hangup = (call.hangupCause || '').toLowerCase();
-  if (hangup === 'rejected' || hangup === 'busy') { updateCall(callUuid, { outcome: 'busy' }); return; }
-  if (hangup === 'noanswer' || hangup === 'no_answer' || hangup === 'originator cancel') { updateCall(callUuid, { outcome: 'no_answer' }); return; }
-
-  // Skip only if already AI-classified with confidence
-  if (['interested', 'not_interested', 'needs_review', 'follow_up'].includes(call.outcome) && call.confidence != null) return;
-
-  const transcript = (call.transcript || []);
-  console.log(`[Classify] ${callUuid} — transcript lines: ${transcript.length}, hangup: ${call.hangupCause}, outcome: ${call.outcome}`);
-  if (transcript.length === 0) { console.log(`[Classify] No transcript, using keyword fallback`); classifyCallOutcome(callUuid); return; }
-
-  const dialogue = transcript.map(t => `${t.role === 'agent' ? 'Agent' : 'Customer'}: ${t.text}`).join('\n');
-  console.log(`[Classify] Sending to DeepSeek, dialogue length: ${dialogue.length} chars`);
-
-  const prompt = `You are a sales call analyst. Read this call transcript and classify the lead.
-
-Respond with ONLY valid JSON in this exact format:
-{"classification": "interested" | "not_interested" | "needs_review", "confidence": 0-100, "reason": "one sentence"}
-
-Rules for classification:
-- "interested": customer showed genuine interest, asked questions, agreed to visit/callback, or gave positive signals
-- "not_interested": customer clearly declined, said no, asked to not be called again
-- "needs_review": conversation was ambiguous, too short, cut off, or intent is unclear
-
-Rules for confidence (0-100):
-- 90-100: very clear and explicit signals in transcript
-- 70-89: reasonably clear signals
-- 50-69: some signals but mixed or uncertain
-- below 50: very unclear, short, or confusing conversation
-
-Transcript:
-${dialogue}`;
-
-  try {
-    const https = require('https');
-    const body = JSON.stringify({
-      model: 'deepseek/deepseek-chat',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 150,
-      response_format: { type: 'json_object' }
-    });
-    const result = await new Promise((resolve, reject) => {
-      const req = https.request({
-        hostname: 'openrouter.ai',
-        path: '/api/v1/chat/completions',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Length': Buffer.byteLength(body)
-        }
-      }, res => {
-        let data = '';
-        res.on('data', d => data += d);
-        res.on('end', () => resolve(data));
-      });
-      req.on('error', reject);
-      req.setTimeout(20000, () => { req.destroy(); reject(new Error('timeout')); });
-      req.write(body);
-      req.end();
-    });
-    const parsed = JSON.parse(result);
-    console.log(`[Classify] OpenRouter raw response:`, result.substring(0, 300));
-    const text = parsed?.choices?.[0]?.message?.content || '';
-    const json = JSON.parse(text);
-    const confidence = Math.min(100, Math.max(0, parseInt(json.confidence) || 50));
-    let classification = ['interested', 'not_interested', 'needs_review'].includes(json.classification)
-      ? json.classification : 'needs_review';
-    // Override based on confidence
-    if (confidence < 50) {
-      classification = 'needs_review';
-    } else if (confidence < 75 && classification !== 'needs_review') {
-      classification = 'follow_up';
-    }
-    updateCall(callUuid, { outcome: classification, classificationReason: json.reason || '', confidence });
-    console.log(`[Classify] ${callUuid} → ${classification} (${confidence}%): ${json.reason || ''}`);
-  } catch (err) {
-    console.warn(`[Classify] DeepSeek failed for ${callUuid}, using keyword fallback:`, err.message);
-    classifyCallOutcome(callUuid);
-  }
-}
-
-module.exports = { createCall, updateCall, addTokens, addTranscript, classifyCallOutcome, classifyWithGemini, getCall, listCalls };
+module.exports = { createCall, updateCall, addTokens, addTranscript, classifyCallOutcome, getCall, listCalls };
