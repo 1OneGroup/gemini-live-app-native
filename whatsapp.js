@@ -1,10 +1,10 @@
-// WhatsApp brochure integration via Evolution API
+// WhatsApp brochure integration via Evo Go API
 const fs = require('fs');
 const path = require('path');
 
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'http://evolution-api-fgxi-api-1:8080';
+const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'https://evo-go.tech.onegroup.co.in';
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
-const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || 'onegroup';
+const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || 'office_bot';
 const BROCHURES_PATH = path.join(process.env.DATA_DIR || '/data', 'brochures.json');
 
 // Default brochure mapping
@@ -44,7 +44,43 @@ function setBrochure(projectKey, { name, url, caption }) {
   return brochures;
 }
 
-// Resolve which Evolution API instance to use for an employee
+// Cache for instance credentials to avoid fetching on every send
+let instanceCache = null;
+let instanceCacheTime = 0;
+const INSTANCE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function fetchInstances() {
+  if (instanceCache && Date.now() - instanceCacheTime < INSTANCE_CACHE_TTL) {
+    return instanceCache;
+  }
+  const res = await fetch(`${EVOLUTION_API_URL}/instance/all`, {
+    headers: { 'apikey': EVOLUTION_API_KEY },
+  });
+  const data = await res.json();
+  instanceCache = data.data || [];
+  instanceCacheTime = Date.now();
+  return instanceCache;
+}
+
+// Returns { id, token } for a given instance name
+async function getInstanceCredentials(instanceName) {
+  try {
+    const instances = await fetchInstances();
+    const match = instances.find(i => i.name === instanceName);
+    if (match) return { id: match.id, token: match.token };
+    // Fall back to first connected instance
+    const connected = instances.find(i => i.connected);
+    if (connected) {
+      console.warn(`[WhatsApp] Instance "${instanceName}" not found, using "${connected.name}"`);
+      return { id: connected.id, token: connected.token };
+    }
+  } catch (err) {
+    console.error('[WhatsApp] Failed to fetch instances:', err.message);
+  }
+  return null;
+}
+
+// Resolve which instance name to use for an employee
 async function resolveInstance(employeeName) {
   if (!employeeName) return EVOLUTION_INSTANCE;
   try {
@@ -58,7 +94,6 @@ async function resolveInstance(employeeName) {
 async function sendBrochure(phoneNumber, projectName, employeeName) {
   const brochures = loadBrochures();
   const key = projectName.toLowerCase().replace(/[^a-z0-9]/g, '');
-  // Try exact match first, then check if any key is contained in the normalized name
   let brochure = brochures[key];
   if (!brochure) {
     for (const [k, v] of Object.entries(brochures)) {
@@ -76,9 +111,16 @@ async function sendBrochure(phoneNumber, projectName, employeeName) {
   if (number.startsWith('0')) number = '91' + number.substring(1);
   if (!number.startsWith('91') && number.length === 10) number = '91' + number;
 
-  // Route to employee's WhatsApp instance if available
-  const instance = await resolveInstance(employeeName);
-  console.log(`[WhatsApp] Using instance: ${instance} (employee: ${employeeName || 'default'})`);
+  const instanceName = await resolveInstance(employeeName);
+  console.log(`[WhatsApp] Using instance: ${instanceName} (employee: ${employeeName || 'default'})`);
+
+  const creds = await getInstanceCredentials(instanceName);
+  if (!creds) {
+    console.error('[WhatsApp] No connected WhatsApp instance found');
+    return { success: false, error: 'No connected WhatsApp instance found' };
+  }
+
+  const headers = { 'Content-Type': 'application/json', 'apikey': creds.token };
 
   try {
     const mediaUrl = brochure.url || '';
@@ -90,46 +132,42 @@ async function sendBrochure(phoneNumber, projectName, employeeName) {
 
     let response;
     if (isPdf) {
-      // Send as document attachment
       console.log(`[WhatsApp] Sending document to ${number}`);
-      response = await fetch(`${EVOLUTION_API_URL}/message/sendMedia/${instance}`, {
+      response = await fetch(`${EVOLUTION_API_URL}/send/media`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': EVOLUTION_API_KEY },
+        headers,
         body: JSON.stringify({
-          number, mediatype: 'document', media: mediaUrl,
-          caption, fileName: `${brochure.name.replace(/\s+/g, '-')}.pdf`,
+          id: creds.id, number, type: 'document', url: mediaUrl,
+          caption, filename: `${brochure.name.replace(/\s+/g, '-')}.pdf`,
         }),
       });
     } else if (isImage) {
-      // Send as image
       console.log(`[WhatsApp] Sending image to ${number}`);
-      response = await fetch(`${EVOLUTION_API_URL}/message/sendMedia/${instance}`, {
+      response = await fetch(`${EVOLUTION_API_URL}/send/media`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': EVOLUTION_API_KEY },
-        body: JSON.stringify({ number, mediatype: 'image', media: mediaUrl, caption }),
+        headers,
+        body: JSON.stringify({ id: creds.id, number, type: 'image', url: mediaUrl, caption }),
       });
     } else if (isVideo && !isLink) {
-      // Send as video attachment
       console.log(`[WhatsApp] Sending video to ${number}`);
-      response = await fetch(`${EVOLUTION_API_URL}/message/sendMedia/${instance}`, {
+      response = await fetch(`${EVOLUTION_API_URL}/send/media`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': EVOLUTION_API_KEY },
-        body: JSON.stringify({ number, mediatype: 'video', media: mediaUrl, caption }),
+        headers,
+        body: JSON.stringify({ id: creds.id, number, type: 'video', url: mediaUrl, caption }),
       });
     } else {
-      // YouTube links or other URLs — send as text message with link
       const textBody = caption + '\n\n' + mediaUrl;
       console.log(`[WhatsApp] Sending text message with link to ${number}`);
-      response = await fetch(`${EVOLUTION_API_URL}/message/sendText/${instance}`, {
+      response = await fetch(`${EVOLUTION_API_URL}/send/text`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': EVOLUTION_API_KEY },
-        body: JSON.stringify({ number, text: textBody }),
+        headers,
+        body: JSON.stringify({ id: creds.id, number, text: textBody }),
       });
     }
 
     const data = await response.json();
-    console.log(`[WhatsApp] Message sent to ${number} via ${instance}: ${JSON.stringify(data).substring(0, 200)}`);
-    return { success: true, data, instance };
+    console.log(`[WhatsApp] Message sent to ${number} via ${instanceName}: ${JSON.stringify(data).substring(0, 200)}`);
+    return { success: true, data, instance: instanceName };
   } catch (err) {
     console.error(`[WhatsApp] Failed to send message to ${number}:`, err.message);
     return { success: false, error: err.message };

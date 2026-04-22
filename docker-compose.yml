@@ -17,7 +17,7 @@ services:
       - PLIVO_AUTH_TOKEN=${PLIVO_AUTH_TOKEN}
       - PLIVO_FROM_NUMBER=${PLIVO_FROM_NUMBER}
       - PUBLIC_URL=${PUBLIC_URL}
-      - EVOLUTION_API_URL=${EVOLUTION_API_URL:-http://evolution-api-fgxi-api-1:8080}
+      - EVOLUTION_API_URL=${EVOLUTION_API_URL:-https://evo-go.tech.onegroup.co.in}
       - EVOLUTION_API_KEY=${EVOLUTION_API_KEY}
       - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-main-whatsapp}
       - DATABASE_URL=${DATABASE_URL}

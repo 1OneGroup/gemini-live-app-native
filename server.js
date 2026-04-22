@@ -1233,14 +1233,14 @@ const server = http.createServer(async (req, res) => {
 
   if (parsed.pathname === '/api/evolution/instances' && req.method === 'GET') {
     try {
-      const evoRes = await fetch(`${process.env.EVOLUTION_API_URL || 'http://evolution-api-fgxi-api-1:8080'}/instance/fetchInstances`, {
+      const evoRes = await fetch(`${process.env.EVOLUTION_API_URL || 'https://evo-go.tech.onegroup.co.in'}/instance/all`, {
         headers: { 'apikey': process.env.EVOLUTION_API_KEY || '' },
       });
       const evoData = await evoRes.json();
-      const instances = (Array.isArray(evoData) ? evoData : []).map(i => ({
+      const instances = (Array.isArray(evoData.data) ? evoData.data : []).map(i => ({
         name: i.name,
-        connectionStatus: i.connectionStatus,
-        profileName: i.profileName || null,
+        connectionStatus: i.connected ? 'open' : 'close',
+        profileName: i.jid || null,
       }));
       json(res, instances);
     } catch (err) { json(res, { error: err.message }, 500); }
@@ -1292,7 +1292,7 @@ const server = http.createServer(async (req, res) => {
   if (evoProxyMatch && req.method === 'GET') {
     const evoPath = evoProxyMatch[1];
     try {
-      const evoRes = await fetch(`${process.env.EVOLUTION_API_URL || 'http://evolution-api-fgxi-api-1:8080'}/${evoPath}`, {
+      const evoRes = await fetch(`${process.env.EVOLUTION_API_URL || 'https://evo-go.tech.onegroup.co.in'}/${evoPath}`, {
         headers: { 'apikey': process.env.EVOLUTION_API_KEY || '' },
       });
       const evoData = await evoRes.json();
@@ -1305,14 +1305,10 @@ const server = http.createServer(async (req, res) => {
   if (parsed.pathname === '/api/evolution/create-instance' && req.method === 'POST') {
     parseBody(req).then(async body => {
       try {
-        const evoRes = await fetch(`${process.env.EVOLUTION_API_URL || 'http://evolution-api-fgxi-api-1:8080'}/instance/create`, {
+        const evoRes = await fetch(`${process.env.EVOLUTION_API_URL || 'https://evo-go.tech.onegroup.co.in'}/instance/create`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'apikey': process.env.EVOLUTION_API_KEY || '' },
-          body: JSON.stringify({
-            instanceName: body.instance_name,
-            integration: 'WHATSAPP-BAILEYS',
-            qrcode: true,
-          }),
+          body: JSON.stringify({ name: body.instance_name }),
         });
         const evoData = await evoRes.json();
         json(res, evoData);
