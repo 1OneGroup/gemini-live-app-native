@@ -12,6 +12,9 @@ const whatsapp = require('./whatsapp');
 // --- Config ---
 const PORT = process.env.PORT || 8100;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+if (!process.env.OPENROUTER_API_KEY) {
+  console.warn('[Server] OPENROUTER_API_KEY not set — DeepSeek classification and batch analysis will fall back to keyword matching / error summaries.');
+}
 const PLIVO_AUTH_ID = process.env.PLIVO_AUTH_ID;
 const PLIVO_AUTH_TOKEN = process.env.PLIVO_AUTH_TOKEN;
 const PLIVO_FROM_NUMBER = process.env.PLIVO_FROM_NUMBER;

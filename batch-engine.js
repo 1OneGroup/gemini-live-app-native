@@ -1,11 +1,10 @@
 // Batch execution engine — orchestrates campaign calling with AI analysis between batches
 const db = require('./db');
 const store = require('./call-store');
+const deepseek = require('./deepseek');
 
 const CALL_COOLDOWN_MS = 5000;  // 5s between calls
 const MAX_CONSECUTIVE_FAILURES = 3;
-const GEMINI_TEXT_MODEL = 'gemini-2.5-flash';
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 // Active campaign runners: campaignId -> { running, abortController }
 const activeRunners = new Map();
@@ -139,16 +138,31 @@ async function runBatch(campaignId, batchNumber, runner) {
       await db.updateContact(contact.id, { callUuid: result.callUuid, status: 'calling' });
 
       // Wait for call to complete (poll call store)
-      const outcome = await waitForCallCompletion(result.callUuid, 300000); // 5 min timeout
+      const preOutcome = await waitForCallCompletion(result.callUuid, 300000); // 5 min timeout
       const callData = store.getCall(result.callUuid);
+
+      // Transcript-bearing outcomes → DeepSeek classification. Hangup-only outcomes skip it.
+      let outcome = preOutcome;
+      let intent = null, interestScore = null, objections = null, oneLineSummary = null;
+      if (['interested', 'not_interested', 'callback', 'brochure_sent'].includes(preOutcome)
+          && callData?.transcript?.length > 0) {
+        const c = await deepseek.classifyCall(callData.transcript);
+        outcome = c.outcome || preOutcome;
+        intent = c.intent;
+        interestScore = c.interest_score;
+        objections = c.objections ? JSON.stringify(c.objections) : null;
+        oneLineSummary = c.one_line_summary;
+      }
+
       await db.updateContact(contact.id, {
         status: 'completed', outcome,
         callbackDate: callData?.callbackDate || null,
         callbackNote: callData?.callbackRequested || null,
+        intent, interestScore, objections, oneLineSummary,
       });
 
       runner.consecutiveFailures = 0;
-      console.log(`[BatchEngine] Call to ${contact.phone} completed: ${outcome}`);
+      console.log(`[BatchEngine] Call to ${contact.phone} completed: ${outcome}${intent ? ` (intent=${intent}, score=${interestScore})` : ''}`);
 
     } catch (err) {
       console.error(`[BatchEngine] Call to ${contact.phone} failed:`, err.message);
@@ -218,113 +232,39 @@ function classifyOutcome(call) {
   return 'no_answer';
 }
 
-// --- AI Batch Analysis ---
+// --- AI Batch Analysis (DeepSeek V3.2 via OpenRouter) ---
+// Pulls per-call JSONs written by classifyCall; never re-sends raw transcripts.
 async function runBatchAnalysis(campaignId, batchNumber) {
   const contacts = await db.getContacts(campaignId, { batchNumber });
   const batchStats = await db.getBatchStats(campaignId, batchNumber);
-  const campaign = await db.getCampaign(campaignId);
 
-  // Collect transcripts from completed calls
-  const transcripts = [];
-  for (const contact of contacts) {
-    if (contact.call_uuid) {
-      const call = store.getCall(contact.call_uuid);
-      if (call?.transcript?.length > 0) {
-        transcripts.push({
-          name: contact.name || 'Unknown',
-          phone: contact.phone,
-          outcome: contact.outcome,
-          duration: call.duration,
-          transcript: call.transcript.map(t => `${t.role}: ${t.text}`).join('\n'),
-        });
-      }
-    }
-  }
+  const perCallJsons = contacts
+    .filter(c => c.one_line_summary)
+    .map(c => ({
+      outcome: c.outcome,
+      intent: c.intent,
+      interest_score: c.interest_score,
+      objections: safeJsonParse(c.objections, []),
+      one_line_summary: c.one_line_summary,
+    }));
 
-  const prompt = `You are an AI telecalling campaign analyst. Analyze the following batch of cold calls for a real estate project.
+  const { summary } = await deepseek.summarizeBatch(perCallJsons, batchStats);
 
-## Campaign: ${campaign.name}
-## Batch ${batchNumber} Results
+  const activePrompt = await db.getActivePrompt();
+  await db.createAnalysis(campaignId, batchNumber, {
+    summary,
+    recommendations: null,
+    promptAdjustments: null,
+    stats: batchStats,
+    promptId: activePrompt?.id || null,
+  });
 
-### Stats
-- Total calls: ${batchStats.total}
-- Completed: ${batchStats.completed}
-- Failed: ${batchStats.failed}
-- Interested: ${batchStats.interested}
-- Not interested: ${batchStats.not_interested}
-- Callbacks: ${batchStats.callback}
-- No answer: ${batchStats.no_answer}
-- Busy: ${batchStats.busy}
-- Brochure requests: ${batchStats.brochure_sent}
-- Voicemail: ${batchStats.voicemail || 0}
+  console.log(`[BatchEngine] DeepSeek batch analysis saved for batch ${batchNumber} (${perCallJsons.length}/${contacts.length} calls had per-call JSON)`);
+}
 
-### Call Transcripts (${transcripts.length} available)
-${transcripts.slice(0, 20).map((t, i) => `
---- Call ${i + 1}: ${t.name} (${t.outcome}, ${t.duration}s) ---
-${t.transcript}
-`).join('\n')}
-
-## Your Analysis
-
-Provide:
-1. **Summary**: 2-3 sentence overview of batch performance
-2. **Key Patterns**: What objections are most common? What's working in the pitch?
-3. **Recommendations**: Specific, actionable improvements for the next batch
-4. **Prompt Adjustments**: If the system instruction should be tweaked, suggest specific changes
-
-Format your response as JSON:
-{
-  "summary": "...",
-  "recommendations": "...",
-  "prompt_adjustments": "..."
-}`;
-
-  try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TEXT_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 8192 },
-      }),
-    });
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-    // Try to parse JSON from response
-    let analysis = { summary: text, recommendations: '', prompt_adjustments: '' };
-    try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        analysis = { summary: parsed.summary || text, recommendations: parsed.recommendations || '', prompt_adjustments: parsed.prompt_adjustments || '' };
-      }
-    } catch { /* Use raw text as summary */ }
-
-    // Record which prompt was active for this batch
-    const activePrompt = await db.getActivePrompt();
-    await db.createAnalysis(campaignId, batchNumber, {
-      summary: analysis.summary,
-      recommendations: analysis.recommendations,
-      promptAdjustments: analysis.prompt_adjustments,
-      stats: batchStats,
-      promptId: activePrompt?.id || null,
-    });
-
-    console.log(`[BatchEngine] AI analysis saved for batch ${batchNumber}`);
-  } catch (err) {
-    console.error(`[BatchEngine] AI analysis failed:`, err.message);
-    // Save analysis with error
-    const activePromptErr = await db.getActivePrompt();
-    await db.createAnalysis(campaignId, batchNumber, {
-      summary: `Analysis failed: ${err.message}`,
-      recommendations: '',
-      promptAdjustments: '',
-      stats: batchStats,
-      promptId: activePromptErr?.id || null,
-    });
-  }
+function safeJsonParse(s, fallback) {
+  if (!s) return fallback;
+  try { return JSON.parse(s); } catch { return fallback; }
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }

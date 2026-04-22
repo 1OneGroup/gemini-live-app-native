@@ -11,6 +11,7 @@ services:
     environment:
       - PORT=8100
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - GEMINI_MODEL=${GEMINI_MODEL:-models/gemini-3.1-flash-live-preview}
       - PLIVO_AUTH_ID=${PLIVO_AUTH_ID}
       - PLIVO_AUTH_TOKEN=${PLIVO_AUTH_TOKEN}

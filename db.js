@@ -51,8 +51,17 @@ async function ensureSchema() {
         employee_name TEXT,
         callback_date TEXT,
         callback_note TEXT,
+        intent TEXT,
+        interest_score INTEGER,
+        objections TEXT,
+        one_line_summary TEXT,
         created_at TIMESTAMPTZ DEFAULT now()
       );
+
+      ALTER TABLE gemini_live.contacts ADD COLUMN IF NOT EXISTS intent TEXT;
+      ALTER TABLE gemini_live.contacts ADD COLUMN IF NOT EXISTS interest_score INTEGER;
+      ALTER TABLE gemini_live.contacts ADD COLUMN IF NOT EXISTS objections TEXT;
+      ALTER TABLE gemini_live.contacts ADD COLUMN IF NOT EXISTS one_line_summary TEXT;
 
       CREATE INDEX IF NOT EXISTS idx_gl_contacts_campaign ON gemini_live.contacts(campaign_id);
       CREATE INDEX IF NOT EXISTS idx_gl_contacts_batch ON gemini_live.contacts(campaign_id, batch_number);
@@ -261,13 +270,17 @@ async function getBatchStats(campaignId, batchNumber) {
   return row || { total: 0, completed: 0, failed: 0, interested: 0, not_interested: 0, callback: 0, no_answer: 0, busy: 0, brochure_sent: 0, voicemail: 0 };
 }
 
-async function updateContact(id, { status, callUuid, outcome, callbackDate, callbackNote }) {
+async function updateContact(id, { status, callUuid, outcome, callbackDate, callbackNote, intent, interestScore, objections, oneLineSummary }) {
   await execute(
     `UPDATE contacts SET
       status = COALESCE($1, status), call_uuid = COALESCE($2, call_uuid),
       outcome = COALESCE($3, outcome), callback_date = COALESCE($4, callback_date),
-      callback_note = COALESCE($5, callback_note) WHERE id = $6`,
-    [status || null, callUuid || null, outcome || null, callbackDate || null, callbackNote || null, id]
+      callback_note = COALESCE($5, callback_note),
+      intent = COALESCE($6, intent), interest_score = COALESCE($7, interest_score),
+      objections = COALESCE($8, objections), one_line_summary = COALESCE($9, one_line_summary)
+     WHERE id = $10`,
+    [status || null, callUuid || null, outcome || null, callbackDate || null, callbackNote || null,
+     intent || null, interestScore ?? null, objections || null, oneLineSummary || null, id]
   );
 }
 
