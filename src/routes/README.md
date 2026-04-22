@@ -1,17 +1,27 @@
 # src/routes/
 
-HTTP endpoint handlers — one module per logical domain (Plivo webhooks, call CRUD, campaigns, analytics, etc.). Express.Router instances wrapped for easy mounting.
+Express routers for API endpoints — domain-specific handlers (Plivo webhooks, call CRUD, campaigns, analytics, etc.) exported as factory functions for dependency injection.
 
-## Files
+## Routers
 
-- `plivo.js` — POST /answer (inbound), POST /hangup, POST /digits (DTMF)
-- `calls.js` — GET /calls, GET /calls/:id, POST /calls, PUT /calls/:id
-- `campaigns.js` — GET/POST/PUT /campaigns, campaign list, create, update
-- `brochures.js` — GET /brochures, POST /brochures, WhatsApp send integration
-- `employees.js` — GET/POST /employees, team member CRUD
-- `prompts.js` — GET/POST /prompts, list and create prompt templates
-- `model.js` — GET /model, POST /model/test (model switching & validation)
-- `analytics.js` — GET /analytics (KPIs, charts, call metrics)
-- `health.js` — GET /health (liveness & readiness)
+| File | HTTP Routes |
+|------|-------------|
+| analytics.js | GET /api/analytics |
+| brochures.js | GET/POST /api/brochures, DELETE /api/brochures/:key |
+| calls.js | GET /api/calls, GET /api/calls/:callUuid |
+| campaigns.js | GET/POST /api/campaigns, GET/PATCH/DELETE /api/campaigns/:id, POST /api/campaigns/:id/{upload,start,pause,cancel,trigger-callbacks,auto-callback,batches/:n/approve,batches/:n/rerun-analysis}, GET /api/campaigns/:id/{callbacks,batches,batches/:n/analysis,contacts} |
+| employees.js | GET /api/employee-instances/auto-detect, GET/POST /api/employee-instances, PATCH/DELETE /api/employee-instances/:id |
+| evolution.js | GET /api/evolution/instances, POST /api/evolution/create-instance, GET /api/evolution/:path (proxy) |
+| health.js | GET /health |
+| model.js | GET /api/model, POST /api/model |
+| plivo.js | POST {/answer,/stream-status,/recording-callback,/recording-status,/hangup,/machine-detection,/call} |
+| prompts.js | GET/POST/DELETE /api/prompt, GET/POST /api/prompts, GET/PATCH/DELETE /api/prompts/:id, POST /api/prompts/:id/activate, DELETE /api/prompts/active |
+| whatsapp-messages.js | GET/POST /api/whatsapp-messages, POST /api/whatsapp-messages/improve, DELETE /api/whatsapp-messages/active, GET/PATCH/DELETE /api/whatsapp-messages/:id, POST /api/whatsapp-messages/:id/activate |
 
-> **Status:** placeholder — will be populated in Phase 3. See /home/office/.claude/plans/swift-percolating-teapot.md for the full refactor plan.
+## Dependency injection
+
+Each router exports `(deps) => Router`. The factory receives shared dependencies from `src/app.js`: `store`, `db`, `makeCall`, `hangupCall`, `GEMINI_MODELS`, `getActiveModel`, `setActiveModel`, `callCostInr`, `safeJsonParse`, `normalizePhone`, `pendingSessions`, `sessions`, `getDashboardHtml`, `getSystemInstruction`, `saveSystemInstruction`, `isUsingOverride`, `DEFAULT_PROMPT`, `USD_INR`, `PLIVO_RATE`, `whatsapp`, `batchEngine`, and `handleVoicemailDetected`. This keeps routers free of global state and simplifies testing.
+
+## Imported by
+
+- `src/app.js`

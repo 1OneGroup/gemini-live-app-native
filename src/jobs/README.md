@@ -1,11 +1,21 @@
-# src/jobs/
+# src/jobs
 
-Async workers and cron jobs — batch call processing, auto-callback scheduling, callback data sync from Plivo webhooks.
+Async orchestration tasks: campaign batch dialing, daily auto-callback scheduling, and startup callback data repair.
 
 ## Files
 
-- `batch-engine.js` — Start/stop/pause campaigns; distribute calls to Plivo in batches; honor rate limits
-- `auto-callback.js` — Cron job to reschedule missed calls (moved from root)
-- `sync-callback-data.js` — Webhook handler to record Plivo call state (ringing, answered, hangup)
+| File | Exports | Purpose |
+|---|---|---|
+| `batch-engine.js` | `startCampaign`, `pauseCampaign`, `cancelCampaign`, `isRunning`, `getRunnerStatus`, `setMakeCallFn`, `classifyOutcome`, `runBatchAnalysis` | Campaign batch runner — dials contacts in groups, waits 5s between calls, runs AI analysis after each batch, pauses for approval before next batch. |
+| `auto-callback.js` | `runAutoCallbacks`, `scheduleAutoCallbackCron` | Daily auto-callback cron — filters contacts whose `callback_date` is due, dials them via `makeCall`, marks as `calling`. Fires at 11:00 AM IST (5:30 AM UTC). |
+| `sync-callback-data.js` | `syncCallbackData` | One-time startup repair — syncs in-memory call-store callback and outcome data to the `contacts` DB table, re-classifies outcomes that predate multi-outcome support, extracts callback timing. |
 
-> **Status:** placeholder — will be populated in Phase 7. See /home/office/.claude/plans/swift-percolating-teapot.md for the full refactor plan.
+## Schedule
+
+- **auto-callback**: Runs daily at 11:00 AM IST via `setInterval` check (cron defined in `auto-callback.js`). Dials all due contacts across campaigns with `auto_callback` enabled.
+- **batch-engine**: Runs on-demand when a campaign is started (via dashboard or API). Blocks between batches for approval.
+- **sync-callback-data**: Runs once at startup (after short delay in `src/index.js`).
+
+## Imported by
+
+- `src/index.js` (batch engine, auto-callback cron, sync routine)

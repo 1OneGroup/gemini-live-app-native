@@ -1,11 +1,17 @@
-# src/config/
-
-Static configuration and environment setup — API keys, model names, feature flags, port numbers, and constants.
+Configuration module providing API keys, environment variables, Gemini models, and shared application constants.
 
 ## Files
 
-- `env.js` — Load and validate `process.env.*` vars; export normalized config object
-- `models.js` — Gemini model name, DeepSeek model name, pricing constants
-- `constants.js` — Magic numbers and fixed config (retry limits, timeout seconds, regex patterns)
+| File | Exports | Purpose |
+|---|---|---|
+| constants.js | USD_INR, MAX_RECONNECTIONS, goodbyePhrases | Application-wide constants for exchange rates, reconnection limits, and auto-hangup triggers. |
+| env.js | GEMINI_API_KEY, GEMINI_MODEL, OPENROUTER_API_KEY, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_FROM_NUMBER, PUBLIC_URL, EVOLUTION_API_URL, EVOLUTION_API_KEY, EVOLUTION_INSTANCE, DATABASE_URL, CLASSIFIER_DASHBOARD_URL, PORT, DATA_DIR | Validated environment variable accessors loaded from .env; single point of access for all external service credentials and configuration. |
+| models.js | GEMINI_MODELS, getActiveModel, setActiveModel | Gemini model registry with pricing data and runtime model-override persistence to survive restarts. |
 
-> **Status:** placeholder — will be populated in Phase 2. See /home/office/.claude/plans/swift-percolating-teapot.md for the full refactor plan.
+## Imported by
+
+- src/index.js
+- src/lib/pricing.js
+- src/plivo/outbound.js
+- src/gemini/session.js
+- src/gemini/message-handler.js

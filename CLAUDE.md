@@ -30,12 +30,19 @@ Dashboard (port 8100 /) <───HTTP───> HTTP endpoints <─────
 
 | Path | Purpose |
 |---|---|
-| server.js (1860 lines) | **Legacy monolith** — HTTP server, Plivo+Gemini WS bridging, all routes, outbound call logic. Being split in Phases 3/4/7. |
-| dashboard.js | **Legacy monolith** — returns the rendered HTML of the dashboard. Being split in Phase 6. |
-| db.js | Supabase/Postgres client + schema bootstrap + entity CRUD. Splitting in Phase 5. |
-| batch-engine.js, call-store.js, deepseek.js, whatsapp.js, prompts.js, audio-utils.js | Domain helpers. Moving under `src/jobs/`, `src/lib/`, `src/integrations/`, `src/prompts/` in Phases 2/7. |
-| src/ | **Target structure** (see `src/README.md` for the full map). Populated phase-by-phase; each subdir has its own README. |
-| docs/refactor-baseline.txt, docs/dashboard-baseline.html | Pre-refactor behavior snapshots used to verify byte-identical behavior. |
+| `src/index.js` | Process entry. Loads env, runs `db.init()`, starts jobs, creates http server, attaches WS, listens on `PORT`. |
+| `src/app.js` | Express app factory. Mounts routers via dependency injection; serves dashboard HTML at `/`. |
+| `src/config/` | `env.js`, `models.js` (GEMINI_MODELS registry + active-model getter/setter), `constants.js` (goodbyePhrases, USD_INR, MAX_RECONNECTIONS). |
+| `src/db/` | pg Pool (`index.js`), DDL (`schema.sql` + `schema.js`), migrations, per-entity CRUD (campaigns, contacts, analyses, prompts, whatsapp-messages, employees). |
+| `src/dashboard/` | `getDashboardHtml()` concatenator + per-feature HTML/CSS/JS string modules under `client/`. |
+| `src/gemini/` | Unified Gemini Live session (`session.js` replaces the old duplicated preWarm + reconnect), setup-payload builder, message handler, tools (`end_call`, `send_brochure`), keepalive. |
+| `src/integrations/` | `deepseek.js` (OpenRouter), `evolution.js` (Evo-Go WhatsApp API config), `whatsapp.js` (message sending). |
+| `src/jobs/` | `batch-engine.js` (campaign runner), `auto-callback.js` (daily cron), `sync-callback-data.js`. |
+| `src/lib/` | Pure utilities: `call-store` (in-memory call state), `outcome-classifier` (merged keyword logic), `phone`, `pricing`, `safe-json`. |
+| `src/plivo/` | `audio-utils` (mulaw ↔ PCM), `outbound` (makeCall, hangupCall), `websocket` (/media-stream upgrade). |
+| `src/prompts/` | `prompts.js` (getSystemInstruction, DEFAULT_PROMPT), `runtime-cues.js` (greeting + continuation + end_call description). |
+| `src/routes/` | One Express router per feature area. Each is `(deps) => Router`. See `src/routes/README.md` for the full endpoint table. |
+| `docs/refactor-baseline.txt`, `docs/dashboard-baseline.html` | Pre-refactor behavior snapshots for byte-identity verification. Dashboard sha256 `2dee3b508bc3d0436cff2ef0d829c530a692a3e31df8f8b3903e1ccb30cd4460` / 116902 bytes. |
 
 ## Environment variables
 
@@ -56,9 +63,9 @@ Dashboard (port 8100 /) <───HTTP───> HTTP endpoints <─────
 | PORT | HTTP server port (default: 8100) |
 | DATA_DIR | Local call recording and data directory (default: /data/calls) |
 
-## Refactor in progress
+## Known follow-ups (out of scope for this refactor)
 
-This repo is mid-refactor (`refactor/ai-friendly-structure` branch). Phase plan at
-`/home/office/.claude/plans/swift-percolating-teapot.md`. Execution plan at
-`/home/office/.claude/plans/execute-the-ai-friendliness-refactor-jolly-dream.md`.
-Current phase: 1 (scaffolding — directory structure, README stubs, package.json updates).
+- No automated tests yet. The refactor is verified via static byte-identity + live smoke calls against a staging container.
+- `preWarmGemini` vs `reconnectGemini` were originally asymmetric in 14 subtle ways — logging verbosity, a missing user-buffer flush on reconnect, `send_brochure` fallback omitting `whatsappMessageKey`, different error wording. Phase 4 preserved these byte-identically under the `isReconnect` flag; several look like bugs worth fixing in a follow-up.
+- `pg` DeprecationWarning at boot: `client.query()` called while another query is executing. Pre-existing; preserved through the refactor.
+- ESLint / Prettier are stubbed (`npm run lint` is a placeholder); add real linting if you want enforcement.
