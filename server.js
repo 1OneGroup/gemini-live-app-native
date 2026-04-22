@@ -709,6 +709,16 @@ const server = http.createServer(async (req, res) => {
     if (!call.outcome && (call.status === 'completed' || call.hangupCause)) {
       call.outcome = store.classifyCallOutcome(callUuid);
     }
+    // Attach per-call DeepSeek classification from contacts table if available
+    const contact = await db.getContactByCallUuid(callUuid);
+    if (contact) {
+      call.analysis = {
+        one_line_summary: contact.one_line_summary || null,
+        intent: contact.intent || null,
+        interest_score: contact.interest_score ?? null,
+        objections: contact.objections ? JSON.parse(contact.objections) : [],
+      };
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(call));
     return;

@@ -1202,6 +1202,15 @@ function getDashboardHtml() {
             <div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Tokens</div><div class="detail-value" style="font-size:12px">Input: \${(tk.inputTokens||0).toLocaleString()} &middot; Output: \${(tk.outputTokens||0).toLocaleString()} &middot; Total: \${(tk.totalTokens||0).toLocaleString()}</div></div>
           </div>
         </div>
+        \${call.analysis && (call.analysis.one_line_summary || call.analysis.intent || call.analysis.interest_score != null) ? \`
+        <div class="slide-over-section"><h3>AI Analysis</h3>
+          <div class="detail-grid">
+            \${call.analysis.one_line_summary ? \`<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Summary</div><div class="detail-value" style="white-space:pre-wrap">\${esc(call.analysis.one_line_summary)}</div></div>\` : ''}
+            \${call.analysis.intent ? \`<div class="detail-item"><div class="detail-label">Intent</div><div class="detail-value">\${esc(call.analysis.intent.replace(/_/g,' '))}</div></div>\` : ''}
+            \${call.analysis.interest_score != null ? \`<div class="detail-item"><div class="detail-label">Interest Score</div><div class="detail-value"><span class="badge-status \${call.analysis.interest_score>=7?'badge-completed':call.analysis.interest_score>=4?'badge-draft':'badge-cancelled'}"><span class="badge-dot"></span>\${call.analysis.interest_score}/10</span></div></div>\` : ''}
+            \${call.analysis.objections?.length ? \`<div class="detail-item" style="grid-column:1/-1"><div class="detail-label">Objections</div><div class="detail-value">\${call.analysis.objections.map(o=>\`<span style="display:inline-block;background:var(--surface-raised);border:1px solid var(--border);border-radius:4px;padding:1px 7px;font-size:12px;margin:2px 3px 2px 0">\${esc(o.replace(/_/g,' '))}</span>\`).join('')}</div></div>\` : ''}
+          </div>
+        </div>\` : ''}
         <div class="slide-over-section"><h3>Recording</h3>\${recHtml}</div>
         <div class="slide-over-section"><h3>Transcript (\${call.transcript?call.transcript.length:0})</h3><div class="transcript">\${txHtml}</div></div>
       \`;

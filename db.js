@@ -270,6 +270,10 @@ async function getBatchStats(campaignId, batchNumber) {
   return row || { total: 0, completed: 0, failed: 0, interested: 0, not_interested: 0, callback: 0, no_answer: 0, busy: 0, brochure_sent: 0, voicemail: 0 };
 }
 
+async function getContactByCallUuid(callUuid) {
+  return queryOne('SELECT * FROM contacts WHERE call_uuid = $1', [callUuid]);
+}
+
 async function updateContact(id, { status, callUuid, outcome, callbackDate, callbackNote, intent, interestScore, objections, oneLineSummary }) {
   await execute(
     `UPDATE contacts SET
@@ -470,7 +474,7 @@ module.exports = {
   init, pool,
   rawQuery, rawExecute,
   createCampaign, getCampaign, listCampaigns, updateCampaign, deleteCampaign,
-  insertContacts, getContacts, getContactStats, getBatchStats, updateContact,
+  insertContacts, getContacts, getContactStats, getBatchStats, updateContact, getContactByCallUuid,
   getNextPendingContact, getMaxBatch, getCallbackContacts,
   createAnalysis, getAnalysis, listAnalyses, approveAnalysis, rejectAnalysis, deleteAnalysis,
   createPrompt, listPrompts, getPrompt, updatePrompt, deletePrompt, setActivePrompt, getActivePrompt,
