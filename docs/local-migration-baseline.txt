@@ -77,3 +77,22 @@ drwxr-xr-x    2 root     root          4096 Apr 11 11:15 calls
 All 10 call JSONs sha256-identical to gemini-live-app-native_call-data volume
 brochures.json sha256-identical to gemini-live-app-native_prompt-data volume
 campaigns.db{,-shm,-wal} fossils archived to data/archive/sqlite-fossils/ (not used at runtime)
+
+=== Phase A6 parity vs docker at 2026-04-22T22:08:39+00:00 ===
+(systemd on :8102 vs docker on :8100; both serving same code, same data)
+
+--- /health diff: empty ---
+--- dashboard sha256 identical: 2dee3b508bc3d0436cff2ef0d829c530a692a3e31df8f8b3903e1ccb30cd4460 ---
+--- API parity ---
+/api/calls               docker=200/3962   host=200/3962    OK
+/api/campaigns           docker=200/2      host=200/2       OK
+/api/analytics           docker=200/1270   host=200/1270    OK
+/api/brochures           docker=200/300    host=200/300     OK
+/api/model               docker=200/507    host=200/507     OK
+/api/prompt              docker=200/14756  host=200/14756   OK
+/api/whatsapp-messages   docker=200/542    host=200/542     OK
+/api/evolution/instances docker=200/193    host=200/193     OK
+/api/employee-instances  docker=200/2      host=200/2       OK
+
+--- WebSocket /media-stream upgrade: HTTP/1.1 101 Switching Protocols ---
+--- Data-write round-trip: POST /api/prompt wrote prompt-override.txt to host data dir; DELETE /api/prompt removed it cleanly ---
