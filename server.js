@@ -1855,5 +1855,10 @@ db.init().then(() => {
   });
 }).catch(err => {
   console.error('[DB] Failed to initialize:', err.message);
-  process.exit(1);
+  console.warn('[DB] Starting server without database — campaigns/contacts features will be unavailable');
+  server.listen(PORT, () => {
+    console.log(`[Server] Gemini Live + Plivo bridge running on port ${PORT} (no DB)`);
+    console.log(`[Server] Dashboard: ${PUBLIC_URL}/dashboard`);
+    scheduleAutoCallbackCron();
+  });
 });
