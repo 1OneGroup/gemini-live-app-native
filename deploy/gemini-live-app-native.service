@@ -1,0 +1,25 @@
+[Unit]
+Description=Gemini Live + Plivo bridge (native host-mode)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=office
+Group=office
+WorkingDirectory=/home/office/gemini-live-app-native
+EnvironmentFile=/home/office/gemini-live-app-native/.env
+EnvironmentFile=/home/office/gemini-live-app-native/.env.host.local
+ExecStart=/usr/bin/node src/index.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gemini-live
+ReadWritePaths=/home/office/gemini-live-app-native/data
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=false
+
+[Install]
+WantedBy=multi-user.target
