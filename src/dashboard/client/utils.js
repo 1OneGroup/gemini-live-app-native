@@ -1,0 +1,1 @@
+module.exports = "    // ─── Utils ──────────────────────────────\n    function esc(s) { if(!s)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }\n    function rupee(v) { if(v==null||v===undefined)return'₹0'; return '₹' + Number(v).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }\n";
