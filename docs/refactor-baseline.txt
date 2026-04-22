@@ -1,0 +1,94 @@
+# Pre-refactor behavior baseline
+# Captured: 2026-04-22T19:12:23Z
+# Commit (main at capture): 5fefb744dabccae86ae9437227a9dbf98ba7f9ca
+# Branch: refactor/ai-friendly-structure
+
+## /health
+{"status":"ok","sessions":0,"pending":0,"activeSessions":[]}
+
+## /api/calls (first 2KB)
+[{"callUuid":"f2c0a348-6462-4265-a483-6b4bc95cde68","to":"+919899050706","customerName":"Apoorv","status":"completed","startedAt":"2026-04-22T18:28:11.221Z","duration":107,"hangupCause":"Normal Hangup","geminiTurns":5,"transcriptLines":14,"hasRecording":true,"tokens":{"inputTokens":37699,"outputTokens":2023,"totalTokens":39722},"outcome":"brochure_sent,interested","callbackRequested":null,"callbackDate":null},{"callUuid":"50dffc23-94ea-4b59-a877-00b10243419b","to":"+919899050706","customerName":"Apoorv","status":"completed","startedAt":"2026-04-22T17:07:11.731Z","duration":106,"hangupCause":"Normal Hangup","geminiTurns":6,"transcriptLines":14,"hasRecording":true,"tokens":{"inputTokens":33326,"outputTokens":1997,"totalTokens":35323},"outcome":"interested","callbackRequested":null,"callbackDate":null},{"callUuid":"bb5d2eba-ad11-4f76-aca3-909f6571f7d3","to":"+919899050706","customerName":"Apoorv","status":"completed","startedAt":"2026-04-22T16:19:54.014Z","duration":98,"hangupCause":"Normal Hangup","geminiTurns":5,"transcriptLines":11,"hasRecording":true,"tokens":{"inputTokens":23405,"outputTokens":1781,"totalTokens":25186},"outcome":"interested","callbackRequested":null,"callbackDate":null},{"callUuid":"6bc6fbfc-c5f9-4b6f-96ec-35555baa6a89","to":"+919899050706","customerName":"Apoorv","status":"completed","startedAt":"2026-04-22T16:17:03.984Z","duration":74,"hangupCause":"Normal Hangup","geminiTurns":5,"transcriptLines":11,"hasRecording":true,"tokens":{"inputTokens":16227,"outputTokens":1098,"totalTokens":17325},"outcome":"interested","callbackRequested":null,"callbackDate":null},{"callUuid":"5d107fc7-cb27-4058-b49f-6aa2c86fe727","to":"+919899050706","customerName":"Apoorv","status":"completed","startedAt":"2026-04-22T12:30:43.882Z","duration":20,"hangupCause":"Normal Hangup","geminiTurns":0,"transcriptLines":3,"hasRecording":true,"tokens":{"inputTokens":4320,"outputTokens":327,"totalTokens":4647},"outcome":"callback","callbackRequested":null,"callbackDate":null},{"callUuid":"fdc97f6f-7353-468d-8cac-dca5d6131cc9","
+
+## Dashboard HTML byte count
+116902
+
+## /api/campaigns (first 1KB)
+[]
+
+## /api/analytics (first 1KB)
+{"summary":{"totalCampaigns":0,"totalContacts":0,"totalCompleted":9,"totalInterested":5,"totalBrochures":0,"totalCalls":9,"completedCalls":9,"avgDuration":58,"totalMinutes":8.7,"overallConnRate":0,"overallIntRate":56},"cost":{"plivo":6.41,"gemini":47.5,"total":53.91,"geminiMethod":"tokens","perCall":5.99,"perInterested":10.78,"tokens":{"input":149727,"output":9688,"total":159415},"activeModel":"models/gemini-3.1-flash-live-preview","activeModelName":"Gemini 3.1 Flash Live","rates":{"plivo":0.74,"geminiPerMin":1.93,"totalPerMin":2.67,"usdToInr":84,"currency":"INR"},"modelPricing":{"models/gemini-3.1-flash-live-preview":{"name":"Gemini 3.1 Flash Live","textInput":0.75,"audioInput":3,"textOutput":4.5,"audioOutput":12,"audioInputPerMin":0.005,"audioOutputPerMin":0.018},"models/gemini-2.5-flash-live-preview":{"name":"Gemini 2.5 Flash Live","textInput":0.5,"audioInput":3,"textOutput":2,"audioOutput":12,"audioInputPerMin":0.005,"audioOutputPerMin":0.018}}},"outcomes":{"interested":5,"not_interested":0,"callback":3,"
+
+## /api/brochures (first 1KB)
+{"clermont":{"name":"The Clermont","url":"https://www.youtube.com/watch?v=z65a7fC7L3M","caption":"Here is The Clermont brochure — premium 3BHK independent floors in Sector 98, Mohali.\n\nhttps://www.onegroup.co.in/projects/residential/the-clermont/\n\nhttps://www.youtube.com/watch?v=z65a7fC7L3M"}}
+
+## /api/model
+{"active":"models/gemini-3.1-flash-live-preview","models":{"models/gemini-3.1-flash-live-preview":{"name":"Gemini 3.1 Flash Live","shortName":"3.1 Flash","pricing":{"textInput":0.75,"audioInput":3,"textOutput":4.5,"audioOutput":12,"audioInputPerMin":0.005,"audioOutputPerMin":0.018}},"models/gemini-2.5-flash-live-preview":{"name":"Gemini 2.5 Flash Live","shortName":"2.5 Flash","pricing":{"textInput":0.5,"audioInput":3,"textOutput":2,"audioOutput":12,"audioInputPerMin":0.005,"audioOutputPerMin":0.018}}}}
+
+## /api/evolution/instance
+{"error":"Unexpected non-whitespace character after JSON at position 4 (line 1 column 5)"}
+
+## Route list (grepped from server.js)
+144:  ws.on('open', async () => {
+200:  ws.on('message', (data) => {
+389:  ws.on('close', (code, reason) => {
+409:  ws.on('error', (err) => {
+413:  ws.on('pong', () => {
+426:  ws.on('open', async () => {
+482:  ws.on('message', (data) => {
+646:  ws.on('close', (code, reason) => {
+665:  ws.on('error', (err) => {
+669:  ws.on('pong', () => {
+1643:server.on('upgrade', (req, socket, head) => {
+1652:wss.on('connection', (plivoWs) => {
+
+## Route list (pathname === '/...' in server.js — complete)
+679:  if (parsed.pathname === '/' || parsed.pathname === '/dashboard') {
+685:  if (parsed.pathname === '/api/calls' && req.method === 'GET') {
+691:  if (parsed.pathname.startsWith('/api/calls/') && req.method === 'GET') {
+727:  if (parsed.pathname === '/api/prompt' && req.method === 'GET') {
+733:  if (parsed.pathname === '/api/prompt' && req.method === 'POST') {
+756:  if (parsed.pathname === '/api/prompt' && req.method === 'DELETE') {
+765:  if (parsed.pathname === '/answer' && req.method === 'POST') {
+784:  if (parsed.pathname === '/stream-status' && req.method === 'POST') {
+791:  if (parsed.pathname === '/recording-callback' && req.method === 'POST') {
+805:  if (parsed.pathname === '/recording-status' && req.method === 'POST') {
+812:  if (parsed.pathname === '/hangup' && req.method === 'POST') {
+846:  if (parsed.pathname === '/machine-detection' && req.method === 'POST') {
+863:  if (parsed.pathname === '/call' && req.method === 'POST') {
+883:  if (parsed.pathname === '/health') {
+925:  if (parsed.pathname === '/api/campaigns' && req.method === 'GET') {
+936:  if (parsed.pathname === '/api/campaigns' && req.method === 'POST') {
+1191:  if (parsed.pathname === '/api/brochures' && req.method === 'GET') {
+1196:  if (parsed.pathname === '/api/brochures' && req.method === 'POST') {
+1211:  if (parsed.pathname === '/api/employee-instances/auto-detect' && req.method === 'GET') {
+1234:  if (parsed.pathname === '/api/evolution/instances' && req.method === 'GET') {
+1250:  if (parsed.pathname === '/api/employee-instances' && req.method === 'GET') {
+1255:  if (parsed.pathname === '/api/employee-instances' && req.method === 'POST') {
+1305:  if (parsed.pathname === '/api/evolution/create-instance' && req.method === 'POST') {
+1321:  if (parsed.pathname === '/api/model' && req.method === 'GET') {
+1326:  if (parsed.pathname === '/api/model' && req.method === 'POST') {
+1340:  if (parsed.pathname === '/api/prompts' && req.method === 'GET') {
+1345:  if (parsed.pathname === '/api/prompts' && req.method === 'POST') {
+1387:  if (parsed.pathname === '/api/prompts/active' && req.method === 'DELETE') {
+1395:  if (parsed.pathname === '/api/whatsapp-messages' && req.method === 'GET') {
+1400:  if (parsed.pathname === '/api/whatsapp-messages' && req.method === 'POST') {
+1415:  if (parsed.pathname === '/api/whatsapp-messages/improve' && req.method === 'POST') {
+1469:  if (parsed.pathname === '/api/whatsapp-messages/active' && req.method === 'DELETE') {
+1512:  if (parsed.pathname === '/api/analytics' && req.method === 'GET') {
+1645:  if (parsed.pathname === '/media-stream') {
+
+## Dashboard HTML sha256 (for Phase 6 byte-identity check)
+2dee3b508bc3d0436cff2ef0d829c530a692a3e31df8f8b3903e1ccb30cd4460  docs/dashboard-baseline.html
+
+## Package deps snapshot
+{
+  "deps": {
+    "pg": "^8.13.1",
+    "plivo": "^4.75.8",
+    "ws": "^8.20.0"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
