@@ -52,3 +52,28 @@ drwxr-xr-x    2 root     root          4096 Apr 11 11:15 calls
 -rw-r--r--    1 root     root         32768 Apr 13 05:45 campaigns.db-shm
 -rw-r--r--    1 root     root        140112 Apr 13 04:37 campaigns.db-wal
 185494	/x
+
+=== Phase A3 host data layout at 2026-04-22T22:04:48+00:00 ===
+/home/office/gemini-live-app-native/data/archive/sqlite-fossils/campaigns.db
+/home/office/gemini-live-app-native/data/archive/sqlite-fossils/campaigns.db-shm
+/home/office/gemini-live-app-native/data/archive/sqlite-fossils/campaigns.db-wal
+/home/office/gemini-live-app-native/data/brochures.json
+/home/office/gemini-live-app-native/data/calls/3204ae12-1182-4303-9d4f-7184470814dc.json
+/home/office/gemini-live-app-native/data/calls/3f5084f2-d367-4517-b0af-2ecbb24ee119.json
+/home/office/gemini-live-app-native/data/calls/423d7f78-c0e2-40f2-b853-4c80bc9406d6.json
+/home/office/gemini-live-app-native/data/calls/50dffc23-94ea-4b59-a877-00b10243419b.json
+/home/office/gemini-live-app-native/data/calls/5d107fc7-cb27-4058-b49f-6aa2c86fe727.json
+/home/office/gemini-live-app-native/data/calls/6bc6fbfc-c5f9-4b6f-96ec-35555baa6a89.json
+/home/office/gemini-live-app-native/data/calls/bb5d2eba-ad11-4f76-aca3-909f6571f7d3.json
+/home/office/gemini-live-app-native/data/calls/f2c0a348-6462-4265-a483-6b4bc95cde68.json
+/home/office/gemini-live-app-native/data/calls/fba3c01b-53b1-4c00-959b-f45f24001d93.json
+/home/office/gemini-live-app-native/data/calls/fdc97f6f-7353-468d-8cac-dca5d6131cc9.json
+--- sizes ---
+94602	/home/office/gemini-live-app-native/data/calls
+176976	/home/office/gemini-live-app-native/data/archive
+326	/home/office/gemini-live-app-native/data/brochures.json
+
+--- byte-equivalence ---
+All 10 call JSONs sha256-identical to gemini-live-app-native_call-data volume
+brochures.json sha256-identical to gemini-live-app-native_prompt-data volume
+campaigns.db{,-shm,-wal} fossils archived to data/archive/sqlite-fossils/ (not used at runtime)
