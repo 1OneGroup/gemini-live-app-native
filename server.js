@@ -8,6 +8,10 @@ const { getDashboardHtml } = require('./dashboard');
 const db = require('./db');
 const batchEngine = require('./batch-engine');
 const whatsapp = require('./whatsapp');
+const { safeJsonParse } = require('./src/lib/safe-json');
+const { normalizePhone } = require('./src/lib/phone');
+const { USD_INR, PLIVO_RATE, callCostInr } = require('./src/lib/pricing');
+const { OPENING_GREETING_CUE, CONTINUATION_CUE, END_CALL_DESCRIPTION } = require('./src/prompts/runtime-cues');
 
 // --- Config ---
 const PORT = process.env.PORT || 8100;
@@ -19,42 +23,7 @@ const PLIVO_AUTH_ID = process.env.PLIVO_AUTH_ID;
 const PLIVO_AUTH_TOKEN = process.env.PLIVO_AUTH_TOKEN;
 const PLIVO_FROM_NUMBER = process.env.PLIVO_FROM_NUMBER;
 const PUBLIC_URL = process.env.PUBLIC_URL;
-const GEMINI_MODEL_DEFAULT = process.env.GEMINI_MODEL || 'models/gemini-3.1-flash-live-preview';
-// Pricing source: https://ai.google.dev/gemini-api/docs/pricing
-const GEMINI_MODELS = {
-  'models/gemini-3.1-flash-live-preview': {
-    name: 'Gemini 3.1 Flash Live', shortName: '3.1 Flash',
-    pricing: { // USD per 1M tokens
-      textInput: 0.75, audioInput: 3.00, textOutput: 4.50, audioOutput: 12.00,
-      audioInputPerMin: 0.005, audioOutputPerMin: 0.018,
-    },
-  },
-  'models/gemini-2.5-flash-live-preview': {
-    name: 'Gemini 2.5 Flash Live', shortName: '2.5 Flash',
-    pricing: { // USD per 1M tokens
-      textInput: 0.50, audioInput: 3.00, textOutput: 2.00, audioOutput: 12.00,
-      audioInputPerMin: 0.005, audioOutputPerMin: 0.018, // same per-min as 3.1
-    },
-  },
-};
-const fs_model = require('fs');
-const MODEL_OVERRIDE_PATH = require('path').join(process.env.DATA_DIR || '/data', 'model-override.txt');
-
-function getActiveModel() {
-  try {
-    if (fs_model.existsSync(MODEL_OVERRIDE_PATH)) {
-      const m = fs_model.readFileSync(MODEL_OVERRIDE_PATH, 'utf8').trim();
-      if (m && GEMINI_MODELS[m]) return m;
-    }
-  } catch {}
-  return GEMINI_MODEL_DEFAULT;
-}
-
-function setActiveModel(model) {
-  const dir = require('path').dirname(MODEL_OVERRIDE_PATH);
-  if (!fs_model.existsSync(dir)) fs_model.mkdirSync(dir, { recursive: true });
-  fs_model.writeFileSync(MODEL_OVERRIDE_PATH, model, 'utf8');
-}
+const { GEMINI_MODELS, getActiveModel, setActiveModel } = require('./src/config/models');
 
 const GEMINI_WS_URL = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${GEMINI_API_KEY}`;
 
@@ -67,9 +36,9 @@ const pendingSessions = new Map();
 const sessions = new Map();
 
 // --- Connection keepalive ---
+const { MAX_RECONNECTIONS, goodbyePhrases } = require('./src/config/constants');
 const PING_INTERVAL_MS = 15000;  // Ping every 15s to prevent proxy idle timeout
 const GEMINI_SESSION_MAX_MS = 9 * 60 * 1000;  // Warn at 9 min (Gemini limit is ~10 min)
-const MAX_RECONNECTIONS = 5;  // Allow up to 5 Gemini session reconnections per call
 const STALE_SESSION_CHECK_MS = 30000;  // Check for stale sessions every 30s
 
 function startGeminiPing(session) {
@@ -117,7 +86,7 @@ function triggerOpeningGreeting(session, callUuid) {
   session._openingTriggeredAt = Date.now();
   session.ws.send(JSON.stringify({
     realtimeInput: {
-      text: '[The phone call has just connected. The customer has picked up. Start speaking now with your opening greeting immediately.]'
+      text: OPENING_GREETING_CUE
     }
   }));
 }
@@ -175,7 +144,7 @@ function preWarmGemini(callUuid, promptOverride) {
         tools: [{
           functionDeclarations: [{
             name: 'end_call',
-            description: 'End the phone call. You MUST call this function immediately after saying goodbye or any closing phrase. The call will NOT disconnect unless you call this function. Always call end_call after your final farewell — never just say bye without calling it.',
+            description: END_CALL_DESCRIPTION,
           }, {
             name: 'send_brochure',
             description: 'Send a property brochure PDF to the customer via WhatsApp. Call this when the customer expresses interest and you have offered to send details or a brochure.',
@@ -306,15 +275,6 @@ function preWarmGemini(callUuid, promptOverride) {
 
       // Auto-hangup detection: if agent said goodbye phrases, hang up after a short delay
       const lower = agentText.toLowerCase();
-      const goodbyePhrases = [
-        'shukriya aapka time', 'aapka din bahut achha ho',
-        'have a good', 'have a great', 'have a wonderful', 'have a nice day',
-        'thank you so much for your time', 'thank you for your time',
-        'bye!', 'goodbye', 'good bye', 'bye bye',
-        'alvida', 'phir milte hain', 'namaste ji',
-        'call end karti', 'call end karta', 'call disconnect',
-        'see you then!', 'see you soon',
-      ];
       if (goodbyePhrases.some(p => lower.includes(p))) {
         console.log(`[Hangup] Detected closing phrase, scheduling hangup in 3s`);
         if (session._hangupTimer) clearTimeout(session._hangupTimer);
@@ -456,7 +416,7 @@ function reconnectGemini(session, callUuid) {
         tools: [{
           functionDeclarations: [{
             name: 'end_call',
-            description: 'End the phone call. You MUST call this function immediately after saying goodbye or any closing phrase. The call will NOT disconnect unless you call this function. Always call end_call after your final farewell — never just say bye without calling it.',
+            description: END_CALL_DESCRIPTION,
           }, {
             name: 'send_brochure',
             description: 'Send a property brochure PDF to the customer via WhatsApp. Call this when the customer expresses interest and you have offered to send details or a brochure.',
@@ -507,7 +467,7 @@ function reconnectGemini(session, callUuid) {
           // Send a short context cue to resume conversation without re-introducing
           ws.send(JSON.stringify({
             realtimeInput: {
-              text: '[System: The call is still ongoing. Continue the conversation naturally from where you left off. Do not re-introduce yourself or repeat your greeting.]'
+              text: CONTINUATION_CUE
             }
           }));
         }
@@ -576,15 +536,6 @@ function reconnectGemini(session, callUuid) {
         session.agentTextBuffer = '';
       }
       const lower = agentText.toLowerCase();
-      const goodbyePhrases = [
-        'shukriya aapka time', 'aapka din bahut achha ho',
-        'have a good', 'have a great', 'have a wonderful', 'have a nice day',
-        'thank you so much for your time', 'thank you for your time',
-        'bye!', 'goodbye', 'good bye', 'bye bye',
-        'alvida', 'phir milte hain', 'namaste ji',
-        'call end karti', 'call end karta', 'call disconnect',
-        'see you then!', 'see you soon',
-      ];
       if (goodbyePhrases.some(p => lower.includes(p))) {
         if (session._hangupTimer) clearTimeout(session._hangupTimer);
         session._hangupTimer = setTimeout(() => {
@@ -693,16 +644,11 @@ const server = http.createServer(async (req, res) => {
     const call = store.getCall(callUuid);
     if (!call) { res.writeHead(404); res.end('Not found'); return; }
     // Compute cost in INR — model-specific pricing
-    const USD_INR = 84;
-    const dur = (call.duration || 0) / 60;
-    const plivoCost = Math.round(dur * 0.74 * 100) / 100;
     const t = call.tokens || {};
     const mp = GEMINI_MODELS[call.model]?.pricing || GEMINI_MODELS[getActiveModel()]?.pricing || GEMINI_MODELS['models/gemini-3.1-flash-live-preview'].pricing;
-    const geminiCost = (t.inputTokens || 0) > 0
-      ? Math.round(((t.inputTokens / 1e6 * mp.audioInput) + (t.outputTokens / 1e6 * mp.audioOutput)) * USD_INR * 100) / 100
-      : Math.round(dur * (mp.audioInputPerMin + mp.audioOutputPerMin) * USD_INR * 100) / 100;
+    const { plivo: plivoCost, gemini: geminiCost, total: costTotal } = callCostInr(t.inputTokens || 0, t.outputTokens || 0, mp, call.duration || 0);
     call.costINR = {
-      plivo: plivoCost, gemini: geminiCost, total: Math.round((plivoCost + geminiCost) * 100) / 100,
+      plivo: plivoCost, gemini: geminiCost, total: costTotal,
       model: call.model || getActiveModel(), modelName: GEMINI_MODELS[call.model]?.name || GEMINI_MODELS[getActiveModel()]?.name || 'Unknown',
     };
     // Auto-classify outcome if missing
@@ -716,7 +662,7 @@ const server = http.createServer(async (req, res) => {
         one_line_summary: contact.one_line_summary || null,
         intent: contact.intent || null,
         interest_score: contact.interest_score ?? null,
-        objections: contact.objections ? JSON.parse(contact.objections) : [],
+        objections: safeJsonParse(contact.objections, []),
       };
     }
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1014,12 +960,7 @@ const server = http.createServer(async (req, res) => {
           for (let i = 1; i < lines.length; i++) {
             const cols = lines[i].split(',').map(c => c.trim().replace(/['"]/g, ''));
             if (!cols[phoneIdx]) continue;
-            let phone = cols[phoneIdx].replace(/[^0-9+]/g, '');
-            if (!phone.startsWith('+')) {
-              if (phone.startsWith('0')) phone = '+91' + phone.substring(1);
-              else if (phone.length === 10) phone = '+91' + phone;
-              else phone = '+' + phone;
-            }
+            let phone = normalizePhone(cols[phoneIdx]);
             const employeeName = empIdx >= 0 ? (cols[empIdx] || '').trim() || null : null;
             const metadata = {};
             headers.forEach((h, idx) => { if (idx !== phoneIdx && idx !== nameIdx && idx !== empIdx && cols[idx]) metadata[h] = cols[idx]; });
@@ -1154,7 +1095,7 @@ const server = http.createServer(async (req, res) => {
     const analysis = await db.getAnalysis(analysisMatch[1], parseInt(analysisMatch[2]));
     if (!analysis) { json(res, { error: 'No analysis found' }, 404); return; }
     const prompt = analysis.prompt_id ? await db.getPrompt(analysis.prompt_id) : null;
-    json(res, { ...analysis, stats: analysis.stats ? JSON.parse(analysis.stats) : null, prompt_name: prompt?.name || null });
+    json(res, { ...analysis, stats: safeJsonParse(analysis.stats, null), prompt_name: prompt?.name || null });
     return;
   }
 
@@ -1555,14 +1496,12 @@ Rules:
     const totalMinutes = totalDuration / 60;
 
     // Cost rates — model-specific pricing from https://ai.google.dev/gemini-api/docs/pricing
-    const USD_TO_INR = 84;
-    const PLIVO_RATE = 0.74; // ₹0.74/min (confirmed by board)
     const defaultModel = getActiveModel();
     const defaultPricing = GEMINI_MODELS[defaultModel]?.pricing || GEMINI_MODELS['models/gemini-3.1-flash-live-preview'].pricing;
 
     // Per-minute fallback rate from active model
     const GEMINI_USD_RATE = defaultPricing.audioInputPerMin + defaultPricing.audioOutputPerMin;
-    const GEMINI_RATE = Math.round(GEMINI_USD_RATE * USD_TO_INR * 100) / 100;
+    const GEMINI_RATE = Math.round(GEMINI_USD_RATE * USD_INR * 100) / 100;
     const TOTAL_RATE = Math.round((PLIVO_RATE + GEMINI_RATE) * 100) / 100;
 
     const costPlivo = Math.round(totalMinutes * PLIVO_RATE * 100) / 100;
@@ -1576,7 +1515,7 @@ Rules:
       totalOutputTokens += t.outputTokens || 0;
       if ((t.inputTokens || 0) > 0) {
         const mp = GEMINI_MODELS[c.model]?.pricing || defaultPricing;
-        costGeminiTokens += ((t.inputTokens / 1e6 * mp.audioInput) + (t.outputTokens / 1e6 * mp.audioOutput)) * USD_TO_INR;
+        costGeminiTokens += ((t.inputTokens / 1e6 * mp.audioInput) + (t.outputTokens / 1e6 * mp.audioOutput)) * USD_INR;
       }
     }
     costGeminiTokens = Math.round(costGeminiTokens * 100) / 100;
@@ -1621,7 +1560,7 @@ Rules:
         activeModelName: GEMINI_MODELS[defaultModel]?.name || defaultModel,
         rates: {
           plivo: PLIVO_RATE, geminiPerMin: GEMINI_RATE, totalPerMin: TOTAL_RATE,
-          usdToInr: USD_TO_INR, currency: 'INR',
+          usdToInr: USD_INR, currency: 'INR',
         },
         modelPricing: Object.fromEntries(Object.entries(GEMINI_MODELS).map(([k, v]) => [k, { name: v.name, ...v.pricing }])),
       },

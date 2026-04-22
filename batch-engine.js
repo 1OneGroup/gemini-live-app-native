@@ -2,6 +2,8 @@
 const db = require('./db');
 const store = require('./call-store');
 const deepseek = require('./deepseek');
+const { classifyOutcome: _classifyOutcome } = require('./src/lib/outcome-classifier');
+const { safeJsonParse } = require('./src/lib/safe-json');
 
 const CALL_COOLDOWN_MS = 5000;  // 5s between calls
 const MAX_CONSECUTIVE_FAILURES = 3;
@@ -208,28 +210,8 @@ function classifyOutcome(call) {
   if (hangup === 'rejected' || hangup === 'busy') return 'busy';
   if (hangup === 'noanswer' || hangup === 'no_answer' || hangup === 'originator cancel') return 'no_answer';
 
-  // Analyze transcript for interest signals
-  const transcript = (call.transcript || []).map(t => t.text.toLowerCase()).join(' ');
-
-  if (transcript.includes('brochure') || transcript.includes('whatsapp') || transcript.includes('send me')) {
-    return 'brochure_sent'; // Will be updated to actual brochure_sent by WhatsApp handler
-  }
-  if (transcript.includes('site visit') || transcript.includes('appointment') || transcript.includes('schedule') ||
-      transcript.includes('interested') || transcript.includes('tell me more') || transcript.includes('details')) {
-    return 'interested';
-  }
-  if (transcript.includes('not interested') || transcript.includes('no thank') || transcript.includes('don\'t call') ||
-      transcript.includes('remove my number') || transcript.includes('no need')) {
-    return 'not_interested';
-  }
-  if (transcript.includes('call back') || transcript.includes('later') || transcript.includes('busy right now')) {
-    return 'callback';
-  }
-
-  // Default based on duration
-  if (call.duration && call.duration > 30) return 'interested';
-  if (call.duration && call.duration > 10) return 'callback';
-  return 'no_answer';
+  // Delegate transcript + duration classification to shared module
+  return _classifyOutcome(call.transcript || [], call.duration || 0);
 }
 
 // --- AI Batch Analysis (DeepSeek V3.2 via OpenRouter) ---
@@ -260,11 +242,6 @@ async function runBatchAnalysis(campaignId, batchNumber) {
   });
 
   console.log(`[BatchEngine] DeepSeek batch analysis saved for batch ${batchNumber} (${perCallJsons.length}/${contacts.length} calls had per-call JSON)`);
-}
-
-function safeJsonParse(s, fallback) {
-  if (!s) return fallback;
-  try { return JSON.parse(s); } catch { return fallback; }
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }

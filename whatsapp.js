@@ -1,6 +1,7 @@
 // WhatsApp brochure integration via Evo Go API
 const fs = require('fs');
 const path = require('path');
+const { normalizePhone } = require('./src/lib/phone');
 
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || 'https://evo-go.tech.onegroup.co.in';
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
@@ -135,10 +136,9 @@ async function sendBrochure(phoneNumber, projectName, employeeName) {
     return { success: false, error: 'No active WhatsApp message configured' };
   }
 
-  // Normalize phone number (remove + prefix, ensure country code)
-  let number = phoneNumber.replace(/[^0-9]/g, '');
-  if (number.startsWith('0')) number = '91' + number.substring(1);
-  if (!number.startsWith('91') && number.length === 10) number = '91' + number;
+  // Normalize phone number to digits-only format required by Evo Go API
+  // normalizePhone returns E.164 (+91...), then we strip the '+' for the API.
+  let number = normalizePhone(phoneNumber).replace(/^\+/, '');
 
   const instanceName = await resolveInstance(employeeName);
   console.log(`[WhatsApp] Using instance: ${instanceName} (employee: ${employeeName || 'default'})`);
