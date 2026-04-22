@@ -1,0 +1,50 @@
+=== Captured at 2026-04-22T22:13:52+00:00 ===
+
+--- git ---
+1297547 chore(local): cutover complete; host-mode active on 8100, caddy routed via 172.26.0.1
+
+--- systemd unit state ---
+active
+MainPID=1253713
+NRestarts=0
+ActiveEnterTimestamp=Wed 2026-04-22 22:09:15 UTC
+
+--- /health (host) ---
+{"status":"ok","sessions":0,"pending":0,"activeSessions":[]}
+--- dashboard sha256 / bytes (host) ---
+2dee3b508bc3d0436cff2ef0d829c530a692a3e31df8f8b3903e1ccb30cd4460  -
+116902
+
+--- API endpoints (host) ---
+/api/calls  http=200  bytes=3962
+/api/campaigns  http=200  bytes=2
+/api/analytics  http=200  bytes=1270
+/api/brochures  http=200  bytes=300
+/api/model  http=200  bytes=507
+/api/prompt  http=200  bytes=14756
+/api/whatsapp-messages  http=200  bytes=542
+/api/evolution/instances  http=200  bytes=193
+/api/employee-instances  http=200  bytes=2
+
+--- external (https) ---
+health=200
+2dee3b508bc3d0436cff2ef0d829c530a692a3e31df8f8b3903e1ccb30cd4460  -
+
+--- docker container state (should be exited) ---
+gemini-live-app-native                            Exited (137) 4 minutes ago
+
+--- docker volumes still present ---
+local     gemini-live-app-native_call-data
+local     gemini-live-app-native_prompt-data
+
+--- recent journal errors ---
+Apr 22 22:06:36 srv1536792 gemini-live[1244397]:       throw er; // Unhandled 'error' event
+Apr 22 22:06:36 srv1536792 gemini-live[1244397]: Error: listen EADDRINUSE: address already in use :::8100
+Apr 22 22:06:36 srv1536792 gemini-live[1244397]: Emitted 'error' event on Server instance at:
+Apr 22 22:06:36 srv1536792 gemini-live[1244397]:     at emitErrorNT (node:net:1976:8)
+Apr 22 22:06:42 srv1536792 gemini-live[1244756]:       throw er; // Unhandled 'error' event
+Apr 22 22:06:42 srv1536792 gemini-live[1244756]: Error: listen EADDRINUSE: address already in use :::8100
+Apr 22 22:06:42 srv1536792 gemini-live[1244756]: Emitted 'error' event on Server instance at:
+Apr 22 22:06:42 srv1536792 gemini-live[1244756]:     at emitErrorNT (node:net:1976:8)
+Apr 22 22:06:47 srv1536792 gemini-live[1245181]:       throw er; // Unhandled 'error' event
+Apr 22 22:06:47 srv1536792 gemini-live[1245181]: Error: listen EADDRINUSE: address already in use :::8100

@@ -1,0 +1,98 @@
+=== Captured at 2026-04-22T21:59:01+00:00 ===
+
+--- git ---
+c21d2a7 Merge pull request #3 from 1OneGroup/refactor/ai-friendly-structure
+
+--- docker ps ---
+gemini-live-refactor                   gemini-live-refactor-test-gemini-live-refactor   Up 58 minutes                   0.0.0.0:8101->8100/tcp, [::]:8101->8100/tcp
+gemini-live-app-native                 1onegroup/gemini-live-app-native:latest          Up 3 hours                      0.0.0.0:8100->8100/tcp, [::]:8100->8100/tcp
+
+--- image digest ---
+sha256:fab2e2bf0238d6f041d624c6431bc05a4020fa59e1ac8add410a27bee5f55285 [node server.js]
+
+--- /health ---
+{"status":"ok","sessions":0,"pending":0,"activeSessions":[]}
+--- dashboard sha256 / bytes ---
+2dee3b508bc3d0436cff2ef0d829c530a692a3e31df8f8b3903e1ccb30cd4460  -
+116902
+
+--- API endpoints HTTP status + byte length ---
+/api/calls  http=200  bytes=3962
+/api/campaigns  http=200  bytes=2
+/api/analytics  http=200  bytes=1270
+/api/brochures  http=200  bytes=300
+/api/model  http=200  bytes=507
+/api/prompt  http=200  bytes=14756
+/api/whatsapp-messages  http=200  bytes=542
+/api/evolution/instances  http=200  bytes=193
+/api/employee-instances  http=200  bytes=2
+
+--- volume contents ---
+total 116
+drwxr-xr-x    2 root     root          4096 Apr 22 19:13 .
+drwxr-xr-x    1 root     root          4096 Apr 22 21:59 ..
+-rw-r--r--    1 root     root          7457 Apr 22 19:19 3204ae12-1182-4303-9d4f-7184470814dc.json
+-rw-r--r--    1 root     root         11332 Apr 22 19:19 3f5084f2-d367-4517-b0af-2ecbb24ee119.json
+-rw-r--r--    1 root     root          7244 Apr 22 19:19 423d7f78-c0e2-40f2-b853-4c80bc9406d6.json
+-rw-r--r--    1 root     root         12910 Apr 22 19:19 50dffc23-94ea-4b59-a877-00b10243419b.json
+-rw-r--r--    1 root     root          7110 Apr 22 19:19 5d107fc7-cb27-4058-b49f-6aa2c86fe727.json
+-rw-r--r--    1 root     root          9192 Apr 22 19:19 6bc6fbfc-c5f9-4b6f-96ec-35555baa6a89.json
+-rw-r--r--    1 root     root         12216 Apr 22 19:19 bb5d2eba-ad11-4f76-aca3-909f6571f7d3.json
+-rw-r--r--    1 root     root         12603 Apr 22 18:30 f2c0a348-6462-4265-a483-6b4bc95cde68.json
+-rw-r--r--    1 root     root          7619 Apr 22 19:19 fba3c01b-53b1-4c00-959b-f45f24001d93.json
+-rw-r--r--    1 root     root          6919 Apr 22 19:19 fdc97f6f-7353-468d-8cac-dca5d6131cc9.json
+98698	/x
+
+total 192
+drwxr-xr-x    3 root     root          4096 Apr 22 18:47 .
+drwxr-xr-x    1 root     root          4096 Apr 22 21:59 ..
+-rw-r--r--    1 root     root           326 Apr 22 18:47 brochures.json
+drwxr-xr-x    2 root     root          4096 Apr 11 11:15 calls
+-rw-r--r--    1 root     root          4096 Apr 13 04:37 campaigns.db
+-rw-r--r--    1 root     root         32768 Apr 13 05:45 campaigns.db-shm
+-rw-r--r--    1 root     root        140112 Apr 13 04:37 campaigns.db-wal
+185494	/x
+
+=== Phase A3 host data layout at 2026-04-22T22:04:48+00:00 ===
+/home/office/gemini-live-app-native/data/archive/sqlite-fossils/campaigns.db
+/home/office/gemini-live-app-native/data/archive/sqlite-fossils/campaigns.db-shm
+/home/office/gemini-live-app-native/data/archive/sqlite-fossils/campaigns.db-wal
+/home/office/gemini-live-app-native/data/brochures.json
+/home/office/gemini-live-app-native/data/calls/3204ae12-1182-4303-9d4f-7184470814dc.json
+/home/office/gemini-live-app-native/data/calls/3f5084f2-d367-4517-b0af-2ecbb24ee119.json
+/home/office/gemini-live-app-native/data/calls/423d7f78-c0e2-40f2-b853-4c80bc9406d6.json
+/home/office/gemini-live-app-native/data/calls/50dffc23-94ea-4b59-a877-00b10243419b.json
+/home/office/gemini-live-app-native/data/calls/5d107fc7-cb27-4058-b49f-6aa2c86fe727.json
+/home/office/gemini-live-app-native/data/calls/6bc6fbfc-c5f9-4b6f-96ec-35555baa6a89.json
+/home/office/gemini-live-app-native/data/calls/bb5d2eba-ad11-4f76-aca3-909f6571f7d3.json
+/home/office/gemini-live-app-native/data/calls/f2c0a348-6462-4265-a483-6b4bc95cde68.json
+/home/office/gemini-live-app-native/data/calls/fba3c01b-53b1-4c00-959b-f45f24001d93.json
+/home/office/gemini-live-app-native/data/calls/fdc97f6f-7353-468d-8cac-dca5d6131cc9.json
+--- sizes ---
+94602	/home/office/gemini-live-app-native/data/calls
+176976	/home/office/gemini-live-app-native/data/archive
+326	/home/office/gemini-live-app-native/data/brochures.json
+
+--- byte-equivalence ---
+All 10 call JSONs sha256-identical to gemini-live-app-native_call-data volume
+brochures.json sha256-identical to gemini-live-app-native_prompt-data volume
+campaigns.db{,-shm,-wal} fossils archived to data/archive/sqlite-fossils/ (not used at runtime)
+
+=== Phase A6 parity vs docker at 2026-04-22T22:08:39+00:00 ===
+(systemd on :8102 vs docker on :8100; both serving same code, same data)
+
+--- /health diff: empty ---
+--- dashboard sha256 identical: 2dee3b508bc3d0436cff2ef0d829c530a692a3e31df8f8b3903e1ccb30cd4460 ---
+--- API parity ---
+/api/calls               docker=200/3962   host=200/3962    OK
+/api/campaigns           docker=200/2      host=200/2       OK
+/api/analytics           docker=200/1270   host=200/1270    OK
+/api/brochures           docker=200/300    host=200/300     OK
+/api/model               docker=200/507    host=200/507     OK
+/api/prompt              docker=200/14756  host=200/14756   OK
+/api/whatsapp-messages   docker=200/542    host=200/542     OK
+/api/evolution/instances docker=200/193    host=200/193     OK
+/api/employee-instances  docker=200/2      host=200/2       OK
+
+--- WebSocket /media-stream upgrade: HTTP/1.1 101 Switching Protocols ---
+--- Data-write round-trip: POST /api/prompt wrote prompt-override.txt to host data dir; DELETE /api/prompt removed it cleanly ---
