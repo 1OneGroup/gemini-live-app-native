@@ -21,6 +21,8 @@ services:
       - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-main-whatsapp}
       - DATABASE_URL=${DATABASE_URL}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   call-data:
