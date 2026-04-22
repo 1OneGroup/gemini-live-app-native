@@ -150,6 +150,9 @@ async function sendBrochure(phoneNumber, projectName, employeeName) {
   }
 
   const headers = { 'Content-Type': 'application/json', 'apikey': creds.token };
+  // Unique per-message stanza ID (Evo Go echoes this as Info.ID; reused IDs get
+  // dropped by WhatsApp as duplicates).
+  const msgId = `glb-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
   try {
     const mediaUrl = brochure.url || '';
@@ -166,7 +169,7 @@ async function sendBrochure(phoneNumber, projectName, employeeName) {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          id: creds.id, number, type: 'document', url: mediaUrl,
+          id: msgId, number, type: 'document', url: mediaUrl,
           caption, filename: `${brochure.name.replace(/\s+/g, '-')}.pdf`,
         }),
       });
@@ -175,14 +178,14 @@ async function sendBrochure(phoneNumber, projectName, employeeName) {
       response = await fetch(`${EVOLUTION_API_URL}/send/media`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ id: creds.id, number, type: 'image', url: mediaUrl, caption }),
+        body: JSON.stringify({ id: msgId, number, type: 'image', url: mediaUrl, caption }),
       });
     } else if (isVideo && !isLink) {
       console.log(`[WhatsApp] Sending video to ${number}`);
       response = await fetch(`${EVOLUTION_API_URL}/send/media`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ id: creds.id, number, type: 'video', url: mediaUrl, caption }),
+        body: JSON.stringify({ id: msgId, number, type: 'video', url: mediaUrl, caption }),
       });
     } else {
       // Text/link path: include the URL only if the body doesn't already contain it
@@ -192,7 +195,7 @@ async function sendBrochure(phoneNumber, projectName, employeeName) {
       response = await fetch(`${EVOLUTION_API_URL}/send/text`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ id: creds.id, number, text: textBody }),
+        body: JSON.stringify({ id: msgId, number, text: textBody }),
       });
     }
 
