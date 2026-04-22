@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { classifyOutcome: _classifyOutcome } = require('./outcome-classifier');
 
-const DATA_DIR = process.env.DATA_DIR || '/data/calls';
+const DATA_DIR = process.env.DATA_DIR ? path.join(process.env.DATA_DIR, 'calls') : '/data/calls';
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
