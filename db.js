@@ -102,6 +102,16 @@ async function ensureSchema() {
         created_at TIMESTAMPTZ DEFAULT now(),
         updated_at TIMESTAMPTZ DEFAULT now()
       );
+
+      CREATE TABLE IF NOT EXISTS gemini_live.whatsapp_messages (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        body TEXT NOT NULL,
+        attachment_url TEXT,
+        is_active INTEGER DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        updated_at TIMESTAMPTZ DEFAULT now()
+      );
     `);
     console.log('[DB] Schema ensured (gemini_live)');
   } finally {
@@ -393,6 +403,53 @@ async function getActivePrompt() {
   return queryOne('SELECT * FROM prompts WHERE is_active = 1 LIMIT 1');
 }
 
+// --- WhatsApp Messages ---
+
+async function createWhatsappMessage({ name, body, attachmentUrl, isActive = false }) {
+  const id = uid();
+  if (isActive) await execute('UPDATE whatsapp_messages SET is_active = 0');
+  await execute(
+    'INSERT INTO whatsapp_messages (id, name, body, attachment_url, is_active) VALUES ($1, $2, $3, $4, $5)',
+    [id, name, body, attachmentUrl || null, isActive ? 1 : 0]
+  );
+  return queryOne('SELECT * FROM whatsapp_messages WHERE id = $1', [id]);
+}
+
+async function listWhatsappMessages() {
+  return queryAll('SELECT * FROM whatsapp_messages ORDER BY is_active DESC, updated_at DESC');
+}
+
+async function getWhatsappMessage(id) {
+  return queryOne('SELECT * FROM whatsapp_messages WHERE id = $1', [id]);
+}
+
+async function updateWhatsappMessage(id, { name, body, attachmentUrl }) {
+  await execute(
+    `UPDATE whatsapp_messages SET
+       name = COALESCE($1, name),
+       body = COALESCE($2, body),
+       attachment_url = $3,
+       updated_at = now()
+     WHERE id = $4`,
+    [name || null, body || null, attachmentUrl ?? null, id]
+  );
+  return queryOne('SELECT * FROM whatsapp_messages WHERE id = $1', [id]);
+}
+
+async function deleteWhatsappMessage(id) {
+  await execute('DELETE FROM whatsapp_messages WHERE id = $1', [id]);
+}
+
+async function setActiveWhatsappMessage(id) {
+  await execute('UPDATE whatsapp_messages SET is_active = 0');
+  await execute('UPDATE whatsapp_messages SET is_active = 1, updated_at = now() WHERE id = $1', [id]);
+  return queryOne('SELECT * FROM whatsapp_messages WHERE id = $1', [id]);
+}
+
+async function getActiveWhatsappMessage() {
+  return queryOne('SELECT * FROM whatsapp_messages WHERE is_active = 1 LIMIT 1');
+}
+
 // --- Employee WhatsApp Instances ---
 
 async function createEmployeeInstance({ employeeName, instanceName, phone, status }) {
@@ -463,10 +520,37 @@ async function seedDefaultPrompt() {
   }
 }
 
+// Migrate brochures.json → whatsapp_messages table (one-time, on first boot of new version)
+async function migrateBrochuresJson() {
+  const row = await queryOne('SELECT COUNT(*) as c FROM whatsapp_messages');
+  if (Number(row.c) > 0) return;
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const jsonPath = path.join(process.env.DATA_DIR || '/data', 'brochures.json');
+    if (!fs.existsSync(jsonPath)) return;
+    const entries = Object.entries(JSON.parse(fs.readFileSync(jsonPath, 'utf8')));
+    if (entries.length === 0) return;
+    let first = true;
+    for (const [, b] of entries) {
+      const id = uid();
+      await execute(
+        'INSERT INTO whatsapp_messages (id, name, body, attachment_url, is_active) VALUES ($1, $2, $3, $4, $5)',
+        [id, b.name || 'Untitled', b.caption || '', b.url || null, first ? 1 : 0]
+      );
+      first = false;
+    }
+    console.log(`[DB] Migrated ${entries.length} brochure(s) from brochures.json to whatsapp_messages`);
+  } catch (err) {
+    console.error('[DB] Brochure migration failed:', err.message);
+  }
+}
+
 // Initialize: ensure schema + seed
 async function init() {
   await ensureSchema();
   await seedDefaultPrompt();
+  await migrateBrochuresJson();
   console.log('[DB] PostgreSQL initialized (gemini_live schema)');
 }
 
@@ -478,5 +562,6 @@ module.exports = {
   getNextPendingContact, getMaxBatch, getCallbackContacts,
   createAnalysis, getAnalysis, listAnalyses, approveAnalysis, rejectAnalysis, deleteAnalysis,
   createPrompt, listPrompts, getPrompt, updatePrompt, deletePrompt, setActivePrompt, getActivePrompt,
+  createWhatsappMessage, listWhatsappMessages, getWhatsappMessage, updateWhatsappMessage, deleteWhatsappMessage, setActiveWhatsappMessage, getActiveWhatsappMessage,
   createEmployeeInstance, listEmployeeInstances, getEmployeeInstance, getEmployeeByName, updateEmployeeInstance, deleteEmployeeInstance, getUniqueEmployeeNames,
 };

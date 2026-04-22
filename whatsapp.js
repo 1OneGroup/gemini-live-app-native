@@ -91,19 +91,48 @@ async function resolveInstance(employeeName) {
   return EVOLUTION_INSTANCE;
 }
 
-async function sendBrochure(phoneNumber, projectName, employeeName) {
+// Resolve the message template to send. Order of precedence:
+//   1. Explicit ref that matches a DB message id (e.g. campaign-linked UUID)
+//   2. Active WhatsApp message from DB (the template the user marked Active)
+//   3. Legacy brochure in brochures.json matched by projectName (backward compat)
+function wamToBrochure(m) {
+  return { name: m.name, caption: m.body, url: m.attachment_url || '' };
+}
+
+async function resolveMessage(ref) {
+  const db = (() => { try { return require('./db'); } catch { return null; } })();
+
+  if (db && ref) {
+    try {
+      const byId = await db.getWhatsappMessage(ref);
+      if (byId) return wamToBrochure(byId);
+    } catch {}
+  }
+
+  if (db) {
+    try {
+      const active = await db.getActiveWhatsappMessage();
+      if (active) return wamToBrochure(active);
+    } catch {}
+  }
+
+  if (!ref) return null;
   const brochures = loadBrochures();
-  const key = projectName.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const key = ref.toLowerCase().replace(/[^a-z0-9]/g, '');
   let brochure = brochures[key];
   if (!brochure) {
     for (const [k, v] of Object.entries(brochures)) {
       if (key.includes(k) || k.includes(key)) { brochure = v; break; }
     }
   }
+  return brochure || null;
+}
 
+async function sendBrochure(phoneNumber, projectName, employeeName) {
+  const brochure = await resolveMessage(projectName);
   if (!brochure) {
-    console.error(`[WhatsApp] No brochure found for project: ${projectName} (normalized: ${key})`);
-    return { success: false, error: `No brochure configured for "${projectName}"` };
+    console.error(`[WhatsApp] No active WhatsApp message and no brochure for "${projectName}"`);
+    return { success: false, error: 'No active WhatsApp message configured' };
   }
 
   // Normalize phone number (remove + prefix, ensure country code)
@@ -156,8 +185,10 @@ async function sendBrochure(phoneNumber, projectName, employeeName) {
         body: JSON.stringify({ id: creds.id, number, type: 'video', url: mediaUrl, caption }),
       });
     } else {
-      const textBody = caption + '\n\n' + mediaUrl;
-      console.log(`[WhatsApp] Sending text message with link to ${number}`);
+      // Text/link path: include the URL only if the body doesn't already contain it
+      const bodyHasUrl = mediaUrl && caption.includes(mediaUrl);
+      const textBody = mediaUrl && !bodyHasUrl ? `${caption}\n\n${mediaUrl}` : caption;
+      console.log(`[WhatsApp] Sending text message to ${number}`);
       response = await fetch(`${EVOLUTION_API_URL}/send/text`, {
         method: 'POST',
         headers,

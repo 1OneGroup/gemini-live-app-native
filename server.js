@@ -1391,6 +1391,123 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // --- WhatsApp Messages API ---
+  if (parsed.pathname === '/api/whatsapp-messages' && req.method === 'GET') {
+    json(res, await db.listWhatsappMessages());
+    return;
+  }
+
+  if (parsed.pathname === '/api/whatsapp-messages' && req.method === 'POST') {
+    try {
+      const body = await parseBody(req);
+      if (!body.name || !body.body) { json(res, { error: 'name and body required' }, 400); return; }
+      const msg = await db.createWhatsappMessage({
+        name: body.name,
+        body: body.body,
+        attachmentUrl: body.attachment_url || null,
+        isActive: !!body.is_active,
+      });
+      json(res, msg, 201);
+    } catch (err) { json(res, { error: err.message }, 400); }
+    return;
+  }
+
+  if (parsed.pathname === '/api/whatsapp-messages/improve' && req.method === 'POST') {
+    try {
+      const body = await parseBody(req);
+      const draft = (body.body || '').trim();
+      const context = (body.context || '').trim();
+      if (!draft) { json(res, { error: 'body required' }, 400); return; }
+      if (!process.env.OPENROUTER_API_KEY) { json(res, { error: 'OPENROUTER_API_KEY not configured' }, 500); return; }
+
+      const systemPrompt = `You are a copywriter for a real-estate sales team in India. You refine short WhatsApp broadcast messages sent to leads after phone calls.
+
+Rewrite the DRAFT so it is:
+- Warm, professional, concise (2-5 short lines)
+- Natural for WhatsApp (plain text, light punctuation)
+- In the same language and register the user wrote in (English / Hindi / Hinglish)
+- One-shot: the reader should NOT need to reply for the message to be useful
+
+Rules:
+- Preserve any URLs exactly
+- Do NOT invent prices, dates, unit sizes, or names not present in the draft
+- Do NOT add preamble like "Here's the improved version:" — return ONLY the rewritten message text`;
+
+      const userPrompt = context ? `Context: ${context}\n\nDRAFT:\n${draft}` : `DRAFT:\n${draft}`;
+
+      const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://gemini-live.tech.onegroup.co.in',
+          'X-Title': 'gemini-live-app-native',
+        },
+        body: JSON.stringify({
+          model: 'deepseek/deepseek-v3.2',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.6,
+          max_tokens: 400,
+        }),
+      });
+      if (!orRes.ok) {
+        const errText = await orRes.text().catch(() => '');
+        json(res, { error: `OpenRouter ${orRes.status}: ${errText.slice(0, 200)}` }, 502);
+        return;
+      }
+      const data = await orRes.json();
+      const improved = (data.choices?.[0]?.message?.content || '').trim();
+      if (!improved) { json(res, { error: 'Empty response from model' }, 502); return; }
+      json(res, { body: improved });
+    } catch (err) { json(res, { error: err.message }, 500); }
+    return;
+  }
+
+  if (parsed.pathname === '/api/whatsapp-messages/active' && req.method === 'DELETE') {
+    await db.rawExecute('UPDATE whatsapp_messages SET is_active = 0');
+    json(res, { ok: true });
+    return;
+  }
+
+  const wamActivateMatch = parsed.pathname.match(/^\/api\/whatsapp-messages\/([^/]+)\/activate$/);
+  if (wamActivateMatch && req.method === 'POST') {
+    const msg = await db.setActiveWhatsappMessage(wamActivateMatch[1]);
+    if (!msg) { json(res, { error: 'Not found' }, 404); return; }
+    json(res, msg);
+    return;
+  }
+
+  const wamMatch = parsed.pathname.match(/^\/api\/whatsapp-messages\/([^/]+)$/);
+  if (wamMatch && req.method === 'GET') {
+    const msg = await db.getWhatsappMessage(wamMatch[1]);
+    if (!msg) { json(res, { error: 'Not found' }, 404); return; }
+    json(res, msg);
+    return;
+  }
+
+  if (wamMatch && req.method === 'PATCH') {
+    try {
+      const body = await parseBody(req);
+      const msg = await db.updateWhatsappMessage(wamMatch[1], {
+        name: body.name,
+        body: body.body,
+        attachmentUrl: body.attachment_url,
+      });
+      if (!msg) { json(res, { error: 'Not found' }, 404); return; }
+      json(res, msg);
+    } catch (err) { json(res, { error: err.message }, 400); }
+    return;
+  }
+
+  if (wamMatch && req.method === 'DELETE') {
+    await db.deleteWhatsappMessage(wamMatch[1]);
+    json(res, { ok: true });
+    return;
+  }
+
   // --- Analytics API ---
   if (parsed.pathname === '/api/analytics' && req.method === 'GET') {
     const campaigns = await db.listCampaigns();

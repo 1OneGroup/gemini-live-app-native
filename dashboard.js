@@ -481,9 +481,9 @@ function getDashboardHtml() {
           <div id="prompts-list"></div>
         </div>
 
-        <!-- Brochures Page -->
+        <!-- WhatsApp Messages Page -->
         <div id="page-brochures" class="hidden">
-          <div id="brochures-content"></div>
+          <div id="wam-content"></div>
         </div>
 
         <!-- Settings Page -->
@@ -621,33 +621,33 @@ function getDashboardHtml() {
   </div>
 
   <!-- WhatsApp Message Editor Modal -->
-  <div class="modal-backdrop" id="brochure-editor-modal">
-    <div class="modal">
+  <div class="modal-backdrop" id="wam-editor-modal">
+    <div class="modal" style="max-width:640px">
       <div class="modal-header">
-        <h2 id="be-title">Add WhatsApp Message</h2>
-        <p>Configure a message to send via WhatsApp during calls</p>
+        <h2 id="wam-editor-title">New WhatsApp Message</h2>
+        <p>The active template is sent when the AI agent chooses to share details over WhatsApp.</p>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label class="form-label">Message Key (used to link to campaigns)</label>
-          <input class="form-input" id="be-key" type="text" placeholder="e.g. clermont" />
+          <label class="form-label">Message Name</label>
+          <input class="form-input" id="wam-name" type="text" placeholder="e.g. Clermont — Post-call brochure" />
         </div>
         <div class="form-group">
-          <label class="form-label">Display Name</label>
-          <input class="form-input" id="be-name" type="text" placeholder="e.g. The Clermont" />
+          <label class="form-label">Message Body</label>
+          <textarea class="form-input" id="wam-body" rows="7" placeholder="Rough draft is fine — use 'Improve with AI' to polish it."></textarea>
         </div>
         <div class="form-group">
-          <label class="form-label">Media URL (PDF, image, or video)</label>
-          <input class="form-input" id="be-url" type="url" placeholder="https://example.com/brochure.pdf or video link" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">WhatsApp Caption</label>
-          <textarea class="form-input" id="be-caption" rows="3" placeholder="Message to send with the media..."></textarea>
+          <label class="form-label">Attachment (optional)</label>
+          <input class="form-input" id="wam-attachment" type="url" placeholder="https://… PDF, image, video, or link. Any WhatsApp-supported URL." />
+          <div style="font-size:12px;color:var(--text-dim);margin-top:6px">PDFs/images/videos are sent as media with the body as caption. Other links (YouTube, property pages) are appended to the body as text.</div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeBrochureEditor()">Cancel</button>
-        <button class="btn btn-primary" onclick="saveBrochureEntry()">Save</button>
+      <div class="modal-footer" style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="closeWhatsappMessageEditor()">Cancel</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" id="wam-improve-btn" onclick="improveWhatsappMessage()">✨ Improve with AI</button>
+          <button class="btn btn-primary btn-sm" onclick="saveWhatsappMessageEntry()">Save</button>
+        </div>
       </div>
     </div>
   </div>
@@ -680,7 +680,7 @@ function getDashboardHtml() {
       if (page === 'calls') loadCalls();
       if (page === 'analytics') loadAnalytics();
       if (page === 'prompts') loadPromptLibrary();
-      if (page === 'brochures') loadBrochures();
+      if (page === 'brochures') loadWhatsappMessages();
       if (page === 'settings') loadSettings();
       closeSidebar();
     }
@@ -1050,14 +1050,15 @@ function getDashboardHtml() {
     // ─── Campaign Actions ───────────────────
     async function openCreateCampaignModal() {
       document.getElementById('create-campaign-modal').classList.add('open');
-      // Populate WhatsApp message dropdown
+      // Populate WhatsApp message dropdown (optional override — default is the Active template)
       try {
-        const r = await fetch('/api/brochures');
-        const data = await r.json();
+        const r = await fetch('/api/whatsapp-messages');
+        const msgs = await r.json();
         const sel = document.getElementById('cmp-whatsapp-msg');
-        sel.innerHTML = '<option value="">— None (no WhatsApp message) —</option>';
-        for (const [k, v] of Object.entries(data)) {
-          sel.innerHTML += '<option value="' + k + '">' + (v.name || k) + '</option>';
+        sel.innerHTML = '<option value="">— Use Active template —</option>';
+        for (const m of msgs) {
+          const label = m.name + (m.is_active ? ' (Active)' : '');
+          sel.innerHTML += '<option value="' + m.id + '">' + label + '</option>';
         }
       } catch {}
     }
@@ -1459,96 +1460,132 @@ function getDashboardHtml() {
       }
     }
 
-    // ─── Brochures ──────────────────────────
-    async function loadBrochures() {
-      const r = await fetch('/api/brochures');
-      const data = await r.json();
-      const el = document.getElementById('brochures-content');
-      const entries = Object.entries(data);
+    // ─── WhatsApp Messages ──────────────────
+    let editingWamId = null;
 
-      el.innerHTML = \`
+    async function loadWhatsappMessages() {
+      const r = await fetch('/api/whatsapp-messages');
+      const msgs = await r.json();
+      const el = document.getElementById('wam-content');
+
+      const header = \`
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
           <div>
             <h2 style="font-size:16px;font-weight:600;color:var(--text)">WhatsApp Messages</h2>
-            <p style="font-size:13px;color:var(--text-muted);margin-top:4px">Configure messages sent via WhatsApp when the AI agent offers to send details. Link a message to each campaign.</p>
+            <p style="font-size:13px;color:var(--text-muted);margin-top:4px">The template marked <strong>Active</strong> is the one sent when the AI agent shares details over WhatsApp.</p>
           </div>
-          <button class="btn btn-primary" onclick="openBrochureEditor()">
+          <button class="btn btn-primary" onclick="openWhatsappMessageEditor()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Add Message
+            New Message
           </button>
-        </div>
-        \${entries.length === 0 ? '<div class="empty-state" style="padding:48px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><h3>No WhatsApp messages configured</h3><p>Add a message to enable WhatsApp sending during calls</p></div>' :
-        '<div class="card-list">' + entries.map(([k, v]) => \`
-          <div class="card" style="cursor:default">
-            <div class="card-body">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
-                <div style="flex:1;min-width:200px">
-                  <div style="display:flex;align-items:center;gap:8px">
-                    <span style="font-size:15px;font-weight:600;color:var(--text)">\${esc(v.name)}</span>
-                    <span style="font-size:11px;color:var(--text-dim);background:var(--surface-raised);padding:2px 8px;border-radius:4px;font-family:monospace">\${esc(k)}</span>
-                  </div>
-                  <div style="margin-top:8px;font-size:13px">
-                    <div style="color:var(--text-muted);margin-bottom:4px">
-                      <span style="color:var(--text-dim)">URL:</span>
-                      <a href="\${esc(v.url)}" target="_blank" style="color:var(--accent-hover);word-break:break-all">\${esc(v.url)}</a>
-                    </div>
-                    <div style="color:var(--text-muted)">
-                      <span style="color:var(--text-dim)">Caption:</span> \${esc(v.caption || '(none)')}
-                    </div>
-                  </div>
+        </div>\`;
+
+      if (msgs.length === 0) {
+        el.innerHTML = header + '<div class="empty-state" style="padding:60px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg><h3>No WhatsApp messages yet</h3><p>Create your first template to enable post-call WhatsApp sending</p></div>';
+        return;
+      }
+
+      el.innerHTML = header + '<div class="card-list">' + msgs.map(m => {
+        const preview = (m.body || '').substring(0, 300);
+        const truncated = (m.body || '').length > 300;
+        return \`
+        <div class="card" style="cursor:default">
+          <div class="card-body">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+              <div style="flex:1;min-width:200px">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <span style="font-size:15px;font-weight:600;color:var(--text)">\${esc(m.name)}</span>
+                  \${m.is_active ? '<span class="badge-status badge-running"><span class="badge-dot"></span>Active</span>' : ''}
                 </div>
-                <div style="display:flex;gap:6px;flex-shrink:0">
-                  <button class="btn btn-secondary btn-sm" onclick="openBrochureEditor('\${esc(k)}')">Edit</button>
-                  <button class="btn btn-danger btn-sm" onclick="deleteBrochureEntry('\${esc(k)}')">Delete</button>
-                </div>
+                <div style="font-size:12px;color:var(--text-dim);margin-top:4px">\${(m.body || '').length.toLocaleString()} chars &middot; Updated \${new Date(m.updated_at).toLocaleDateString()}</div>
+                <pre style="margin-top:10px;font-size:12px;color:var(--text-muted);line-height:1.5;white-space:pre-wrap;max-height:80px;overflow:hidden;font-family:inherit">\${esc(preview)}\${truncated ? '...' : ''}</pre>
+                \${m.attachment_url ? '<div style="margin-top:8px;font-size:12px;color:var(--text-muted)"><span style="color:var(--text-dim)">📎 Attachment:</span> <a href="' + esc(m.attachment_url) + '" target="_blank" style="color:var(--accent-hover);word-break:break-all">' + esc(m.attachment_url) + '</a></div>' : ''}
+              </div>
+              <div style="display:flex;gap:6px;flex-shrink:0">
+                \${!m.is_active ? '<button class="btn btn-success btn-sm" onclick="activateWhatsappMessage(\\'' + m.id + '\\')">Set Active</button>' : '<button class="btn btn-amber btn-sm" onclick="deactivateWhatsappMessages()">Deactivate</button>'}
+                <button class="btn btn-secondary btn-sm" onclick="openWhatsappMessageEditor(\\'\${m.id}\\')">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteWhatsappMessageEntry(\\'\${m.id}\\')">Delete</button>
               </div>
             </div>
           </div>
-        \`).join('') + '</div>'}
-      \`;
+        </div>\`;
+      }).join('') + '</div>';
     }
 
-    let editingBrochureKey = null;
-
-    function openBrochureEditor(key) {
-      editingBrochureKey = key || null;
-      const modal = document.getElementById('brochure-editor-modal');
-      document.getElementById('be-title').textContent = key ? 'Edit WhatsApp Message' : 'Add WhatsApp Message';
-      document.getElementById('be-key').value = key || '';
-      document.getElementById('be-key').disabled = !!key;
-      document.getElementById('be-name').value = '';
-      document.getElementById('be-url').value = '';
-      document.getElementById('be-caption').value = '';
-      if (key) {
-        fetch('/api/brochures').then(r=>r.json()).then(data => {
-          const b = data[key];
-          if (b) {
-            document.getElementById('be-name').value = b.name || '';
-            document.getElementById('be-url').value = b.url || '';
-            document.getElementById('be-caption').value = b.caption || '';
-          }
+    function openWhatsappMessageEditor(id) {
+      editingWamId = id || null;
+      document.getElementById('wam-editor-title').textContent = id ? 'Edit WhatsApp Message' : 'New WhatsApp Message';
+      document.getElementById('wam-name').value = '';
+      document.getElementById('wam-body').value = '';
+      document.getElementById('wam-attachment').value = '';
+      if (id) {
+        fetch('/api/whatsapp-messages/' + id).then(r => r.json()).then(m => {
+          document.getElementById('wam-name').value = m.name || '';
+          document.getElementById('wam-body').value = m.body || '';
+          document.getElementById('wam-attachment').value = m.attachment_url || '';
         });
       }
-      modal.classList.add('open');
+      document.getElementById('wam-editor-modal').classList.add('open');
     }
 
-    function closeBrochureEditor() { document.getElementById('brochure-editor-modal').classList.remove('open'); editingBrochureKey = null; }
-
-    async function saveBrochureEntry() {
-      const key = editingBrochureKey || document.getElementById('be-key').value.trim();
-      const name = document.getElementById('be-name').value.trim();
-      const url = document.getElementById('be-url').value.trim();
-      const caption = document.getElementById('be-caption').value.trim();
-      if (!key || !name || !url) { alert('Key, name, and URL are required'); return; }
-      await fetch('/api/brochures', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, name, url, caption }) });
-      closeBrochureEditor();
-      loadBrochures();
+    function closeWhatsappMessageEditor() {
+      document.getElementById('wam-editor-modal').classList.remove('open');
+      editingWamId = null;
     }
 
-    async function deleteBrochureEntry(key) {
-      if (!confirm('Delete brochure "' + key + '"?')) return;
-      await fetch('/api/brochures/' + encodeURIComponent(key), { method: 'DELETE' });
-      loadBrochures();
+    async function saveWhatsappMessageEntry() {
+      const name = document.getElementById('wam-name').value.trim();
+      const body = document.getElementById('wam-body').value.trim();
+      const attachment = document.getElementById('wam-attachment').value.trim();
+      if (!name || !body) { alert('Name and body are required'); return; }
+      const payload = { name, body, attachment_url: attachment || null };
+      if (editingWamId) {
+        await fetch('/api/whatsapp-messages/' + editingWamId, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      } else {
+        await fetch('/api/whatsapp-messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      }
+      closeWhatsappMessageEditor();
+      loadWhatsappMessages();
+    }
+
+    async function deleteWhatsappMessageEntry(id) {
+      if (!confirm('Delete this WhatsApp message?')) return;
+      await fetch('/api/whatsapp-messages/' + id, { method: 'DELETE' });
+      loadWhatsappMessages();
+    }
+
+    async function activateWhatsappMessage(id) {
+      await fetch('/api/whatsapp-messages/' + id + '/activate', { method: 'POST' });
+      loadWhatsappMessages();
+    }
+
+    async function deactivateWhatsappMessages() {
+      await fetch('/api/whatsapp-messages/active', { method: 'DELETE' });
+      loadWhatsappMessages();
+    }
+
+    async function improveWhatsappMessage() {
+      const body = document.getElementById('wam-body').value.trim();
+      if (!body) { alert('Write something first, then AI can improve it.'); return; }
+      const btn = document.getElementById('wam-improve-btn');
+      const original = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = 'Improving…';
+      try {
+        const r = await fetch('/api/whatsapp-messages/improve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Improve failed');
+        if (data.body) document.getElementById('wam-body').value = data.body;
+      } catch (err) {
+        alert('Could not improve message: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = original;
+      }
     }
 
     // ─── Health ─────────────────────────────
