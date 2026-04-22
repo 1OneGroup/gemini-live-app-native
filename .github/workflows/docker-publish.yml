@@ -1,8 +1,10 @@
-name: Build & Push Docker Image
+name: Build & Push Docker Image (manual only — host-mode since 2026-04-22)
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+  # Was: push: branches: [main]
+  # Disabled when prod moved off Docker to systemd-managed host-mode.
+  # Re-enable by restoring the push trigger if rolling back to Docker.
 
 jobs:
   build-and-push:

@@ -21,8 +21,12 @@ Dashboard (port 8100 /) <───HTTP───> HTTP endpoints <─────
 
 ## Run
 
-- **Docker (prod shape):** `docker compose up -d --build`
-- **Local:** copy `.env.example` to `.env`, fill values, `npm install`, `npm start`
+- **Host (production):** `sudo systemctl {start|stop|restart|status} gemini-live-app-native`
+  - Logs: `journalctl -u gemini-live-app-native -f`
+  - Unit file: `deploy/gemini-live-app-native.service`
+  - Host-only env overrides: `.env.host.local` (gitignored; currently overrides `DATABASE_URL` to use 127.0.0.1 since the Docker `supabase-db` DNS doesn't resolve from the host).
+- **Local (dev):** `npm install && npm run dev` (node --watch src/index.js)
+- **Docker (archived; see `docs/archive/`):** kept for rollback only; not the active run mode. See `docs/local-migration-rollback.md`.
 - **Health:** `curl localhost:8100/health`
 - **Dashboard:** `http://localhost:8100/`
 
