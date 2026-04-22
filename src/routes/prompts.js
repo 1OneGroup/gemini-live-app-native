@@ -11,7 +11,7 @@ module.exports = (deps) => {
   // resetToDefault is only available on the prompts module itself — import it from the original
   // prompts module since it wasn't included in the deps passed from server.js at Phase 3.
   // It was available at server.js top level though, so we require it directly here.
-  const { resetToDefault } = require('../../prompts');
+  const { resetToDefault } = require('../prompts/prompts');
   const router = Router();
 
   // --- Runtime (file-override) prompt ---

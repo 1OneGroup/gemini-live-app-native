@@ -5,4 +5,4 @@ RUN npm ci --omit=dev
 COPY . .
 RUN mkdir -p /data/calls
 EXPOSE 8100
-CMD ["node", "server.js"]
+CMD ["node", "src/index.js"]

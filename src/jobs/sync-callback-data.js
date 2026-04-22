@@ -3,8 +3,8 @@
 // Called once at startup (after a short delay) to catch any data that was
 // written to the call store during a previous run but not yet persisted.
 
-const db = require('../../db');
-const store = require('../../call-store');
+const db = require('../db');
+const store = require('../lib/call-store');
 
 async function syncCallbackData() {
   const allCalls = store.listCalls();

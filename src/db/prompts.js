@@ -46,7 +46,7 @@ async function seedDefaultPrompt() {
   const row = await queryOne('SELECT COUNT(*) as c FROM prompts');
   if (Number(row.c) === 0) {
     try {
-      const { DEFAULT_PROMPT } = require('../../prompts');
+      const { DEFAULT_PROMPT } = require('../prompts/prompts');
       if (DEFAULT_PROMPT) {
         const id = uid();
         await execute(

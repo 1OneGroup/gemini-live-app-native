@@ -2,7 +2,7 @@
 // Cron job: daily at 11:00 AM IST (5:30 AM UTC), dials any contacts whose
 // callback_date is due. Only runs for campaigns with auto_callback enabled.
 
-const db = require('../../db');
+const db = require('../db');
 
 // Dial all due callback contacts across all auto_callback-enabled campaigns.
 // makeCallFn — the makeCall function from src/plivo/outbound.js (injected to

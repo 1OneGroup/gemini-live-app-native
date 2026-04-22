@@ -9,8 +9,8 @@
 
 const { WebSocket } = require('ws');
 const { MAX_RECONNECTIONS } = require('../config/constants');
-const { getSystemInstruction } = require('../../prompts');
-const store = require('../../call-store');
+const { getSystemInstruction } = require('../prompts/prompts');
+const store = require('../lib/call-store');
 const { getActiveModel } = require('../config/models');
 const { buildSetupPayload } = require('./setup-payload');
 const { createMessageHandler, triggerOpeningGreeting } = require('./message-handler');

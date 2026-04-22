@@ -1,6 +1,6 @@
 // Batch execution engine — orchestrates campaign calling with AI analysis between batches
-const db = require('../../db');
-const store = require('../../call-store');
+const db = require('../db');
+const store = require('../lib/call-store');
 const deepseek = require('../integrations/deepseek');
 const { classifyOutcome: _classifyOutcome } = require('../lib/outcome-classifier');
 const { safeJsonParse } = require('../lib/safe-json');

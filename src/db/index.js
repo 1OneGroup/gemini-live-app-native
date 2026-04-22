@@ -54,3 +54,17 @@ async function init() {
 }
 
 module.exports = { pool, init, uid, queryOne, queryAll, execute, rawQuery, rawExecute };
+
+// Barrel: merge CRUD surface from sibling modules so `require('../db')`
+// gives callers the same flat namespace that the old root-level db.js
+// facade exposed. Loaded lazily after module.exports is populated so that
+// siblings' `require('./index')` resolves to the already-assigned pool/helpers.
+Object.assign(
+  module.exports,
+  require('./campaigns'),
+  require('./contacts'),
+  require('./analyses'),
+  require('./prompts'),
+  require('./whatsapp-messages'),
+  require('./employees'),
+);

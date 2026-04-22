@@ -5,12 +5,12 @@
 require('dotenv').config();
 
 const http = require('http');
-const { getDashboardHtml } = require('../dashboard');
-const db = require('../db');
-const { getSystemInstruction, saveSystemInstruction, isUsingOverride, DEFAULT_PROMPT } = require('../prompts');
-const store = require('../call-store');
-const batchEngine = require('../batch-engine');
-const whatsapp = require('../whatsapp');
+const { getDashboardHtml } = require('./dashboard');
+const db = require('./db');
+const { getSystemInstruction, saveSystemInstruction, isUsingOverride, DEFAULT_PROMPT } = require('./prompts/prompts');
+const store = require('./lib/call-store');
+const batchEngine = require('./jobs/batch-engine');
+const whatsapp = require('./integrations/whatsapp');
 const { safeJsonParse } = require('./lib/safe-json');
 const { normalizePhone } = require('./lib/phone');
 const { USD_INR, PLIVO_RATE, callCostInr } = require('./lib/pricing');

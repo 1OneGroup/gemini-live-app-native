@@ -47,7 +47,7 @@ function setBrochure(projectKey, { name, url, caption }) {
 async function resolveInstance(employeeName) {
   if (!employeeName) return getDefaultInstance();
   try {
-    const db = require('../../db');
+    const db = require('../db');
     const emp = await db.getEmployeeByName(employeeName);
     if (emp?.instance_name) return emp.instance_name;
   } catch {}
@@ -63,7 +63,7 @@ function wamToBrochure(m) {
 }
 
 async function resolveMessage(ref) {
-  const db = (() => { try { return require('../../db'); } catch { return null; } })();
+  const db = (() => { try { return require('../db'); } catch { return null; } })();
 
   if (db && ref) {
     try {

@@ -18,7 +18,7 @@
 'use strict';
 
 const { WebSocket } = require('ws');
-const { pcm24kToMulaw } = require('../../audio-utils');
+const { pcm24kToMulaw } = require('../plivo/audio-utils');
 const { MAX_RECONNECTIONS, goodbyePhrases } = require('../config/constants');
 const { OPENING_GREETING_CUE, CONTINUATION_CUE } = require('../prompts/runtime-cues');
 const { startGeminiPing, GEMINI_SESSION_MAX_MS } = require('./keepalive');
